@@ -67,10 +67,16 @@ final class Player {
      * Plans a walk to a tile, or as near to it as can be reached,
      * replacing any walk already under way. Walking starts on the next
      * game tick.
+     *
+     * @return whether the walk will end on that very tile
      */
-    void WalkTo(int tileX, int tileY) {
+    boolean WalkTo(int tileX, int tileY) {
         routeLen = pathfinder.Find(x, y, tileX, tileY, route);
         routePos = 0;
+
+        int endX = routeLen == 0 ? x : DestX();
+        int endY = routeLen == 0 ? y : DestY();
+        return endX == tileX && endY == tileY;
     }
 
     /** Advances one game tick: takes the next step of the walk. */

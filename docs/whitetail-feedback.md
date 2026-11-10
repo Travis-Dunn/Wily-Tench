@@ -51,6 +51,8 @@ run on Windows of any age.
 | C14 | `Sprites.java` hard-codes each atlas's frames per row |
 | C15 | `AtlasTool.java` converts and pads the art |
 | C16 | `WorldScene.java` carries fractional milliseconds between frames |
+| C18 | `Font.java`, `Text.java`, `Gfx.java`, and `FontTool.java` are the game's own text and drawing code |
+| C19 | `ChatBox.java` uses only the direction of the mouse wheel |
 
 ---
 
@@ -328,6 +330,55 @@ needed nothing new. The cost is three validated calls per tile
 boundary, around 5,000 calls at 640x360. Unmeasurable here; worth timing
 on the ThinkPad.
 
+**C18. Notes from writing the text renderer Whitetail does not have.**
+*(Hit)*  
+Status: open. Whitetail's readme says text is left out because its
+contract is not yet clear; this is what the contract turned out to be for
+this game, in case it helps.
+
+- *Fonts are bitmaps drawn one font pixel to one screen pixel.* No
+  scaling, no smoothing, proportional widths. For the indexed framebuffer
+  `comp-sprite-sys` draws into, nothing else looks right. A glyph is an
+  advance, an offset, and a 1-bit bitmap; the whole format is a dozen
+  lines (see `FontTool.java`).
+- *The source of truth is BDF.* It is plain text, public bitmap fonts
+  come in it, and it needs no rasterizer, so the converter is exact. TTF
+  is supported as a second route by drawing each glyph once, unsmoothed.
+- *Drawing takes a `CharSequence` and a start and end.* That lets a
+  `StringBuffer` being typed into, or part of a wrapped message, be drawn
+  without creating a string, so drawing text every frame allocates
+  nothing.
+- *Three calls were enough:* plain, drop-shadowed, and outlined. The
+  outline is precomputed per glyph when the font loads, and the whole
+  run's outline is drawn before any of its letters, or each letter's
+  outline eats its neighbor.
+- *Measuring and line-breaking belong with the font,* not the drawing
+  code: `Width()` and `Fit()` are used by layout code that never draws.
+- *Text needs a clip rectangle,* and so do filled rectangles and
+  outlines. `SpriteRenderer` has exactly one, fixed at `Init()`. The game
+  ended up with its own small drawing layer (`Gfx.java`) alongside the
+  sprite renderer, sharing the same `byte[]`. A Whitetail component for
+  "indexed framebuffer primitives" - fill, outline, blit a 1-bit mask,
+  with a settable clip - would be the natural home for text and would
+  have saved most of this.
+
+**C19. The mouse wheel's units are whatever the system says.** *(Hit)*  
+Status: open.
+`comp-input-lwjgl` documents the wheel as "LWJGL's raw delta ... in units
+the operating system decides". A game cannot turn that into "lines to
+scroll" without guessing, so the chat box uses only its sign and scrolls
+one line per frame in which the wheel moved, which loses fast spins.
+Normalizing to notches in the backend would fix it for everyone.
+
+**C20. `InputSys` has no notion of input being used up.** *(Hit)*  
+Status: open. An observation for later rather than a problem today.
+The chat box reads typed characters from the event list while the scene
+reads `WasPressed()` for the same keys. Today the only key the scene
+reads is Escape, so nothing clashes. As soon as the game has key
+bindings, typing "m" in chat will also open the map unless the game
+invents its own focus rule. `comp-input-mapper` could carry a "text entry
+is active, suppress plain-key actions" switch.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
@@ -343,3 +394,5 @@ Worth recording, so they are not "fixed" by accident.
 - The sprite renderer, atlas format, and animation classes all worked
   first time from the readme alone, and a session of walking around the
   map logged no garbage collections at all.
+- Text entry through `InputSys.GetEvent()` worked first time, including
+  held-backspace repeat, exactly as the readme describes.

@@ -60,9 +60,14 @@ Some other standing facts:
 
 You can walk around a small cave. Left click a tile and the character
 walks there by the shortest route, one tile per tick, or as close as it can
-get if the tile is solid. The view follows. Escape quits.
+get if the tile is solid. The view follows. The name of whatever is under
+the mouse is shown at the top left.
 
-There are no skills, monsters, items, or interface yet.
+Below the view is a chat box, as in RuneScape. The game writes its
+messages there; anything you type appears on the bottom row and Enter says
+it. The mouse wheel, or Page Up and Page Down, scroll back. Escape quits.
+
+There are no skills, monsters, items, or side panel contents yet.
 
 ## Running it in IntelliJ
 
@@ -123,6 +128,8 @@ which is what makes that practical.
 | `Pathfinder`, `Player` | Finding a route and walking it, one tile per tick |
 | `WorldScene` | Ties the above together: input, updating, drawing |
 | `Gfx` | Rectangles and outlines drawn straight into the picture |
+| `Font`, `Text` | Bitmap fonts, and drawing writing with them |
+| `ChatBox` | The message history and typing line under the view |
 
 Maps are text files in `src/main/resources/maps`, one character per tile;
 the key is at the top of `World.java`.
@@ -141,3 +148,28 @@ configuration or:
 Things the art does not have, which shape the game: characters face one
 way and have no walking animation (they have idle, hurt, angry, and sick
 poses), and the scenery is caves and dungeons, with no outdoors.
+
+## Fonts
+
+Whitetail has no text rendering, so the game has its own. Fonts are
+bitmaps, drawn one font pixel to one game pixel with no smoothing, which
+is what keeps writing as crisp as the rest of the pixel art.
+
+| Game font | Made from | Used for |
+| --------- | --------- | -------- |
+| `small.fnt` | `fonts/helvR08.bdf` | Chat, labels, nearly everything |
+| `bold.fnt` | `fonts/helvB08.bdf` | Emphasis (not used yet) |
+| `title.fnt` | `fonts/helvB12.bdf` | Headings |
+
+The sources are the 8 and 12 pixel bitmap Helvetica that shipped with the
+X Window System, hand-drawn for low resolution screens in the 1980s. Their
+permissive license is reproduced in `fonts/readme.txt`.
+
+To change a font, put a `.bdf` bitmap font or a `.ttf` pixel font in
+`fonts/`, point a row of the `JOBS` table at the top of `FontTool` at it
+(a `.ttf` also needs the pixel size it was designed for), and run the
+**Build Fonts** run configuration or:
+
+    mvn test-compile exec:java@fonts
+
+Nothing else needs to change; layouts measure the font they are given.

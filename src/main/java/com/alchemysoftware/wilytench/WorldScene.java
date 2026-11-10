@@ -11,12 +11,12 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
 import com.alchemysoftware.whitetail.timer.Timer;
 
 /**
- * The game world: the map, the player's character, and the view of
- * them.
+ * The game world: the map, the player's character, the view of them,
+ * and the interface around that view.
  *
  * Left click walks the character to the clicked tile, or as close as it
- * can get. The view stays centered on the character. Escape closes the
- * game.
+ * can get. The view stays centered on the character. Typing goes to the
+ * chat box. Escape closes the game.
  */
 final class WorldScene extends Scene {
     private static final int TILE = Sprites.TILE;
@@ -31,7 +31,16 @@ final class WorldScene extends Scene {
     private static final int MARKER_ARM = 4;
     private static final int NOWHERE = -1;
 
-    private byte[] buf;
+    private static final int HOVER_TEXT_X = 4, HOVER_TEXT_Y = 3;
+    private static final int TITLE_Y = 6;
+
+    private static final String TITLE = Screen.TITLE;
+    private static final String MSG_WELCOME = "Welcome to " + TITLE + ".";
+    private static final String MSG_HOW_TO = "Click to walk. Type and " +
+            "press Enter to talk to yourself.";
+    private static final String MSG_CANT_REACH = "You can't reach that.";
+    private static final String HOVER_WALK = "Walk here";
+
     private int w, h;
     private int viewPortX, viewPortY, viewW, viewH;
 
@@ -39,6 +48,9 @@ final class WorldScene extends Scene {
     private World world;
     private TileView tiles;
     private Player player;
+
+    private Font smallFont, titleFont;
+    private ChatBox chat;
 
     /* The map pixel at the top left of the viewport, as last drawn. */
     private int viewX, viewY;
@@ -52,14 +64,23 @@ final class WorldScene extends Scene {
     @Override
     public void onInit() {
         DisplayLayout layout = Screen.GetLayout();
+        byte[] buf = Screen.GetIndexBuf();
 
-        buf = Screen.GetIndexBuf();
         w = Screen.GetW();
         h = Screen.GetH();
         viewPortX = layout.viewportX;
         viewPortY = layout.viewportY;
         viewW = layout.viewportWidth;
         viewH = layout.viewportHeight;
+
+        Gfx.Init(buf, w, h);
+
+        if ((smallFont = Font.Load("small.fnt")) == null) return;
+        if ((titleFont = Font.Load("title.fnt")) == null) return;
+        chat = new ChatBox(smallFont, viewPortX, viewPortY + viewH, viewW,
+                h - viewPortY - viewH);
+        chat.Add(MSG_WELCOME, Palette.BONE);
+        chat.Add(MSG_HOW_TO, Palette.ASH);
 
         if ((world = World.Load(MAP)) == null) return;
 
@@ -97,8 +118,11 @@ final class WorldScene extends Scene {
             mouseX = mouseY = NOWHERE;
         }
 
-        if (mouseX != NOWHERE && InputSys.WasPressed(Button.MOUSE_LEFT))
-            player.WalkTo(TileUnderMouseX(), TileUnderMouseY());
+        if (mouseX != NOWHERE && InputSys.WasPressed(Button.MOUSE_LEFT) &&
+                !player.WalkTo(TileUnderMouseX(), TileUnderMouseY()))
+            chat.Add(MSG_CANT_REACH, Palette.BONE);
+
+        chat.Input(fbX, fbY);
     }
 
     @Override
@@ -123,46 +147,68 @@ final class WorldScene extends Scene {
 
     @Override
     public void onRender() {
-        int clipX1 = viewPortX + viewW, clipY1 = viewPortY + viewH;
-
         SpriteRenderer.Clear(Palette.BACKGROUND);
         SpriteRenderer.Render(viewX, viewY);
 
+        Gfx.SetClip(viewPortX, viewPortY, viewW, viewH);
         if (player.Walking()) {
-            Gfx.Corners(buf, w,
-                    viewPortX + player.DestX() * TILE - viewX,
+            Gfx.Corners(viewPortX + player.DestX() * TILE - viewX,
                     viewPortY + player.DestY() * TILE - viewY,
-                    TILE, TILE, MARKER_ARM, Palette.AMBER,
-                    viewPortX, viewPortY, clipX1, clipY1);
+                    TILE, TILE, MARKER_ARM, Palette.AMBER);
         }
+        if (mouseX != NOWHERE) DrawHover();
+        Gfx.ClearClip();
 
-        if (mouseX != NOWHERE) {
-            int tx = TileUnderMouseX(), ty = TileUnderMouseY();
-            Gfx.Outline(buf, w,
-                    viewPortX + tx * TILE - viewX,
-                    viewPortY + ty * TILE - viewY, TILE, TILE,
-                    world.Solid(tx, ty) ? Palette.RUST : Palette.BONE,
-                    viewPortX, viewPortY, clipX1, clipY1);
-        }
-
-        /* The interface panel: empty for now. */
-        Gfx.FillRect(buf, w, clipX1, 0, w - clipX1, h, Palette.NIGHT,
-                0, 0, w, h);
-        Gfx.FillRect(buf, w, clipX1, 0, 1, h, Palette.SLATE, 0, 0, w, h);
+        chat.Draw();
+        DrawPanel();
     }
 
     @Override
     public void onDestroy() {
         if (spritesInit) SpriteRenderer.Shutdown();
         spritesInit = false;
+        Gfx.Shutdown();
         world = null;
         tiles = null;
         player = null;
-        buf = null;
+        chat = null;
+        smallFont = titleFont = null;
     }
 
     @Override
     public boolean handleEvent(Event e) { return false; }
+
+    /* Outlines the tile under the mouse and names what is on it. */
+    private void DrawHover() {
+        int tx = TileUnderMouseX(), ty = TileUnderMouseY();
+        boolean solid = world.Solid(tx, ty);
+        String name = world.Name(tx, ty);
+
+        Gfx.Outline(viewPortX + tx * TILE - viewX,
+                viewPortY + ty * TILE - viewY, TILE, TILE,
+                solid ? Palette.RUST : Palette.BONE);
+
+        if (name != null) {
+            Text.DrawOutlined(smallFont, name, 0, name.length(),
+                    viewPortX + HOVER_TEXT_X, viewPortY + HOVER_TEXT_Y,
+                    Palette.MINT, Palette.INK);
+        } else if (!solid) {
+            Text.DrawOutlined(smallFont, HOVER_WALK, 0, HOVER_WALK.length(),
+                    viewPortX + HOVER_TEXT_X, viewPortY + HOVER_TEXT_Y,
+                    Palette.BONE, Palette.INK);
+        }
+    }
+
+    /* The interface panel: only a title for now. */
+    private void DrawPanel() {
+        int panelX = viewPortX + viewW, panelW = w - panelX;
+
+        Gfx.FillRect(panelX, 0, panelW, h, Palette.NIGHT);
+        Gfx.FillRect(panelX, 0, 1, h, Palette.SLATE);
+        Text.DrawShadowed(titleFont, TITLE, 0, TITLE.length(),
+                panelX + (panelW - titleFont.Width(TITLE, 0,
+                TITLE.length())) / 2, TITLE_Y, Palette.AMBER, Palette.INK);
+    }
 
     private int TileUnderMouseX() {
         return TileView.FloorDiv(viewX + mouseX, TILE);

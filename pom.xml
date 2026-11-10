@@ -249,9 +249,10 @@
                 </executions>
             </plugin>
 
-            <!-- Rebuilds src/main/resources/sprites from the purchased
-                 art: "mvn test-compile exec:java@atlases". Only needed
-                 after AtlasTool or the art changes; the results are
+            <!-- Rebuilds the game's sprite atlases and fonts from their
+                 sources: "mvn test-compile exec:java@atlases" and
+                 "mvn test-compile exec:java@fonts". Only needed after a
+                 tool or a source file changes; the results are
                  committed. -->
             <plugin>
                 <groupId>org.codehaus.mojo</groupId>
@@ -259,6 +260,17 @@
                 <version>${exec.maven.plugin.version}</version>
 
                 <executions>
+                    <execution>
+                        <id>fonts</id>
+
+                        <configuration>
+                            <mainClass>
+                                com.alchemysoftware.wilytench.FontTool
+                            </mainClass>
+                            <classpathScope>test</classpathScope>
+                        </configuration>
+                    </execution>
+
                     <execution>
                         <id>atlases</id>
 

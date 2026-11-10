@@ -1,23 +1,56 @@
 package com.alchemysoftware.wilytench;
 
 /**
- * Direct drawing into the index buffer, for the things that are not
- * sprites: panels, outlines, and markers.
+ * Direct drawing into the picture, for the things that are not sprites:
+ * panels, outlines, markers, and (through Text) writing.
+ *
+ * Everything drawn is cut off at the clip rectangle, which starts as
+ * the whole picture.
  */
 final class Gfx {
+    /* Shared with Text, which draws into the same picture. */
+    static byte[] buf;
+    static int bufW, bufH;
+    static int clipX0, clipY0, clipX1, clipY1;
+
     private Gfx() {}
 
     /**
-     * Fills a rectangle with one palette index. Only the part inside
-     * the clip rectangle, which runs from (clipX0, clipY0) up to but
-     * not including (clipX1, clipY1), is drawn.
-     *
      * @param buf the index buffer from Screen.GetIndexBuf()
-     * @param bufW the width of that buffer in pixels
+     * @param w the width of that buffer in pixels
+     * @param h the height of that buffer in pixels
      */
-    static void FillRect(byte[] buf, int bufW, int x, int y, int w, int h,
-                         int index, int clipX0, int clipY0, int clipX1,
-                         int clipY1) {
+    static void Init(byte[] buf, int w, int h) {
+        Gfx.buf = buf;
+        bufW = w;
+        bufH = h;
+        ClearClip();
+    }
+
+    static void Shutdown() {
+        buf = null;
+        bufW = bufH = clipX0 = clipY0 = clipX1 = clipY1 = 0;
+    }
+
+    /**
+     * Limits drawing to a rectangle, itself limited to the picture.
+     */
+    static void SetClip(int x, int y, int w, int h) {
+        clipX0 = Math.max(x, 0);
+        clipY0 = Math.max(y, 0);
+        clipX1 = Math.min(x + w, bufW);
+        clipY1 = Math.min(y + h, bufH);
+    }
+
+    /** Lets drawing reach the whole picture again. */
+    static void ClearClip() {
+        clipX0 = clipY0 = 0;
+        clipX1 = bufW;
+        clipY1 = bufH;
+    }
+
+    /** Fills a rectangle with one palette index. */
+    static void FillRect(int x, int y, int w, int h, int index) {
         int x0 = Math.max(x, clipX0), y0 = Math.max(y, clipY0);
         int x1 = Math.min(x + w, clipX1), y1 = Math.min(y + h, clipY1);
         byte b = (byte) index;
@@ -28,46 +61,28 @@ final class Gfx {
         }
     }
 
-    /**
-     * Draws the one-pixel outline of a rectangle, clipped as FillRect().
-     */
-    static void Outline(byte[] buf, int bufW, int x, int y, int w, int h,
-                        int index, int clipX0, int clipY0, int clipX1,
-                        int clipY1) {
-        FillRect(buf, bufW, x, y, w, 1, index,
-                clipX0, clipY0, clipX1, clipY1);
-        FillRect(buf, bufW, x, y + h - 1, w, 1, index,
-                clipX0, clipY0, clipX1, clipY1);
-        FillRect(buf, bufW, x, y, 1, h, index,
-                clipX0, clipY0, clipX1, clipY1);
-        FillRect(buf, bufW, x + w - 1, y, 1, h, index,
-                clipX0, clipY0, clipX1, clipY1);
+    /** Draws the one-pixel outline of a rectangle. */
+    static void Outline(int x, int y, int w, int h, int index) {
+        FillRect(x, y, w, 1, index);
+        FillRect(x, y + h - 1, w, 1, index);
+        FillRect(x, y, 1, h, index);
+        FillRect(x + w - 1, y, 1, h, index);
     }
 
     /**
      * Draws only the corners of a rectangle's outline, each arm len
-     * pixels long, clipped as FillRect().
+     * pixels long.
      */
-    static void Corners(byte[] buf, int bufW, int x, int y, int w, int h,
-                        int len, int index, int clipX0, int clipY0,
-                        int clipX1, int clipY1) {
+    static void Corners(int x, int y, int w, int h, int len, int index) {
         int r = x + w - 1, b = y + h - 1;
 
-        FillRect(buf, bufW, x, y, len, 1, index,
-                clipX0, clipY0, clipX1, clipY1);
-        FillRect(buf, bufW, x, y, 1, len, index,
-                clipX0, clipY0, clipX1, clipY1);
-        FillRect(buf, bufW, r - len + 1, y, len, 1, index,
-                clipX0, clipY0, clipX1, clipY1);
-        FillRect(buf, bufW, r, y, 1, len, index,
-                clipX0, clipY0, clipX1, clipY1);
-        FillRect(buf, bufW, x, b, len, 1, index,
-                clipX0, clipY0, clipX1, clipY1);
-        FillRect(buf, bufW, x, b - len + 1, 1, len, index,
-                clipX0, clipY0, clipX1, clipY1);
-        FillRect(buf, bufW, r - len + 1, b, len, 1, index,
-                clipX0, clipY0, clipX1, clipY1);
-        FillRect(buf, bufW, r, b - len + 1, 1, len, index,
-                clipX0, clipY0, clipX1, clipY1);
+        FillRect(x, y, len, 1, index);
+        FillRect(x, y, 1, len, index);
+        FillRect(r - len + 1, y, len, 1, index);
+        FillRect(r, y, 1, len, index);
+        FillRect(x, b, len, 1, index);
+        FillRect(x, b - len + 1, 1, len, index);
+        FillRect(r - len + 1, b, len, 1, index);
+        FillRect(r, b - len + 1, 1, len, index);
     }
 }

@@ -61,9 +61,12 @@ final class World {
 
     private final short[] floor, object;
     private final boolean[] solid, animated;
+    private final String[] names;
 
     private World(int w, int h, int startX, int startY, short[] floor,
-                  short[] object, boolean[] solid, boolean[] animated) {
+                  short[] object, boolean[] solid, boolean[] animated,
+                  String[] names) {
+        this.names = names;
         this.w = w;
         this.h = h;
         this.startX = startX;
@@ -91,6 +94,7 @@ final class World {
 
         short[] floor = new short[w * h], object = new short[w * h];
         boolean[] solid = new boolean[w * h], animated = new boolean[w * h];
+        String[] names = new String[w * h];
         int startX = -1, startY = -1;
 
         for (y = 0; y < h; y++) {
@@ -107,6 +111,7 @@ final class World {
                 case '#':
                 case '%':
                     object[i] = (short) WallFrame(rows, x, y, c);
+                    names[i] = "Cave wall";
                     continue;
                 case ',':
                     floor[i] = (short) Sprites.Cave(8 + (mix & 1), 3);
@@ -132,39 +137,49 @@ final class World {
                     startY = y;
                     break;
                 case 'w':
+                    names[i] = "Cobweb";
                     solid[i] = false;
                     object[i] = (short) Sprites.Cave(0, 18);
                     break;
                 case 'r':
+                    names[i] = "Rocks";
                     object[i] = (short) Sprites.Cave(5 + (mix >> 4 & 1), 1);
                     break;
                 case 'R':
+                    names[i] = "Rocks";
                     object[i] = (short) Sprites.Cave(5 + (mix >> 4 & 1), 4);
                     break;
                 case 's':
+                    names[i] = "Stalagmites";
                     object[i] = (short) Sprites.Cave(
                             (mix >>> 4) % STALAGMITE_KINDS, 6);
                     break;
                 case 'S':
+                    names[i] = "Stalagmites";
                     object[i] = (short) Sprites.Cave(
                             (mix >>> 4) % STALAGMITE_KINDS, 8);
                     break;
                 case 'c':
+                    names[i] = "Crystal";
                     object[i] = (short) Sprites.Cave(
                             (mix >>> 4) % CRYSTAL_KINDS, 16);
                     break;
                 case 'm':
+                    names[i] = "Mushrooms";
                     object[i] = (short) Sprites.Cave(
                             (mix >>> 4) % MUSHROOM_KINDS, 17);
                     break;
                 case 't':
+                    names[i] = "Torch";
                     object[i] = (short) Sprites.Cave(0, 14);
                     animated[i] = true;
                     break;
                 case 'b':
+                    names[i] = "Barrel";
                     object[i] = (short) Sprites.Cave(1, 13);
                     break;
                 case 'p':
+                    names[i] = "Pot";
                     object[i] = (short) Sprites.Cave(0, 13);
                     break;
                 default:
@@ -180,7 +195,7 @@ final class World {
             return null;
         }
         return new World(w, h, startX, startY, floor, object, solid,
-                animated);
+                animated, names);
     }
 
     /** @return whether the tile is inside the map */
@@ -191,6 +206,11 @@ final class World {
     /** @return true if nothing can stand there; true outside the map */
     boolean Solid(int x, int y) {
         return !Contains(x, y) || solid[y * w + x];
+    }
+
+    /** @return what stands on the tile, or null if nothing does */
+    String Name(int x, int y) {
+        return Contains(x, y) ? names[y * w + x] : null;
     }
 
     /** @return the cave atlas frame of the ground, or NO_FRAME */
