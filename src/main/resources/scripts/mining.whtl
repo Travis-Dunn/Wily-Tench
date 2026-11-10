@@ -1,0 +1,57 @@
+// Mining an ordinary ore rock.
+//
+// One script serves every rock of the "ore_rock" category. What differs
+// from rock to rock (the ore, the level, the experience, the odds, how
+// long it stays empty) is read from the rock with loc_int and
+// loc_string; Loc.java holds those values.
+//
+// One run of this script is one swing. A swing that fails asks, with
+// again(), to be run once more, and so on until the rock gives up its
+// ore or the player turns to something else.
+
+[oploc,_ore_rock]
+interruptible()
+
+if (loc_empty() = 1) {
+    // Said on the player's own click, not when the rock runs dry
+    // between swings.
+    if (repeating() = 0) {
+        mes("There is no ore left in this rock for the moment.")
+    }
+    return
+}
+if (inv_has("bronze_hammer") = 0) {
+    mes("You need a hammer to mine this rock.")
+    return
+}
+if (stat_level("mining") < loc_int("level")) {
+    mes(join(join("You need a Mining level of ", str(loc_int("level"))),
+            " to mine this rock."))
+    return
+}
+if (inv_free() = 0) {
+    mes(join(join("Your inventory is too full to hold any more ",
+            item_name(loc_string("ore"))), "."))
+    return
+}
+
+if (repeating() = 0) {
+    mes("You swing your hammer at the rock.")
+}
+anim("work")
+delay(3)
+
+if (loc_empty() = 1) {
+    return
+}
+if (stat_roll(stat_level("mining"), loc_int("chance_at_1"),
+        loc_int("chance_at_99")) = 0) {
+    again()
+    return
+}
+
+inv_add(loc_string("ore"))
+loc_empty_for(loc_int("respawn"))
+mes(join(join("You manage to mine some ", item_name(loc_string("ore"))),
+        "."))
+stat_xp("mining", loc_int("xp"))

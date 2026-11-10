@@ -11,14 +11,21 @@ import com.alchemysoftware.whitetail.script.ScriptState;
  * This is the game's rules with no window attached; WorldScene shows it
  * and feeds it the player's wishes, and the tests drive it directly.
  *
- * Advance() moves everything on by one game tick, in a fixed order: the
- * map the player is on, then the player's movement, then whichever one
- * thing the player is doing. That is either a script that is part-way
- * through, or else mining, or else using whatever the player has just
- * walked up to, which starts a script.
+ * The player gives two kinds of order: WalkTo() a tile, and Use() a
+ * loc, which walks up beside it and then runs its script. Advance()
+ * moves everything on by one game tick, in a fixed order: the map the
+ * player is on, then the player's movement, then the script in
+ * progress, or the start of one if the player has just arrived at
+ * something to use.
  *
- * While a script is part-way through, the player is Busy() and should
- * not be given new orders.
+ * Only one script runs at a time. While it does, the player is Busy().
+ * A script that has not called interruptible() also has the player
+ * Held(): new orders are ignored until it ends. An order given while
+ * merely busy cancels the script.
+ *
+ * The methods named Script... and ...UsedLoc... are for the commands
+ * in Scripts, and speak of the script in progress and the loc it is
+ * about.
  */
 final class Session {
     final World[] worlds;
@@ -27,10 +34,18 @@ final class Session {
     final Inventory inventory = new Inventory();
     final PlayerVars vars;
     final ChatBox chat;
-    final Mining mining;
+    final Random rng;
 
     private int tick, map;
+
+    /* The script in progress, the loc it is about, and where that is. */
     private ScriptState script;
+    private String scriptSubject;
+    private Loc usedLoc;
+    private World usedWorld;
+    private int usedX, usedY;
+
+    private boolean interruptible, againAsked, repeating;
 
     private Session(World[] worlds, Player player, PlayerVars vars,
                     ChatBox chat, Random rng) {
@@ -38,7 +53,7 @@ final class Session {
         this.player = player;
         this.vars = vars;
         this.chat = chat;
-        mining = new Mining(this, rng);
+        this.rng = rng;
     }
 
     /**
@@ -49,6 +64,7 @@ final class Session {
      *
      * @param mapFiles files in the "maps" resource folder
      * @param scriptFiles files in the "scripts" resource folder
+     * @param rng the dice for everything in the game left to chance
      * @return the session, or null after a fatal error has been
      *         reported
      */
@@ -89,25 +105,63 @@ final class Session {
     /** @return game ticks since this game was begun */
     int Tick() { return tick; }
 
-    /** @return whether a script is part-way through */
+    /** @return whether a script is in progress */
     boolean Busy() { return script != null; }
+
+    /** @return whether a script is in progress that orders cannot cancel */
+    boolean Held() { return script != null && !interruptible; }
 
     /**
      * @return whether the thing on a tile of this map can be used,
      *         which is to say whether a script exists for it
      */
     boolean Usable(int tileX, int tileY) {
-        return Scripts.CanUse(Here().LocAt(tileX, tileY));
+        return Scripts.UseSubject(Here().LocAt(tileX, tileY)) != null;
+    }
+
+    /**
+     * Orders a walk to a tile, or as near to it as can be reached,
+     * cancelling whatever the player was doing. Ignored while Held().
+     *
+     * @return false only if the walk will not end on that very tile
+     */
+    boolean WalkTo(int tileX, int tileY) {
+        if (Held()) return true;
+        EndScript();
+        return player.WalkTo(tileX, tileY);
+    }
+
+    /**
+     * Orders the player to walk up to the loc on a tile and use it,
+     * cancelling whatever the player was doing. Ignored while Held().
+     */
+    void Use(int tileX, int tileY) {
+        if (Held()) return;
+        EndScript();
+        player.WalkToTarget(tileX, tileY);
     }
 
     /**
      * Moves the player to the start of a map at once, dropping any
-     * walk or job. Scripts do this through their travel command.
+     * walk. Scripts do this through their travel command.
      */
     void Travel(int mapIndex) {
         Arrive(mapIndex, worlds[mapIndex].startX, worlds[mapIndex].startY);
         Here().Tick(tick);
         chat.Add("You arrive in the " + Here().name + ".", Palette.BONE);
+    }
+
+    /**
+     * Awards experience, and says so in the chat box if it brings a
+     * new level.
+     */
+    void GainXp(int skill, int tenths) {
+        if (!skills.AddXp(skill, tenths)) return;
+
+        String name = Skills.Name(skill);
+        chat.Add("Congratulations, you just advanced a " + name +
+                " level! Your " + name + " level is now " +
+                skills.Level(skill) + ".", Palette.AMBER);
     }
 
     /** Advances the whole game by one tick. */
@@ -118,8 +172,8 @@ final class Session {
 
         if (script != null) {
             script = Scripts.Tick(script);
+            if (script == null) AfterRun();
         } else {
-            mining.Tick();
             UseTarget();
         }
     }
@@ -134,25 +188,72 @@ final class Session {
         Here().Tick(tick);
     }
 
-    /* Once the player has finished walking to a target that is not an
-       ore rock, uses it, if it has a script and is within reach. */
+    void ScriptInterruptible() { interruptible = true; }
+
+    void ScriptAgain() { againAsked = true; }
+
+    boolean ScriptRepeating() { return repeating; }
+
+    /** @return the loc the script in progress is about */
+    Loc UsedLoc() { return usedLoc; }
+
+    boolean UsedLocEmpty() { return usedWorld.RockEmpty(usedX, usedY); }
+
+    void EmptyUsedLoc(int ticks) {
+        usedWorld.EmptyRock(usedX, usedY, tick + ticks);
+    }
+
+    /* Once the player has finished walking to a target, uses it, if it
+       has a script and is within reach. */
     private void UseTarget() {
+        if (!player.HasTarget() || player.Walking()) return;
+
         int x = player.TargetX(), y = player.TargetY();
-
-        if (!player.HasTarget() || player.Walking() ||
-                Here().OreAt(x, y) != Ore.NONE) return;
-
-        String loc = Here().LocAt(x, y);
+        Loc loc = Here().LocAt(x, y);
+        String subject = Scripts.UseSubject(loc);
         boolean beside = player.BesideTarget();
+
         player.FaceTarget();
         player.ClearTarget();
 
-        if (!Scripts.CanUse(loc)) return;
+        if (subject == null) return;
         if (!beside) {
             chat.Add(MSG_CANT_REACH, Palette.BONE);
             return;
         }
-        script = Scripts.Use(loc, vars);
+
+        scriptSubject = subject;
+        usedLoc = loc;
+        usedWorld = Here();
+        usedX = x;
+        usedY = y;
+        Run();
+    }
+
+    /* Starts the script, and tidies up if it is over already. */
+    private void Run() {
+        script = Scripts.Use(scriptSubject, vars);
+        if (script == null) AfterRun();
+    }
+
+    /* A run has ended. If it asked for another, starts one, and that
+       is all for this tick: a rerun that ends at once is not given a
+       third go, whatever it asks. */
+    private void AfterRun() {
+        if (againAsked) {
+            againAsked = false;
+            repeating = true;
+            script = Scripts.Use(scriptSubject, vars);
+            if (script != null) return;
+        }
+        EndScript();
+    }
+
+    /* Forgets the script in progress, finished or not. */
+    private void EndScript() {
+        script = null;
+        interruptible = againAsked = repeating = false;
+        player.SetWorking(false);
     }
 
     private void Arrive(int mapIndex, int tileX, int tileY) {

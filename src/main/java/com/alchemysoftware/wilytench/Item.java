@@ -21,6 +21,10 @@ final class Item {
     private static final String[] NAMES = {
         "Bronze hammer", "Copper ore", "Iron ore"
     };
+    /* What scripts call each item. */
+    private static final String[] KEYS = {
+        "bronze_hammer", "copper_ore", "iron_ore"
+    };
     private static final int[] ATLASES = {
         Sprites.ATLAS_ITEMS, Sprites.ATLAS_CAVE, Sprites.ATLAS_CAVE
     };
@@ -35,6 +39,12 @@ final class Item {
 
     /** @return whether a number is an item's */
     static boolean Valid(int item) { return item >= 0 && item < COUNT; }
+
+    /** @return the item scripts call key, or NONE if there is none */
+    static int Named(String key) {
+        for (int i = 0; i < COUNT; i++) if (KEYS[i].equals(key)) return i;
+        return NONE;
+    }
 
     /** @return the name as it heads a label: "Copper ore" */
     static String Name(int item) { return NAMES[item]; }

@@ -27,8 +27,7 @@ import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
  *          with its neighbors
  *   .  ,   floor, in the tileset's first or second pattern
  *   @      where the player arrives
- *   L      the way out: a ladder in a cave, stairs in a dungeon.
- *          Scripts know these as "ladder" and "stairs"
+ *   L      the way out: a ladder in a cave, stairs in a dungeon
  *   r  R   rocks holding ore: copper or iron
  *   s  S   stalagmites, orange or grey
  *   c      crystal          m  mushrooms
@@ -39,6 +38,9 @@ import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
  * Everything from "L" down stands on the first floor pattern and is
  * solid unless noted. Rows may be different lengths; the map is as wide
  * as the longest.
+ *
+ * "L", "r", and "R" are locs: things the player can use, whose
+ * behavior comes from a script. See Loc.
  *
  * The one thing about a map that changes during play is its ore rocks,
  * which are empty for a while after being mined. Each empty rock
@@ -65,8 +67,7 @@ final class World {
     private static final String[] WALL_NAMES = {
         "Cave wall", "Dungeon wall"
     };
-    private static final String[] EXIT_NAMES = { "Ladder", "Stairs" };
-    private static final String[] EXIT_LOCS = { "ladder", "stairs" };
+    private static final Loc[] EXITS = { Loc.LADDER, Loc.STAIRS };
 
     /*
      * Wall pieces, as { column, row } on a tileset's sheet, indexed by
@@ -91,7 +92,6 @@ final class World {
     private static final int STALAGMITE_KINDS = 5;
     private static final int BOOKSHELF_KINDS = 5;
 
-    private static final String DEPLETED_NAME = "Rocks";
     private static final int FULL = 0;
 
     /** The map's file name, which is also how saved games refer to it. */
@@ -106,12 +106,9 @@ final class World {
     private final boolean[] solid, animated;
     private final String[] names;
 
-    /* Per tile: what scripts call the thing there, or null. */
-    private final String[] locs;
-
-    /* Per tile: the Ore kind of a rock there, and for a mined-out rock
-       the game tick at which its ore is back, or FULL. */
-    private final byte[] ore;
+    /* Per tile: the loc there, or null, and for one that has been
+       emptied the game tick at which it is full again, or FULL. */
+    private final Loc[] locs;
     private final int[] emptyUntil;
     private int emptyRocks;
 
@@ -122,8 +119,7 @@ final class World {
 
     private World(String id, String name, int w, int h, int startX,
                   int startY, int[] floor, int[] object, boolean[] solid,
-                  boolean[] animated, String[] names, String[] locs,
-                  byte[] ore) {
+                  boolean[] animated, String[] names, Loc[] locs) {
         this.locs = locs;
         this.id = id;
         this.name = name;
@@ -136,7 +132,6 @@ final class World {
         this.solid = solid;
         this.animated = animated;
         this.names = names;
-        this.ore = ore;
         emptyUntil = new int[w * h];
         greyRockOffset = Cave(0, GREY_ROCK_ROW_OFFSET) - Cave(0, 0);
     }
@@ -184,8 +179,8 @@ final class World {
         int atlas = TILESET_ATLASES[tileset];
         int[] floor = new int[w * h], object = new int[w * h];
         boolean[] solid = new boolean[w * h], animated = new boolean[w * h];
-        String[] names = new String[w * h], locs = new String[w * h];
-        byte[] ore = new byte[w * h];
+        String[] names = new String[w * h];
+        Loc[] locs = new Loc[w * h];
         int startX = -1, startY = -1;
 
         for (y = 0; y < h; y++) {
@@ -224,8 +219,8 @@ final class World {
                     startY = y;
                     break;
                 case 'L':
-                    names[i] = EXIT_NAMES[tileset];
-                    locs[i] = EXIT_LOCS[tileset];
+                    locs[i] = EXITS[tileset];
+                    names[i] = locs[i].name;
                     object[i] = tileset == TILESET_CAVE ? Cave(0, 11) :
                             Sprites.Picture(Sprites.ATLAS_DUNGEON, 0, 7);
                     break;
@@ -236,8 +231,8 @@ final class World {
                     break;
                 case 'r':
                 case 'R':
-                    ore[i] = (byte) (c == 'r' ? Ore.COPPER : Ore.IRON);
-                    names[i] = Ore.RockName(ore[i]);
+                    locs[i] = c == 'r' ? Loc.COPPER_ROCKS : Loc.IRON_ROCKS;
+                    names[i] = locs[i].name;
                     object[i] = Cave(5 + (mix >> 4 & 1), 1);
                     break;
                 case 's':
@@ -291,7 +286,7 @@ final class World {
             return null;
         }
         return new World(filename, name, w, h, startX, startY, floor,
-                object, solid, animated, names, locs, ore);
+                object, solid, animated, names, locs);
     }
 
     /** @return whether the tile is inside the map */
@@ -307,20 +302,13 @@ final class World {
     /** @return what stands on the tile, or null if nothing does */
     String Name(int x, int y) {
         if (!Contains(x, y)) return null;
-        return RockEmpty(x, y) ? DEPLETED_NAME : names[y * w + x];
+        int i = y * w + x;
+        return emptyUntil[i] > now ? locs[i].emptyName : names[i];
     }
 
-    /**
-     * @return what scripts call the thing on the tile, the X of an
-     *         [oploc,X] trigger, or null if it has no such name
-     */
-    String LocAt(int x, int y) {
+    /** @return the loc on the tile, or null if there is none */
+    Loc LocAt(int x, int y) {
         return Contains(x, y) ? locs[y * w + x] : null;
-    }
-
-    /** @return the Ore kind of a rock on the tile, or Ore.NONE */
-    int OreAt(int x, int y) {
-        return Contains(x, y) ? ore[y * w + x] : Ore.NONE;
     }
 
     /** @return whether a rock there is mined out for the moment */
@@ -338,11 +326,13 @@ final class World {
 
     /**
      * Empties the rock on a tile until a game tick. Does nothing if
-     * there is no rock there or the tick has already come, which makes
-     * it safe to feed from a saved game.
+     * what is there cannot be emptied or the tick has already come,
+     * which makes it safe to feed from a saved game.
      */
     void EmptyRock(int x, int y, int untilTick) {
-        if (OreAt(x, y) == Ore.NONE || untilTick <= now) return;
+        Loc loc = LocAt(x, y);
+        if (loc == null || loc.emptyName == null || untilTick <= now)
+            return;
 
         int i = y * w + x;
         if (emptyUntil[i] == FULL) emptyRocks++;
@@ -397,8 +387,8 @@ final class World {
     /** @return the color map to draw what stands on the tile with */
     int ObjectColorMap(int x, int y) {
         int i = y * w + x;
-        return emptyUntil[i] > now ? Sprites.COLOR_MAP_NONE :
-                Ore.ColorMap(ore[i]);
+        return locs[i] == null || emptyUntil[i] > now ?
+                Sprites.COLOR_MAP_NONE : locs[i].colorMap;
     }
 
     private static int Cave(int col, int row) {

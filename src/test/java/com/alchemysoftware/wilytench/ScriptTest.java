@@ -18,13 +18,16 @@ public class ScriptTest {
 
         Check("ladder is usable", s.Usable(LADDER_X, LADDER_Y));
         Check("floor is not", !s.Usable(2, 2));
-        Check("a rock is not", !s.Usable(3, 1));
+        Check("a rock is, through its category", s.Usable(3, 1));
+        Check("a wall is not", !s.Usable(0, 0));
 
         /* The start is directly above the ladder, so no walking. */
-        s.player.WalkToTarget(LADDER_X, LADDER_Y);
+        s.Use(LADDER_X, LADDER_Y);
         Run(1);
         Check("script spoke", s.chat.Newest().equals("Down you go."));
-        Check("busy during the delay", s.Busy());
+        Check("held during the delay", s.Busy() && s.Held());
+        s.WalkTo(5, 2);
+        Check("orders are ignored meanwhile", !s.player.Walking());
         Check("not there yet", s.Map() == Fixture.FIRST);
 
         Run(1);
@@ -44,14 +47,14 @@ public class ScriptTest {
         Session s = Fixture.session;
 
         s.Travel(Fixture.SECOND);
-        s.player.WalkToTarget(STAIRS_X, STAIRS_Y);
+        s.Use(STAIRS_X, STAIRS_Y);
         Run(1);
         Check("back up at once", s.Map() == Fixture.FIRST);
         Check("fresh player", Said(s, "First time up."));
 
         s.vars.setInt("climbed", 1);
         s.Travel(Fixture.SECOND);
-        s.player.WalkToTarget(STAIRS_X, STAIRS_Y);
+        s.Use(STAIRS_X, STAIRS_Y);
         Run(1);
         Check("seasoned player", Said(s, "Back again."));
         Fixture.Finish();
@@ -62,7 +65,7 @@ public class ScriptTest {
         Session s = Fixture.session;
 
         s.player.Place(5, 2);
-        s.player.WalkToTarget(LADDER_X, LADDER_Y);
+        s.Use(LADDER_X, LADDER_Y);
         Run(2);
         Check("still walking, nothing said", s.chat.Newest() == null);
         Run(2);
@@ -76,9 +79,9 @@ public class ScriptTest {
         Session s = Fixture.session;
 
         s.player.Place(5, 2);
-        s.player.WalkToTarget(LADDER_X, LADDER_Y);
+        s.Use(LADDER_X, LADDER_Y);
         Run(1);
-        s.player.WalkTo(5, 1);
+        s.WalkTo(5, 1);
         Run(10);
         Check("never used", s.chat.Newest() == null &&
                 s.Map() == Fixture.FIRST);
@@ -90,7 +93,7 @@ public class ScriptTest {
         Session s = Fixture.session;
 
         s.inventory.Add(Item.BRONZE_HAMMER);
-        s.player.WalkToTarget(3, 1);
+        s.Use(3, 1);
         Run(20);
         Check("ore mined", Fixture.Count(Item.COPPER_ORE) == 1);
         Check("no script involved", !s.Busy());

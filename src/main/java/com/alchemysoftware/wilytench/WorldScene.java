@@ -18,9 +18,8 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * player asks for.
  *
  * Left click walks the character to the clicked tile, or as close as it
- * can get; clicking an ore rock walks up to it and mines it; clicking
- * anything a script exists for, such as a ladder, walks up to it and
- * runs the script. The view stays centered on the character. Typing
+ * can get; clicking anything a script exists for, such as a ladder or
+ * an ore rock, walks up to it and runs the script. The view stays centered on the character. Typing
  * goes to the chat box. Escape closes the game.
  *
  * After every game tick the game is saved, if the tick changed
@@ -31,7 +30,9 @@ final class WorldScene extends Scene {
 
     /* The first is where a new game begins. */
     private static final String[] MAPS = { "cave.txt", "dungeon.txt" };
-    private static final String[] SCRIPTS = { "travel.whtl" };
+    private static final String[] SCRIPTS = {
+        "travel.whtl", "mining.whtl"
+    };
 
     /* Sprites beyond the map view: the player, with room to spare for
        the creatures and effects to come. */
@@ -57,8 +58,6 @@ final class WorldScene extends Scene {
             "be saved. The reason is in session.log.";
     private static final String MSG_CANT_REACH = "You can't reach that.";
     private static final String HOVER_WALK = "Walk here";
-    private static final String HOVER_MINE = "Mine ";
-    private static final String HOVER_USE = "Use ";
 
     private int w, h;
     private int viewPortX, viewPortY, viewW, viewH;
@@ -165,16 +164,11 @@ final class WorldScene extends Scene {
             mouseX = mouseY = NOWHERE;
         }
 
-        /* A script that is part-way through has the player's attention;
-           clicks wait until it is done. */
-        if (mouseX != NOWHERE && InputSys.WasPressed(Button.MOUSE_LEFT) &&
-                !session.Busy()) {
+        if (mouseX != NOWHERE && InputSys.WasPressed(Button.MOUSE_LEFT)) {
             int tx = TileUnderMouseX(), ty = TileUnderMouseY();
 
-            if (session.Here().OreAt(tx, ty) != Ore.NONE ||
-                    session.Usable(tx, ty))
-                session.player.WalkToTarget(tx, ty);
-            else if (!session.player.WalkTo(tx, ty))
+            if (session.Usable(tx, ty)) session.Use(tx, ty);
+            else if (!session.WalkTo(tx, ty))
                 chat.Add(MSG_CANT_REACH, Palette.BONE);
         }
 
@@ -258,14 +252,12 @@ final class WorldScene extends Scene {
         World world = session.Here();
         int tx = TileUnderMouseX(), ty = TileUnderMouseY();
         boolean solid = world.Solid(tx, ty);
-        boolean mineable = world.OreAt(tx, ty) != Ore.NONE &&
-                !world.RockEmpty(tx, ty);
-        boolean usable = session.Usable(tx, ty);
-        String name = HoverText(world, tx, ty, mineable, usable);
+        boolean usable = session.Usable(tx, ty) && !world.RockEmpty(tx, ty);
+        String name = HoverText(world, tx, ty, usable);
 
         Gfx.Outline(viewPortX + tx * TILE - viewX,
                 viewPortY + ty * TILE - viewY, TILE, TILE,
-                mineable || usable ? Palette.MINT :
+                usable ? Palette.MINT :
                 solid ? Palette.RUST : Palette.BONE);
 
         if (name != null) {
@@ -279,16 +271,16 @@ final class WorldScene extends Scene {
         }
     }
 
-    private String HoverText(World world, int tx, int ty,
-                             boolean mineable, boolean usable) {
+    /* "Mine Copper rocks" for something usable, else just its name. */
+    private String HoverText(World world, int tx, int ty, boolean usable) {
         int tile = world.Contains(tx, ty) ? ty * world.w + tx : NOWHERE;
 
         if (tile != hoverTile || world.Version() != hoverVersion) {
             String name = world.Name(tx, ty);
             hoverTile = tile;
             hoverVersion = world.Version();
-            hoverText = mineable ? HOVER_MINE + name :
-                    usable ? HOVER_USE + name : name;
+            hoverText = usable ?
+                    world.LocAt(tx, ty).verb + " " + name : name;
         }
         return hoverText;
     }

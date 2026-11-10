@@ -17,7 +17,8 @@ final class Skills {
     static final int MAX_LEVEL = 99;
 
     private static final String[] NAMES = { "Mining" };
-    /* What each skill is called in a saved game. Never change one. */
+    /* What each skill is called in saved games and in scripts. Never
+       change one. */
     private static final String[] SAVE_KEYS = { "mining" };
 
     private static final int TENTHS = 10;
@@ -32,6 +33,13 @@ final class Skills {
 
     /** @return the skill's permanent name in saved games */
     static String SaveKey(int skill) { return SAVE_KEYS[skill]; }
+
+    /** @return the skill with that permanent name, or -1 */
+    static int Named(String key) {
+        for (int i = 0; i < COUNT; i++)
+            if (SAVE_KEYS[i].equals(key)) return i;
+        return -1;
+    }
 
     /**
      * Sets a skill's experience outright. For restoring a saved game.

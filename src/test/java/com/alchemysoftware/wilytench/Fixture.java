@@ -33,19 +33,20 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  */
 final class Fixture {
     static final String[] MAPS = { "test.txt", "test2.txt" };
-    static final String[] SCRIPTS = { "test.whtl" };
+    /* The second is the game's real mining script. */
+    static final String[] SCRIPTS = { "test.whtl", "mining.whtl" };
     static final int FIRST = 0, SECOND = 1;
 
     private static final int BUF_W = 320, BUF_H = 240;
 
-    /* Dice that always come up the same: 0 always wins a swing, 255
-       never does. */
-    private static final class FixedDice extends Random {
+    /* Dice that come up whatever the test last said: 0 always wins a
+       swing, 255 never does. */
+    private static final class LoadedDice extends Random {
         private static final long serialVersionUID = 1L;
-        private final int roll;
-        FixedDice(int roll) { this.roll = roll; }
         public int nextInt(int n) { return roll; }
     }
+
+    private static int roll;
 
     static Session session;
 
@@ -85,7 +86,8 @@ final class Fixture {
         Check("font", font != null);
         session = Session.Create(MAPS, SCRIPTS,
                 new ChatBox(font, 0, 0, BUF_W, Screen.CHAT_H),
-                new FixedDice(roll));
+                new LoadedDice());
+        Fixture.roll = roll;
         Check("session", session != null);
         started = true;
     }
@@ -96,6 +98,17 @@ final class Fixture {
         SpriteRenderer.Shutdown();
         Sprites.Shutdown();
         started = false;
+    }
+
+    /** Changes what every roll of the dice comes up from now on. */
+    static void SetRoll(int roll) { Fixture.roll = roll; }
+
+    /** @return how many lines in the chat box read exactly so */
+    static int Said(String line) {
+        int n = 0;
+        for (int i = 0; session.chat.Line(i) != null; i++)
+            if (session.chat.Line(i).equals(line)) n++;
+        return n;
     }
 
     static void Run(int ticks) {

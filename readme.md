@@ -83,9 +83,9 @@ rocks in them.
   climbs down to the dungeon; the stairs there lead back. Each map keeps
   its own state, so a rock mined in the cave refills on schedule while you
   are in the dungeon.
-- **Scripts.** What the ladder and stairs do is not Java but a script,
-  and most of the game's content is meant to be written that way from
-  here on. See "Scripts" below.
+- **Scripts.** What mining a rock or climbing a ladder does is not Java
+  but a script, and the game's content is meant to be written that way
+  from here on. See "Scripts" below.
 - **Saving.** There is no save command. As in an online game, what has
   happened has happened: the game writes itself to disk after every tick
   in which something changed, and picks up where it left off next time.
@@ -122,8 +122,8 @@ must be installed, which it is by default on Mint.
 
 `mvn verify` also runs the tests in `src/test`, which play the game's
 rules through tick by tick with no window: walk to a rock, mine it, check
-the ore, the experience, the messages; use a ladder and follow its script
-tick by tick; travel between maps; save a game and load it back. They drive a `Session` directly, which is why the
+the ore, the experience, the messages, swing by swing; use a ladder and
+follow its script tick by tick; travel between maps; save a game and load it back. They drive a `Session` directly, which is why the
 game's rules live there and not in the scene. They use no test framework, in the
 same way Whitetail's do: a public class named `*Test`, whose public `test*`
 methods pass by returning and fail by throwing. New rules should come with
@@ -201,7 +201,7 @@ which is what makes that practical.
 | `SidePanel` | Skills and inventory, to the right of the view |
 | `Item`, `Inventory` | The kinds of thing that can be carried, and the 28 slots they are carried in |
 | `Skills` | Experience and levels |
-| `Ore`, `Mining` | The ore rocks and their odds, and the mining job itself |
+| `Loc` | The kinds of thing on a map that can be used, such as each ore rock, and the values scripts read from them |
 | `Sheet` | Reads a sprite sheet file, for both the sprite renderer and interface icons |
 | `SaveState` | Turns a `Session` into a saved game and back |
 | `SaveGame` | Keeps the saved game on disk, writing on its own thread |
@@ -229,29 +229,53 @@ blocks*; the game decides when each runs. This is all of `travel.whtl`:
     travel("cave.txt")
 
 Whitetail supplies the language and nothing else: every trigger and every
-command is defined by the game, in `Scripts.java`.
+command is defined by the game, in `Scripts.java`, whose opening comment
+is the full list of commands.
 
-| Trigger | Runs when |
-| ------- | --------- |
-| `[oploc,X]` | The player has clicked the thing a map calls `X` and walked up beside it. `World.java` gives things their script names; so far `ladder` and `stairs` |
+### Locs, and when scripts run
 
-| Command | Does |
-| ------- | ---- |
-| `mes(text)` | Writes a line in the chat box |
-| `travel(map)` | Moves the player to the start of a map, named by its file |
+A *loc* is a kind of thing on a map that the player can use: the ladder,
+copper rocks, iron rocks. `Loc.java` lists them. Each has a script name, a
+display name, optionally a *category*, and named values for scripts to
+read.
 
-`delay(n)` is part of the language and pauses a script for `n` game ticks.
-While a script is paused the player is busy and clicks on the world are
-ignored.
+Clicking a loc walks the character up beside it and runs
+`[oploc,name]`. If there is no script with the loc's own name, the game
+runs the one for its category instead, written with a leading underscore.
+That is how **one script serves every ordinary ore rock**:
+`mining.whtl` holds a single block, `[oploc,_ore_rock]`, and asks the rock
+it is running for what to give:
+
+    inv_add(loc_string("ore"))
+    loc_empty_for(loc_int("respawn"))
+    stat_xp("mining", loc_int("xp"))
+
+**To add another ordinary rock** (mithril, say): add its item to
+`Item.java`, add one `OreRock(...)` line to `Loc.java` with its ore,
+level, experience, odds, and respawn time, and give it a map symbol in
+`World.java`. The script does not change. A rock that should behave
+differently gets its own `[oploc,its_name]` block, which takes precedence.
+
+### Things worth knowing when writing one
+
+- The language has no loops, so one run of the mining script is one
+  swing. A swing that fails calls `again()`, and the game runs the script
+  once more. `repeating()` tells such a rerun apart from the player's own
+  click.
+- While a script is in progress the player is busy. Unless the script has
+  called `interruptible()`, clicks are ignored until it ends; the ladder
+  works that way. Mining is interruptible: clicking elsewhere cancels it.
+- `delay(n)` is part of the language and pauses for `n` game ticks.
+- Scripts name items and skills by the keys in `Item.java` and
+  `Skills.java`, such as `"copper_ore"` and `"mining"`.
+- A mistake in a script's grammar or types is reported when the game
+  starts, with the file, line, and a pointer to the spot. Naming an item,
+  skill, map, or loc value that does not exist is reported when the line
+  runs.
 
 To add a script file, write it and add its name to `SCRIPTS` in
 `WorldScene`. To give scripts a new ability, register a command in
-`Scripts.Init()` and add it to the tables here and at the top of
-`Scripts.java`. A mistake in a script is reported when the game starts,
-with the file, line, and a pointer to the spot.
-
-Mining is still written in Java (`Mining.java`). New behavior should be
-scripted where it reasonably can be.
+`Scripts.java` and add it to the list at the top of that file.
 
 ## Art
 

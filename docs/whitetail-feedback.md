@@ -58,6 +58,8 @@ run on Windows of any age.
 | C24 | `SaveGame.Load()` calls `Describe()` and then `Read()` |
 | C26 | `Scripts.java` keeps the game in progress in a static field for command handlers to reach |
 | C27 | `WorldScene.java` lists every script and map file by name |
+| C28 | `Session.java` reruns a script that called the game's `again()` command |
+| C29 | `Scripts.java` registers `join` and `str` commands for building messages |
 
 ---
 
@@ -470,6 +472,11 @@ side by side. An opaque `Object context` passed to `FireTrigger()` and
 readable as `state.context` would let the host hand each script its own
 world, at no cost to the component's ignorance of the game.
 
+The mining script made this sharper. A script shared by every ore rock
+needs to know *which* rock it is running for, and `state.script.subject`
+only says `_ore_rock`. The game keeps "the loc being used" beside the
+script in `Session`, and the `loc_...` commands read it from there.
+
 **C27. Every script file has to be listed by hand.** *(Hit)*  
 Status: open.
 `LoadScripts()` wants every path in one call, and
@@ -481,6 +488,48 @@ edited whenever one is added. The tutorial's promise that a designer can
 but not for adding one. A classpath `List()` is hard in general; a
 manifest convention, such as `LoadScriptsListedIn("scripts", "index.txt")`,
 would be enough.
+
+**C28. With no loops, anything repeated needs the host's help.**
+*(Hit)*  
+Status: open. Partly by design.
+Mining is "swing until the rock gives". The language has no loops, on
+purpose, so one run of the script is one swing, and a failed swing calls
+a game command, `again()`, that makes `Session` fire the same trigger
+afresh when the run ends, with a `repeating()` command so the script can
+skip its opening line the second time round. It works and reads
+acceptably, and it matches how the language this one descends from
+re-queues itself.
+
+Two things would make it less of a private invention. First, the
+tutorial could show the pattern, since "how do I do something until it
+works" is the first question a skilling script asks. Second, every rerun
+is a new `FireTrigger()` and so a new `ScriptState`; a
+`ScriptManager.Restart(state)` that rewound a finished state would keep
+the "a run allocates nothing after its state" promise true of repeated
+runs as well.
+
+**C29. Building a sentence takes nested commands.** *(Hit)*  
+Status: open. Partly by design.
+There is no string concatenation and no int-to-string conversion, so the
+game registers `join(text, text)` and `str(whole)`, and a message with a
+number in it reads
+
+    mes(join(join("You need a Mining level of ", str(loc_int("level"))),
+            " to mine this rock."))
+
+Commands have fixed signatures, so `join` cannot take three parts. A
+built-in way to splice values into a string literal, checked at compile
+time like everything else, would remove most of the noise from content
+scripts, which are largely messages.
+
+**C30. A yes-or-no command cannot be used as a condition by itself.**
+*(Hit)*  
+Status: open. Minor.
+Conditions are always `expression op expression`, so a command that
+answers yes or no is written `if (loc_empty() = 1)`. It is consistent and
+quickly becomes habit; it is also the line most likely to be mistyped as
+`if (loc_empty())`, which the compiler rejects with a message about a
+missing operator rather than a hint that `= 1` is wanted.
 
 ### D. Things that went well
 
@@ -520,3 +569,7 @@ Worth recording, so they are not "fixed" by accident.
   pattern. If people are surprised, the cheapest fix is probably one
   sentence at the top of the readme saying so outright, since at present
   it is implied by "the host registers the commands" rather than stated.
+- Moving mining from Java to a script went smoothly: twenty commands
+  registered, a forty-line script, and it compiled and passed the
+  existing mining tests unchanged on the first run. Statements may span
+  lines freely, which the long `mes(join(...))` calls needed.
