@@ -47,7 +47,7 @@ The game keeps a folder per user:
 | System | Folder |
 | ------ | ------ |
 | Windows 2000 and later | `%APPDATA%\AlchemySoftware\WilyTench` |
-| Windows 98 | `Application Data\AlchemySoftware\WilyTench` under the Java home folder, normally `C:\WINDOWS` |
+| Windows 98 | `Application Data\AlchemySoftware\WilyTench` under your home folder, which is normally `C:\WINDOWS` |
 | Linux | `~/.local/share/AlchemySoftware/WilyTench` |
 
 - `config.ini` holds the settings. Edit it and restart.
