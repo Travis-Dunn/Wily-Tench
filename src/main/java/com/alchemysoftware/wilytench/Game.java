@@ -37,7 +37,8 @@ final class Game {
     private static final int STAGE_SCREEN = 2;
     private static final int STAGE_INPUT_SYS = 3;
     private static final int STAGE_INPUT_BACKEND = 4;
-    private static final int STAGE_SCENES = 5;
+    private static final int STAGE_SAVE = 5;
+    private static final int STAGE_SCENES = 6;
 
     private static int stage = STAGE_NONE;
 
@@ -101,6 +102,9 @@ final class Game {
 
         if (!Timer.Init(TICK_NS)) return false;
 
+        if (!SaveGame.Init(dataDir)) return false;
+        stage = STAGE_SAVE;
+
         if (!SceneManager.Init()) return false;
         stage = STAGE_SCENES;
         SceneManager.RegisterScene(SCENE_WORLD, new WorldScene());
@@ -148,6 +152,8 @@ final class Game {
 
     private static void Shutdown() {
         if (stage >= STAGE_SCENES) SceneManager.Shutdown();
+        /* After the scenes, so the last tick's state gets written. */
+        if (stage >= STAGE_SAVE) SaveGame.Shutdown();
         if (stage >= STAGE_INPUT_BACKEND) LwjglInput.Shutdown();
         if (stage >= STAGE_INPUT_SYS) InputSys.Shutdown();
         if (stage >= STAGE_SCREEN) Screen.Shutdown();

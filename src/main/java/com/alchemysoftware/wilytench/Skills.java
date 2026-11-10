@@ -17,6 +17,8 @@ final class Skills {
     static final int MAX_LEVEL = 99;
 
     private static final String[] NAMES = { "Mining" };
+    /* What each skill is called in a saved game. Never change one. */
+    private static final String[] SAVE_KEYS = { "mining" };
 
     private static final int TENTHS = 10;
     private static final int MAX_XP_TENTHS = 2000000000;
@@ -27,6 +29,19 @@ final class Skills {
     private final int[] xpTenths = new int[COUNT];
 
     static String Name(int skill) { return NAMES[skill]; }
+
+    /** @return the skill's permanent name in saved games */
+    static String SaveKey(int skill) { return SAVE_KEYS[skill]; }
+
+    /**
+     * Sets a skill's experience outright. For restoring a saved game.
+     *
+     * @param tenths experience in tenths of a point; out-of-range
+     *               values are brought into range
+     */
+    void SetXpTenths(int skill, int tenths) {
+        xpTenths[skill] = Math.max(0, Math.min(tenths, MAX_XP_TENTHS));
+    }
 
     /** @return whole experience points needed to reach a level */
     static int XpForLevel(int level) { return LEVEL_XP[level]; }

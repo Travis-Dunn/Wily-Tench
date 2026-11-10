@@ -140,6 +140,23 @@ final class Player {
         anim.setDefinition(sprite, working ? workDef : idleDef);
     }
 
+    /** @return the tile column the character is on */
+    int X() { return x; }
+
+    /** @return the tile row the character is on */
+    int Y() { return y; }
+
+    /**
+     * Puts the character on a tile at once, standing still. For
+     * restoring a saved game.
+     */
+    void Place(int tileX, int tileY) {
+        x = prevX = tileX;
+        y = prevY = tileY;
+        routeLen = routePos = 0;
+        hasTarget = false;
+    }
+
     /** Advances one game tick: takes the next step of the walk. */
     void Tick() {
         prevX = x;

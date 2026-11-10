@@ -70,14 +70,19 @@ You can walk around a small cave and mine it.
   the rock empty for a few ticks. Copper can be mined from level 1; iron,
   the dark red rock, needs level 15. You need the hammer you start with
   and a free inventory slot.
-- **Side panel.** Mining level, progress to the next level, and the
-  28-slot inventory. Point at an item to see its name; right-click to drop
-  it. Dropped items vanish, for now.
+- **Side panel.** Mining level, experience so far against experience
+  needed, and the 28-slot inventory. Point at an item to see its name;
+  right-click to drop it. Dropped items vanish, for now.
 - **Chat box.** The game writes its messages there; anything you type
   appears on the bottom row and Enter says it. The mouse wheel, or Page Up
   and Page Down, scroll back.
 
-Escape quits. **Nothing is saved yet**: every run starts from level 1.
+- **Saving.** There is no save command. As in an online game, what has
+  happened has happened: the game writes itself to disk after every tick
+  in which something changed, and picks up where it left off next time.
+  See "Saved games" below.
+
+Escape quits.
 
 There are no monsters, other skills, or quests yet.
 
@@ -108,7 +113,7 @@ must be installed, which it is by default on Mint.
 
 `mvn verify` also runs the tests in `src/test`, which play the game's
 rules through tick by tick with no window: walk to a rock, mine it, check
-the ore, the experience, the messages. They use no test framework, in the
+the ore, the experience, the messages; save a game and load it back. They use no test framework, in the
 same way Whitetail's do: a public class named `*Test`, whose public `test*`
 methods pass by returning and fail by throwing. New rules should come with
 tests like these.
@@ -131,6 +136,31 @@ The game keeps a folder per user:
   driver was found and what size the picture ended up. Look here first when
   something is wrong.
 - `fatal.log` collects every fatal error, with stack traces.
+- `wts-player.a` and `wts-player.b` are the saved game, current and
+  previous.
+
+## Saved games
+
+The saved game holds the character's map and tile, the experience in each
+skill, and the inventory. `PlayerSave.java` lists the exact names and
+shapes. The state of the map itself, such as which rocks are mined out, is
+not saved yet; that waits on deciding how the world is divided up.
+
+- **To start over,** delete `wts-player.a` and `wts-player.b` from the
+  folder above while the game is closed.
+- **The format** is Whitetail's `comp-save-sys` container: a small binary
+  file of named values with a checksum. It is not obfuscated. Two
+  generations are kept, so a crash or power cut mid-write loses at most
+  one tick, and the game says so in the chat box if it had to fall back to
+  the older one.
+- **Changing what is saved.** Adding a value needs no ceremony: loading
+  leaves anything missing from a file as it is. Changing what an existing
+  value *means* requires raising `SaveGame.VERSION` and converting old
+  files on load. Item numbers and skill save names are part of the format
+  and must never be changed or reused.
+- **Cost.** One save is a few hundred bytes and, where measured, about a
+  millisecond, on a thread of its own so that a slow disk cannot make the
+  game stutter. Standing still writes nothing.
 
 ## How the game is put together
 
@@ -156,6 +186,8 @@ which is what makes that practical.
 | `Skills` | Experience and levels |
 | `Ore`, `Mining` | The ore rocks and their odds, and the mining job itself |
 | `Sheet` | Reads a sprite sheet file, for both the sprite renderer and interface icons |
+| `PlayerSave` | Turns the player's state into a saved game and back |
+| `SaveGame` | Keeps the saved game on disk, writing on its own thread |
 
 Maps are text files in `src/main/resources/maps`, one character per tile;
 the key is at the top of `World.java`.

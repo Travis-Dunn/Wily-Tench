@@ -53,7 +53,9 @@ run on Windows of any age.
 | C16 | `WorldScene.java` carries fractional milliseconds between frames |
 | C18 | `Font.java`, `Text.java`, `Gfx.java`, and `FontTool.java` are the game's own text and drawing code |
 | C19 | `ChatBox.java` uses only the direction of the mouse wheel |
-| C22 | `MiningTest.java` guards one-time initialization with a static flag |
+| C22 | `Fixture.java` (tests) guards one-time initialization with a static flag |
+| C23 | `SaveGame.java` does its writing on a thread of its own |
+| C24 | `SaveGame.Load()` calls `Describe()` and then `Read()` |
 
 ---
 
@@ -407,10 +409,40 @@ Status: open.
 The game's rule tests start the pieces they need for each test and stop
 them after. `SpriteRenderer` allows that. `ResourceStreamResolver` has no
 shutdown and treats a second `Init()` as fatal, so the tests initialize it
-once behind a static flag and every test shares it. `Timer` and
-`ConfigFileParser` are the same, though the tests do not use them. A
+once behind a static flag and every test shares it. `SaveStore` is the
+same, and so are `Timer` and `ConfigFileParser`, though the tests do not
+use those two. A
 `Shutdown()` on each, even one that only clears the flag, would let tests
 be independent.
+
+**C23. `SaveStore.Write()` waits for the disk, which rules out calling
+it from the game loop.** *(Hit)*  
+Status: open. Partly an observation.
+`Write()` synchronizes the file before returning, which is exactly what
+makes it trustworthy, and also means it can take a frame or more on a
+slow disk. This game saves after every tick in which something changed,
+so it had to move writing to its own thread, with a one-deep "newest
+state wins" queue (`SaveGame.java`). The readme does say that a game
+writing on a background thread must do its own locking, so this is
+allowed for, but every game that autosaves will write the same eighty
+lines. A `SaveStore.WriteAsync(slot, version, name, data)` with those
+semantics, plus a `Flush()`, would fit the component well.
+
+A smaller point for frequent saving: each `setInt` boxes its value
+(`new Integer`), and a payload handed to another thread cannot be reused,
+so every save builds a fresh payload. It is not much garbage, but it is
+per tick.
+
+**C24. Loading takes two calls that each read and check the whole
+file.** *(Hit)*  
+Status: open.
+`Read()` on a slot that does not exist is fatal, so the game must call
+`Describe()` first, which validates every byte, and then `Read()`, which
+validates every byte again. `Describe()` is also the only way to learn
+the save's `gameVersion`, which is needed before reading to refuse a save
+from a newer release. For the usual "load the one save if there is one"
+case, a `Read()` that returned null for an absent slot, and a `SaveData`
+that carried its own `gameVersion`, would make it one call and one pass.
 
 ### D. Things that went well
 
@@ -434,3 +466,7 @@ Worth recording, so they are not "fixed" by accident.
   Whitetail's framework-free Surefire test style copied over in minutes.
 - Color maps did exactly what they promise: iron rock is the copper rock
   sprite with three palette indices swapped, set per sprite, at no cost.
+- `comp-save-sys` worked first time from its readme, including through
+  the writer thread. Killing the game mid-session and restarting has so
+  far always come back to the last tick, which is the property the
+  every-tick saving depends on.

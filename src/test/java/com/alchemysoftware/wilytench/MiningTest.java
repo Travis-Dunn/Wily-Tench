@@ -1,12 +1,6 @@
 package com.alchemysoftware.wilytench;
 
-import java.io.File;
 import java.util.Random;
-
-import com.alchemysoftware.whitetail.error.RunFlag;
-import com.alchemysoftware.whitetail.log.Logger;
-import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
-import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
 
 /**
  * Plays the mining rules through, tick by tick, with no window: the
@@ -20,7 +14,6 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  *     #######
  */
 public class MiningTest {
-    private static final int BUF_W = 320, BUF_H = 240;
     private static final int COPPER_X = 3, IRON_X = 4, ROCK_Y = 1;
     private static final int PLENTY_OF_TICKS = 40;
 
@@ -32,8 +25,6 @@ public class MiningTest {
         FixedDice(int roll) { this.roll = roll; }
         public int nextInt(int n) { return roll; }
     }
-
-    private static boolean resourcesInit;
 
     private World world;
     private Player player;
@@ -169,25 +160,10 @@ public class MiningTest {
     }
 
     private void Start(int roll, boolean withHammer) {
-        if (!resourcesInit) {
-            File logs = new File(System.getProperty("wilytench.test.dir",
-                    System.getProperty("java.io.tmpdir")));
-            logs.mkdirs();
-            Check("logger", Logger.Init(logs));
-            Check("resources", ResourceStreamResolver.Init(null,
-                    ResourceStreamResolver.MODE_CLASSPATH));
-            resourcesInit = true;
-        }
-        RunFlag.Start();
-
-        Check("sprites", SpriteRenderer.Init(new byte[BUF_W * BUF_H], BUF_W,
-                BUF_H, 0, 0, BUF_W, BUF_H, 64) && Sprites.Install());
-        Check("map", (world = World.Load("test.txt")) != null);
-        Check("player", (player = Player.Create(world)) != null);
-
-        Font font = Font.Load("small.fnt");
-        Check("font", font != null);
-        chat = new ChatBox(font, 0, 0, BUF_W, Screen.CHAT_H);
+        Fixture.Start();
+        world = Fixture.world;
+        player = Fixture.player;
+        chat = Fixture.chat;
 
         inventory = new Inventory();
         if (withHammer) inventory.Add(Item.BRONZE_HAMMER);
@@ -197,9 +173,7 @@ public class MiningTest {
     }
 
     private void Finish() {
-        Check("no fatal error", RunFlag.IsRunning());
-        SpriteRenderer.Shutdown();
-        Sprites.Shutdown();
+        Fixture.Finish();
     }
 
     /* The same order WorldScene advances things in. */
@@ -219,6 +193,6 @@ public class MiningTest {
     }
 
     private static void Check(String what, boolean ok) {
-        if (!ok) throw new AssertionError(what);
+        Fixture.Check(what, ok);
     }
 }

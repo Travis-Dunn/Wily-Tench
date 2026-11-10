@@ -4,6 +4,9 @@ package com.alchemysoftware.wilytench;
  * The kinds of thing that can be carried. An item is just a number;
  * this class knows each one's name and what its icon looks like.
  *
+ * Saved games record these numbers, so a number, once given to an
+ * item, must never be changed or reused. Add new items at the end.
+ *
  * The art has no pictures of ore, so ore borrows the picture of the
  * rock it came from, and no pickaxe, so rocks are mined with a hammer.
  */
@@ -29,6 +32,9 @@ final class Item {
     };
 
     private Item() {}
+
+    /** @return whether a number is an item's */
+    static boolean Valid(int item) { return item >= 0 && item < COUNT; }
 
     /** @return the name as it heads a label: "Copper ore" */
     static String Name(int item) { return NAMES[item]; }

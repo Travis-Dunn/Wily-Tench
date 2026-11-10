@@ -22,7 +22,8 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * closes the game.
  *
  * Each game tick the map, then the player, then the player's current
- * job are advanced, in that order.
+ * job are advanced, in that order, and then the game is saved if any
+ * of that changed something worth saving.
  */
 final class WorldScene extends Scene {
     private static final int TILE = Sprites.TILE;
@@ -43,6 +44,14 @@ final class WorldScene extends Scene {
             "Welcome to " + Screen.TITLE + ".";
     private static final String MSG_HOW_TO = "Click the ground to walk " +
             "and a rock to mine it.";
+    private static final String MSG_WELCOME_BACK =
+            "Welcome back to " + Screen.TITLE + ".";
+    private static final String MSG_LOADED_OLDER = "Your newest saved " +
+            "game was damaged, so the one before it was loaded.";
+    private static final String MSG_UNREADABLE = "Your saved game could " +
+            "not be read, so a new game was started.";
+    private static final String MSG_SAVE_FAILED = "The game could not " +
+            "be saved. The reason is in session.log.";
     private static final String MSG_CANT_REACH = "You can't reach that.";
     private static final String HOVER_WALK = "Walk here";
     private static final String HOVER_MINE = "Mine ";
@@ -62,6 +71,7 @@ final class WorldScene extends Scene {
     private Inventory inventory;
     private Skills skills;
     private Mining mining;
+    private PlayerSave save;
 
     /* What the hover label last said, and about which tile and state of
        the map, so the label is only rebuilt when one of those changes. */
@@ -112,8 +122,13 @@ final class WorldScene extends Scene {
         }
 
         inventory = new Inventory();
-        inventory.Add(Item.BRONZE_HAMMER);
         skills = new Skills();
+        save = new PlayerSave(MAP, player, skills, inventory);
+
+        int loadOutcome = SaveGame.Load();
+        if (loadOutcome == SaveGame.LOAD_TOO_NEW) return;
+        if (SaveGame.Loaded() != null) save.Restore(SaveGame.Loaded(), world);
+        else inventory.Add(Item.BRONZE_HAMMER);
 
         int panelX = viewPortX + viewW;
         chat = new ChatBox(smallFont, viewPortX, viewPortY + viewH, viewW,
@@ -123,8 +138,13 @@ final class WorldScene extends Scene {
         mining = new Mining(world, player, inventory, skills, chat,
                 new Random());
 
-        chat.Add(MSG_WELCOME, Palette.BONE);
+        chat.Add(SaveGame.Loaded() != null ? MSG_WELCOME_BACK : MSG_WELCOME,
+                Palette.BONE);
         chat.Add(MSG_HOW_TO, Palette.ASH);
+        if (loadOutcome == SaveGame.LOAD_OLDER)
+            chat.Add(MSG_LOADED_OLDER, Palette.PEACH);
+        else if (loadOutcome == SaveGame.LOAD_UNREADABLE)
+            chat.Add(MSG_UNREADABLE, Palette.PEACH);
     }
 
     @Override
@@ -167,7 +187,9 @@ final class WorldScene extends Scene {
             world.Tick();
             player.Tick();
             mining.Tick();
+            if (save.Changed()) SaveGame.Queue(save.Capture());
         }
+        if (SaveGame.TakeFailure()) chat.Add(MSG_SAVE_FAILED, Palette.PEACH);
 
         /* Animations count whole milliseconds; carry the fraction so
            none of the time is lost. */
@@ -217,6 +239,7 @@ final class WorldScene extends Scene {
         inventory = null;
         skills = null;
         mining = null;
+        save = null;
         smallFont = boldFont = titleFont = null;
     }
 
