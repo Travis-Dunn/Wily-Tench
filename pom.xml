@@ -40,6 +40,7 @@
         <maven.toolchains.plugin.version>3.2.0</maven.toolchains.plugin.version>
         <maven.jar.plugin.version>3.4.2</maven.jar.plugin.version>
         <maven.dependency.plugin.version>3.8.1</maven.dependency.plugin.version>
+        <exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
     </properties>
 
     <dependencies>
@@ -111,6 +112,21 @@
         <dependency>
             <groupId>com.alchemysoftware</groupId>
             <artifactId>comp-input-lwjgl</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-resource-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-image</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-sprite-sys</artifactId>
             <version>${whitetail.version}</version>
         </dependency>
 
@@ -228,6 +244,29 @@
                             <outputDirectory>
                                 ${project.build.directory}/lib
                             </outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Rebuilds src/main/resources/sprites from the purchased
+                 art: "mvn test-compile exec:java@atlases". Only needed
+                 after AtlasTool or the art changes; the results are
+                 committed. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>${exec.maven.plugin.version}</version>
+
+                <executions>
+                    <execution>
+                        <id>atlases</id>
+
+                        <configuration>
+                            <mainClass>
+                                com.alchemysoftware.wilytench.AtlasTool
+                            </mainClass>
+                            <classpathScope>test</classpathScope>
                         </configuration>
                     </execution>
                 </executions>

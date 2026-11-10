@@ -53,6 +53,17 @@ final class Palette {
 
     private Palette() {}
 
+    /**
+     * @param rgb a color as 0xRRGGBB
+     * @return the palette index of that art color, or -1 if the art
+     *         palette does not contain it
+     */
+    static int IndexOfArtRgb(int rgb) {
+        for (int i = 0; i < ART_COUNT; i++)
+            if (ART_RGB[i] == rgb) return ART_FIRST + i;
+        return -1;
+    }
+
     private static int[] Build() {
         int[] p = new int[SIZE];
         int i;

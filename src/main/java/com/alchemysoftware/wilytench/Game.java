@@ -10,6 +10,7 @@ import com.alchemysoftware.whitetail.input.InputSys;
 import com.alchemysoftware.whitetail.input.lwjgl.LwjglInput;
 import com.alchemysoftware.whitetail.log.LogLevel;
 import com.alchemysoftware.whitetail.log.Logger;
+import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
 import com.alchemysoftware.whitetail.scene.SceneManager;
 import com.alchemysoftware.whitetail.timer.Timer;
 import com.alchemysoftware.whitetail.window.Window;
@@ -71,8 +72,16 @@ final class Game {
     private static boolean Init(File dataDir) {
         Logger.LogSession(LogLevel.DEBUG, LogStrSystem());
 
+        /* Started first so that a fatal error anywhere below, which
+           stops the flag, is still in force when startup finishes. */
+        RunFlag.Start();
+
         if (!Settings.Init(dataDir)) return false;
         if (!Natives.Install(dataDir)) return false;
+
+        /* Art and maps are read from inside the game's own jar. */
+        if (!ResourceStreamResolver.Init(null,
+                ResourceStreamResolver.MODE_CLASSPATH)) return false;
 
         if (!GCPriest.Init()) return false;
         stage = STAGE_GC_PRIEST;
@@ -98,8 +107,7 @@ final class Game {
         SceneManager.InitScenes();
         SceneManager.TransitionTo(SCENE_WORLD);
 
-        RunFlag.Start();
-        return true;
+        return RunFlag.IsRunning();
     }
 
     private static void Loop() {
