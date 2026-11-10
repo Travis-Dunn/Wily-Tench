@@ -1,0 +1,239 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="
+             http://maven.apache.org/POM/4.0.0
+             https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <groupId>com.alchemysoftware</groupId>
+    <artifactId>wily-tench</artifactId>
+    <version>0.1.0</version>
+    <packaging>jar</packaging>
+
+    <name>Wily Tench</name>
+    <description>
+        A tick-based 2D adventure game built on Whitetail. Runs on Java 5
+        and OpenGL 1.x so that it works on Windows 98 era hardware as well
+        as on current machines.
+    </description>
+
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+
+        <!-- Whitetail is installed to ~/.m2 by its release.sh. -->
+        <whitetail.version>0.1.12</whitetail.version>
+        <lwjgl.version>2.9.3</lwjgl.version>
+
+        <!-- Java 5 is the newest Java that runs on Windows 98. The JDK 8
+             toolchain is the newest javac that can still emit it. -->
+        <maven.compiler.source>1.5</maven.compiler.source>
+        <maven.compiler.target>1.5</maven.compiler.target>
+        <wilytench.toolchain.jdk.version>1.8</wilytench.toolchain.jdk.version>
+
+        <wilytench.main>com.alchemysoftware.wilytench.Main</wilytench.main>
+
+        <maven.compiler.plugin.version>3.15.0</maven.compiler.plugin.version>
+        <animal.sniffer.plugin.version>1.27</animal.sniffer.plugin.version>
+        <maven.toolchains.plugin.version>3.2.0</maven.toolchains.plugin.version>
+        <maven.jar.plugin.version>3.4.2</maven.jar.plugin.version>
+        <maven.dependency.plugin.version>3.8.1</maven.dependency.plugin.version>
+    </properties>
+
+    <dependencies>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-os-checker</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-user-dir</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-logging-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-error-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-config-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-gc-priest</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-timer</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-event-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-scene-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-window</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-display-layout</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-software-framebuffer</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-input-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-input-lwjgl</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+
+        <!-- Also brings in lwjgl-platform, whose jars hold the native
+             libraries that Natives.java unpacks at startup. -->
+        <dependency>
+            <groupId>org.lwjgl.lwjgl</groupId>
+            <artifactId>lwjgl</artifactId>
+            <version>${lwjgl.version}</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <finalName>wily-tench</finalName>
+
+        <plugins>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-toolchains-plugin</artifactId>
+                <version>${maven.toolchains.plugin.version}</version>
+
+                <configuration>
+                    <toolchains>
+                        <jdk>
+                            <version>${wilytench.toolchain.jdk.version}</version>
+                        </jdk>
+                    </toolchains>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <goals>
+                            <goal>toolchain</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <version>${maven.compiler.plugin.version}</version>
+
+                <configuration>
+                    <showDeprecation>true</showDeprecation>
+                    <compilerArgs>
+                        <arg>-Xlint:all,-options</arg>
+                    </compilerArgs>
+                </configuration>
+            </plugin>
+
+            <!-- Fails the build if the code touches any API newer than
+                 Java 5, which javac 8 would otherwise happily allow. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>animal-sniffer-maven-plugin</artifactId>
+                <version>${animal.sniffer.plugin.version}</version>
+
+                <configuration>
+                    <signature>
+                        <groupId>org.codehaus.mojo.signature</groupId>
+                        <artifactId>java15</artifactId>
+                        <version>1.0</version>
+                    </signature>
+                </configuration>
+
+                <executions>
+                    <execution>
+                        <id>check-java-api-level</id>
+                        <phase>verify</phase>
+
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- "mvn package" leaves a runnable game in target/:
+                 wily-tench.jar plus lib/. Copy both to another machine
+                 and start it with "java -jar wily-tench.jar". -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-jar-plugin</artifactId>
+                <version>${maven.jar.plugin.version}</version>
+
+                <configuration>
+                    <archive>
+                        <manifest>
+                            <mainClass>${wilytench.main}</mainClass>
+                            <addClasspath>true</addClasspath>
+                            <classpathPrefix>lib/</classpathPrefix>
+                        </manifest>
+                    </archive>
+                </configuration>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-dependency-plugin</artifactId>
+                <version>${maven.dependency.plugin.version}</version>
+
+                <executions>
+                    <execution>
+                        <id>copy-runtime-libs</id>
+                        <phase>package</phase>
+
+                        <goals>
+                            <goal>copy-dependencies</goal>
+                        </goals>
+
+                        <configuration>
+                            <includeScope>runtime</includeScope>
+                            <outputDirectory>
+                                ${project.build.directory}/lib
+                            </outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>
