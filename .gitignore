@@ -1,0 +1,14 @@
+# Maven build output
+target/
+
+# IntelliJ IDEA (shared run configurations live in .run/)
+.idea/
+*.iml
+
+# Java
+*.class
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+*~
