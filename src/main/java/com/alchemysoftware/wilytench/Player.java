@@ -128,7 +128,8 @@ final class Player {
      *         or west of its target
      */
     boolean BesideTarget() {
-        return Math.abs(targetX - x) + Math.abs(targetY - y) == 1;
+        return hasTarget &&
+                Math.abs(targetX - x) + Math.abs(targetY - y) == 1;
     }
 
     /** Turns the character to face its target, if that is to one side. */

@@ -17,9 +17,7 @@ public class TravelTest {
         World second = s.worlds[Fixture.SECOND];
 
         Check("begins on the first map", s.Here() == first);
-        s.TravelTo(Fixture.SECOND);
-        Check("not until the tick", s.Here() == first);
-        Run(1);
+        s.Travel(Fixture.SECOND);
 
         Check("arrived", s.Here() == second);
         Check("at its start", s.player.X() == second.startX &&
@@ -27,8 +25,7 @@ public class TravelTest {
         Check("announced", s.chat.Newest().equals(
                 "You arrive in the Second Room."));
 
-        s.TravelTo(Fixture.FIRST);
-        Run(1);
+        s.Travel(Fixture.FIRST);
         Check("and back", s.Here() == first &&
                 s.player.X() == first.startX);
         Fixture.Finish();
@@ -40,7 +37,7 @@ public class TravelTest {
 
         s.inventory.Add(Item.BRONZE_HAMMER);
         s.player.WalkToTarget(3, 1);
-        s.TravelTo(Fixture.SECOND);
+        s.Travel(Fixture.SECOND);
         Run(10);
 
         Check("nothing mined", Count(Item.COPPER_ORE) == 0);
@@ -53,8 +50,7 @@ public class TravelTest {
         Fixture.Start(WIN);
         Session s = Fixture.session;
 
-        s.TravelTo(Fixture.SECOND);
-        Run(1);
+        s.Travel(Fixture.SECOND);
         Check("route found", s.player.WalkTo(1, 1));
         Run(5);
         Check("walked it", s.player.X() == 1 && s.player.Y() == 1);
@@ -70,10 +66,9 @@ public class TravelTest {
         s.player.WalkToTarget(3, 1);
         while (!first.RockEmpty(3, 1)) Run(1);
 
-        s.TravelTo(Fixture.SECOND);
+        s.Travel(Fixture.SECOND);
         Run(Ore.RespawnTicks(Ore.COPPER) + 5);
-        s.TravelTo(Fixture.FIRST);
-        Run(1);
+        s.Travel(Fixture.FIRST);
 
         Check("refilled on return", !first.RockEmpty(3, 1));
         Check("counted as refilled", first.EmptyRocks() == 0);

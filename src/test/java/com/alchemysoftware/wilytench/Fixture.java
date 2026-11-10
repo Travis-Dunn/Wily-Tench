@@ -18,16 +18,22 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  *
  *     test.txt           test2.txt
  *     #######            #####
- *     #@.rR.#            #..R#
- *     #.....#            #.@.#
+ *     #@.rR.#            #.LR#
+ *     #L....#            #.@.#
  *     #######            #####
  *
  *     @ start (1,1)      @ start (2,2)
  *     r copper (3,1)     R iron (3,1)
- *     R iron (4,1)
+ *     R iron (4,1)       L stairs (2,1)
+ *     L ladder (1,2)
+ *
+ * and its scripts are src/test/resources/scripts/test.whtl: the ladder
+ * leads down to the second map after two ticks, and the stairs lead
+ * straight back.
  */
 final class Fixture {
     static final String[] MAPS = { "test.txt", "test2.txt" };
+    static final String[] SCRIPTS = { "test.whtl" };
     static final int FIRST = 0, SECOND = 1;
 
     private static final int BUF_W = 320, BUF_H = 240;
@@ -77,7 +83,7 @@ final class Fixture {
 
         Font font = Font.Load("small.fnt");
         Check("font", font != null);
-        session = Session.Create(MAPS,
+        session = Session.Create(MAPS, SCRIPTS,
                 new ChatBox(font, 0, 0, BUF_W, Screen.CHAT_H),
                 new FixedDice(roll));
         Check("session", session != null);
@@ -86,6 +92,7 @@ final class Fixture {
 
     static void Finish() {
         Check("no fatal error", RunFlag.IsRunning());
+        Session.Close();
         SpriteRenderer.Shutdown();
         Sprites.Shutdown();
         started = false;

@@ -1,6 +1,8 @@
 package com.alchemysoftware.wilytench;
 
 import com.alchemysoftware.whitetail.save.SaveData;
+import com.alchemysoftware.whitetail.script.ScriptManager;
+import com.alchemysoftware.whitetail.script.ValueType;
 
 /**
  * Turns a Session into a saved game and back, and notices when it has
@@ -16,6 +18,9 @@ import com.alchemysoftware.whitetail.save.SaveData;
  *                          value per skill
  *   inventory      bytes   two per slot, high byte first: the item's
  *                          number plus one, or zero for an empty slot
+ *   var.climbed    either  one such value per script player variable
+ *                          (the %names scripts declare), a whole
+ *                          number or text to match
  *   rocks.cave.txt bytes   one such value per map, named after its
  *                          file. Eight bytes per mined-out rock, high
  *                          bytes first: column (2), row (2), and the
@@ -24,7 +29,11 @@ import com.alchemysoftware.whitetail.save.SaveData;
  * A saved value that makes no sense, because the file was edited or a
  * map has since been redrawn, is quietly replaced by something safe:
  * an unknown item by an empty slot, an impossible position by the
- * map's start, a rock that is no longer there by nothing.
+ * map's start, a rock that is no longer there by nothing. Script
+ * variables that no script declares any more are dropped.
+ *
+ * A script that was part-way through when the game closed is not
+ * saved; it is as if it had never started.
  */
 final class SaveState {
     private static final String KEY_MAP = "map";
@@ -33,6 +42,7 @@ final class SaveState {
     private static final String KEY_XP_PREFIX = "xp.";
     private static final String KEY_INVENTORY = "inventory";
     private static final String KEY_ROCKS_PREFIX = "rocks.";
+    private static final String KEY_VAR_PREFIX = "var.";
 
     private static final int BYTES_PER_SLOT = 2;
     private static final int BYTES_PER_ROCK = 8;
@@ -45,9 +55,30 @@ final class SaveState {
     private final int[] savedXp = new int[Skills.COUNT];
     private final int[] savedWorldVersions;
 
+    /* The script player variables, and their values as last captured:
+       for each, either the whole number or the text is used. */
+    private final String[] varNames, varKeys;
+    private final boolean[] varIsInt;
+    private final int[] savedVarInts;
+    private final String[] savedVarStrings;
+
+    /**
+     * @param session a session whose scripts are loaded
+     */
     SaveState(Session session) {
         this.session = session;
         savedWorldVersions = new int[session.worlds.length];
+
+        varNames = ScriptManager.GetVarpNames();
+        varKeys = new String[varNames.length];
+        varIsInt = new boolean[varNames.length];
+        savedVarInts = new int[varNames.length];
+        savedVarStrings = new String[varNames.length];
+        for (int i = 0; i < varNames.length; i++) {
+            varKeys[i] = KEY_VAR_PREFIX + varNames[i];
+            varIsInt[i] =
+                    ScriptManager.GetVarpType(varNames[i]) == ValueType.INT;
+        }
     }
 
     /**
@@ -70,6 +101,12 @@ final class SaveState {
             World world = session.worlds[i];
             if (savedWorldVersions[i] != world.Version() ||
                     PendingRocks(world) > 0) return true;
+        }
+        for (i = 0; i < varNames.length; i++) {
+            if (varIsInt[i] ? savedVarInts[i] !=
+                    session.vars.getInt(varNames[i]) :
+                    !session.vars.getString(varNames[i])
+                    .equals(savedVarStrings[i])) return true;
         }
         return false;
     }
@@ -100,6 +137,16 @@ final class SaveState {
             World world = session.worlds[i];
             data.setBytes(KEY_ROCKS_PREFIX + world.id, CaptureRocks(world));
             savedWorldVersions[i] = world.Version();
+        }
+
+        for (i = 0; i < varNames.length; i++) {
+            if (varIsInt[i]) {
+                data.setInt(varKeys[i], savedVarInts[i] =
+                        session.vars.getInt(varNames[i]));
+            } else {
+                data.setString(varKeys[i], savedVarStrings[i] =
+                        session.vars.getString(varNames[i]));
+            }
         }
         return data;
     }
@@ -144,6 +191,16 @@ final class SaveState {
             String key = KEY_XP_PREFIX + Skills.SaveKey(i);
             if (Is(data, key, SaveData.TYPE_INT))
                 session.skills.SetXpTenths(i, data.getInt(key));
+        }
+
+        for (i = 0; i < varNames.length; i++) {
+            if (varIsInt[i] && Is(data, varKeys[i], SaveData.TYPE_INT)) {
+                session.vars.setInt(varNames[i], data.getInt(varKeys[i]));
+            } else if (!varIsInt[i] &&
+                    Is(data, varKeys[i], SaveData.TYPE_STRING)) {
+                session.vars.setString(varNames[i],
+                        data.getString(varKeys[i]));
+            }
         }
 
         if (Is(data, KEY_INVENTORY, SaveData.TYPE_BYTES)) {

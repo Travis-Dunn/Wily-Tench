@@ -48,9 +48,16 @@ public class SaveTest {
         Check("inventory", save.Changed());
         save.Capture();
 
-        s.TravelTo(Fixture.SECOND);
-        Run(1);
+        s.Travel(Fixture.SECOND);
         Check("map", save.Changed());
+        save.Capture();
+
+        s.vars.setInt("climbed", 1);
+        Check("script whole number", save.Changed());
+        save.Capture();
+
+        s.vars.setString("last_place", "below");
+        Check("script text", save.Changed());
         save.Capture();
         Check("settled", !save.Changed());
         Fixture.Finish();
@@ -96,10 +103,9 @@ public class SaveTest {
         Run(1);
         Check("refills on time", !first.RockEmpty(3, 1));
 
-        s.TravelTo(Fixture.SECOND);
-        Run(1);
+        s.Travel(Fixture.SECOND);
         Check("other map's rock too", s.Here().RockEmpty(3, 1));
-        Run(9);
+        Run(10);
         Check("and it refills on time", !s.Here().RockEmpty(3, 1));
         Fixture.Finish();
     }
@@ -136,6 +142,8 @@ public class SaveTest {
         data.setInt("y", 0);
         data.setInt("tick", -40);
         data.setInt("xp.mining", -5);
+        data.setString("var.climbed", "yes");   /* should be a number */
+        data.setInt("var.no_such_variable", 7);
 
         save.Restore(data);
         Check("unknown item dropped", s.inventory.At(0) == Item.NONE);
@@ -145,6 +153,7 @@ public class SaveTest {
         Check("xp not negative", s.skills.XpTenths(Skills.MINING) == 0);
         Check("tick not negative", s.Tick() == 0);
         Check("no phantom rocks", s.Here().EmptyRocks() == 0);
+        Check("mistyped variable ignored", s.vars.getInt("climbed") == 0);
         Fixture.Finish();
     }
 
@@ -230,10 +239,11 @@ public class SaveTest {
 
     /* Puts the state somewhere distinctive and captures it. */
     private SaveData Scramble() {
-        Run(SCRAMBLED_TICKS - 1);
-        s.TravelTo(Fixture.SECOND);
-        Run(1);
+        Run(SCRAMBLED_TICKS);
+        s.Travel(Fixture.SECOND);
         s.player.Place(1, 2);
+        s.vars.setInt("climbed", 1);
+        s.vars.setString("last_place", "somewhere odd");
         s.skills.AddXp(Skills.MINING, 12345);
         s.inventory.Add(Item.BRONZE_HAMMER);
         s.inventory.Add(Item.COPPER_ORE);
@@ -252,6 +262,9 @@ public class SaveTest {
         Check("slot 1 empty", s.inventory.At(1) == Item.NONE);
         Check("slot 2", s.inventory.At(2) == Item.IRON_ORE);
         Check("two items", s.inventory.Used() == 2);
+        Check("script whole number", s.vars.getInt("climbed") == 1);
+        Check("script text", s.vars.getString("last_place")
+                .equals("somewhere odd"));
         Check("rock on the map left behind",
                 s.worlds[Fixture.FIRST].RockEmptyUntil(4, 1) == ROCK_UNTIL);
     }

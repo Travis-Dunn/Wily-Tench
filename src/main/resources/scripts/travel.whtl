@@ -1,0 +1,14 @@
+// Ways between maps.
+//
+// [oploc,X] runs when the player uses the thing a map calls X, having
+// walked up beside it. The commands available are listed in Scripts.java.
+
+[oploc,ladder]
+mes("You climb down the ladder.")
+delay(1)
+travel("dungeon.txt")
+
+[oploc,stairs]
+mes("You climb the stairs.")
+delay(1)
+travel("cave.txt")

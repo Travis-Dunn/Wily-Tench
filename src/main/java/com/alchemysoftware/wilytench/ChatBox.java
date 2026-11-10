@@ -87,8 +87,15 @@ final class ChatBox {
     }
 
     /** @return the most recently added line, or null if there is none */
-    String Newest() {
-        return added == 0 ? null : lines[(added - 1) % HISTORY];
+    String Newest() { return Line(0); }
+
+    /**
+     * @param back how many lines before the newest; 0 is the newest
+     * @return that line, or null if there are not that many
+     */
+    String Line(int back) {
+        if (back >= Math.min(added, HISTORY)) return null;
+        return lines[(added - 1 - back) % HISTORY];
     }
 
     /**

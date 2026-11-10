@@ -56,6 +56,8 @@ run on Windows of any age.
 | C22 | `Fixture.java` (tests) guards one-time initialization with a static flag |
 | C23 | `SaveGame.java` does its writing on a thread of its own |
 | C24 | `SaveGame.Load()` calls `Describe()` and then `Read()` |
+| C26 | `Scripts.java` keeps the game in progress in a static field for command handlers to reach |
+| C27 | `WorldScene.java` lists every script and map file by name |
 
 ---
 
@@ -455,6 +457,31 @@ large atlas, which the format allows up to 65,536 frames. It is noted here
 because the limit of eight reads as generous in the readme and turns out
 to be the first one a game with ordinary purchased art will meet.
 
+**C26. A command handler has no way to reach the game it is acting
+on.** *(Hit)*  
+Status: open.
+`CommandHandler.execute()` receives the `ScriptState` and nothing else,
+and `ScriptState` offers the player variables and the script. A handler
+for `mes` or `travel` needs the game: the chat box, the maps, the player.
+The only route is a static field somewhere that the handler reads
+(`Scripts.Bind()`), which is fine for one player and one game in progress
+and wrong for anything else, including tests that would like two sessions
+side by side. An opaque `Object context` passed to `FireTrigger()` and
+readable as `state.context` would let the host hand each script its own
+world, at no cost to the component's ignorance of the game.
+
+**C27. Every script file has to be listed by hand.** *(Hit)*  
+Status: open.
+`LoadScripts()` wants every path in one call, and
+`ResourceStreamResolver.List()` does not work in classpath mode, so a game
+shipping its scripts inside its jar cannot discover them. The game keeps a
+hand-written array of script files (and another of maps) that must be
+edited whenever one is added. The tutorial's promise that a designer can
+"drop a modified guard.whtl next to the game" holds for changing a script
+but not for adding one. A classpath `List()` is hard in general; a
+manifest convention, such as `LoadScriptsListedIn("scripts", "index.txt")`,
+would be enough.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
@@ -481,3 +508,15 @@ Worth recording, so they are not "fixed" by accident.
   the writer thread. Quitting and relaunching resumed correctly. Killing
   the game mid-write, the case its two generations exist for, has not
   been tried yet.
+- `comp-script-sys` worked first time from its tutorial: two commands,
+  two trigger blocks, and the ladder was scripted. The delay counts came
+  out exactly as documented, which the tests pin down tick by tick, and
+  `Shutdown()` followed by `Init()` comes back clean, so each test gets a
+  fresh script manager.
+- On the script system shipping no commands: from the using side this was
+  no obstacle and reads as the right boundary. Everything the game has
+  needed so far (`mes`, `travel`) is about this game's chat box and this
+  game's maps. The tutorial's `mes` example was enough to see the
+  pattern. If people are surprised, the cheapest fix is probably one
+  sentence at the top of the readme saying so outright, since at present
+  it is implied by "the host registers the commands" rather than stated.

@@ -78,11 +78,14 @@ rocks in them.
   appears on the bottom row and Enter says it. The mouse wheel, or Page Up
   and Page Down, scroll back.
 
-- **Two maps.** The world is made of separate maps that will be joined
-  by ladders and stairs. Those do not work yet; for now **Tab** moves the
-  character to the starting tile of the other map. Each map keeps its own
-  state, so a rock mined in the cave refills on schedule while you are in
-  the dungeon.
+- **Two maps.** The world is made of separate maps joined by ladders and
+  stairs. Click the ladder in the cave and the character walks over and
+  climbs down to the dungeon; the stairs there lead back. Each map keeps
+  its own state, so a rock mined in the cave refills on schedule while you
+  are in the dungeon.
+- **Scripts.** What the ladder and stairs do is not Java but a script,
+  and most of the game's content is meant to be written that way from
+  here on. See "Scripts" below.
 - **Saving.** There is no save command. As in an online game, what has
   happened has happened: the game writes itself to disk after every tick
   in which something changed, and picks up where it left off next time.
@@ -119,8 +122,8 @@ must be installed, which it is by default on Mint.
 
 `mvn verify` also runs the tests in `src/test`, which play the game's
 rules through tick by tick with no window: walk to a rock, mine it, check
-the ore, the experience, the messages; travel between maps; save a game
-and load it back. They drive a `Session` directly, which is why the
+the ore, the experience, the messages; use a ladder and follow its script
+tick by tick; travel between maps; save a game and load it back. They drive a `Session` directly, which is why the
 game's rules live there and not in the scene. They use no test framework, in the
 same way Whitetail's do: a public class named `*Test`, whose public `test*`
 methods pass by returning and fail by throwing. New rules should come with
@@ -150,9 +153,11 @@ The game keeps a folder per user:
 ## Saved games
 
 The saved game holds the character's map and tile, the count of game
-ticks, the experience in each skill, the inventory, and for every map the
-rocks that are mined out and the tick at which each refills.
-`SaveState.java` lists the exact names and shapes.
+ticks, the experience in each skill, the inventory, every script player
+variable (the `%names` scripts declare, which is where quest progress will
+live), and for every map the rocks that are mined out and the tick at
+which each refills. `SaveState.java` lists the exact names and shapes. A
+script that was paused when the game closed is not saved.
 
 - **To start over,** delete `wts-player.a` and `wts-player.b` from the
   folder above while the game is closed.
@@ -185,9 +190,10 @@ which is what makes that practical.
 | `Screen`, `Palette` | The window, the picture's size, and its colors |
 | `Sprites` | Names for the atlases, layers, and frames |
 | `World` | One map: what is on each tile, whether it is solid, and which rocks are mined out |
-| `Session` | A game in progress: all the maps, the player, skills, inventory, and tick count. The rules, with no window |
+| `Session` | A game in progress: all the maps, the player, skills, inventory, script variables, and tick count. The rules, with no window |
 | `TileView` | Draws the visible part of the map |
 | `Pathfinder`, `Player` | Finding a route and walking it, one tile per tick |
+| `Scripts` | The bridge to the script system: the commands scripts can call and the triggers the game fires |
 | `WorldScene` | The window onto a `Session`: input, drawing, and saving after each tick |
 | `Gfx` | Rectangles and outlines drawn straight into the picture |
 | `Font`, `Text` | Bitmap fonts, and drawing writing with them |
@@ -204,6 +210,48 @@ Maps are text files in `src/main/resources/maps`: a couple of settings
 (the place's name, and whether it uses the cave or the dungeon art), then
 one character per tile. The key is at the top of `World.java`. To add a
 map, write its file and add the file's name to `MAPS` in `WorldScene`.
+
+## Scripts
+
+Game content lives in script files, `src/main/resources/scripts/*.whtl`,
+written in Whitetail's script language. Its reference and tutorial are in
+Whitetail's `comp-script-sys` folder. A script file is a list of *trigger
+blocks*; the game decides when each runs. This is all of `travel.whtl`:
+
+    [oploc,ladder]
+    mes("You climb down the ladder.")
+    delay(1)
+    travel("dungeon.txt")
+
+    [oploc,stairs]
+    mes("You climb the stairs.")
+    delay(1)
+    travel("cave.txt")
+
+Whitetail supplies the language and nothing else: every trigger and every
+command is defined by the game, in `Scripts.java`.
+
+| Trigger | Runs when |
+| ------- | --------- |
+| `[oploc,X]` | The player has clicked the thing a map calls `X` and walked up beside it. `World.java` gives things their script names; so far `ladder` and `stairs` |
+
+| Command | Does |
+| ------- | ---- |
+| `mes(text)` | Writes a line in the chat box |
+| `travel(map)` | Moves the player to the start of a map, named by its file |
+
+`delay(n)` is part of the language and pauses a script for `n` game ticks.
+While a script is paused the player is busy and clicks on the world are
+ignored.
+
+To add a script file, write it and add its name to `SCRIPTS` in
+`WorldScene`. To give scripts a new ability, register a command in
+`Scripts.Init()` and add it to the tables here and at the top of
+`Scripts.java`. A mistake in a script is reported when the game starts,
+with the file, line, and a pointer to the spot.
+
+Mining is still written in Java (`Mining.java`). New behavior should be
+scripted where it reasonably can be.
 
 ## Art
 

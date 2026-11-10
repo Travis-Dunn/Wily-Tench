@@ -27,7 +27,8 @@ import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
  *          with its neighbors
  *   .  ,   floor, in the tileset's first or second pattern
  *   @      where the player arrives
- *   L      the way out: a ladder in a cave, stairs in a dungeon
+ *   L      the way out: a ladder in a cave, stairs in a dungeon.
+ *          Scripts know these as "ladder" and "stairs"
  *   r  R   rocks holding ore: copper or iron
  *   s  S   stalagmites, orange or grey
  *   c      crystal          m  mushrooms
@@ -65,6 +66,7 @@ final class World {
         "Cave wall", "Dungeon wall"
     };
     private static final String[] EXIT_NAMES = { "Ladder", "Stairs" };
+    private static final String[] EXIT_LOCS = { "ladder", "stairs" };
 
     /*
      * Wall pieces, as { column, row } on a tileset's sheet, indexed by
@@ -104,6 +106,9 @@ final class World {
     private final boolean[] solid, animated;
     private final String[] names;
 
+    /* Per tile: what scripts call the thing there, or null. */
+    private final String[] locs;
+
     /* Per tile: the Ore kind of a rock there, and for a mined-out rock
        the game tick at which its ore is back, or FULL. */
     private final byte[] ore;
@@ -117,7 +122,9 @@ final class World {
 
     private World(String id, String name, int w, int h, int startX,
                   int startY, int[] floor, int[] object, boolean[] solid,
-                  boolean[] animated, String[] names, byte[] ore) {
+                  boolean[] animated, String[] names, String[] locs,
+                  byte[] ore) {
+        this.locs = locs;
         this.id = id;
         this.name = name;
         this.w = w;
@@ -177,7 +184,7 @@ final class World {
         int atlas = TILESET_ATLASES[tileset];
         int[] floor = new int[w * h], object = new int[w * h];
         boolean[] solid = new boolean[w * h], animated = new boolean[w * h];
-        String[] names = new String[w * h];
+        String[] names = new String[w * h], locs = new String[w * h];
         byte[] ore = new byte[w * h];
         int startX = -1, startY = -1;
 
@@ -218,6 +225,7 @@ final class World {
                     break;
                 case 'L':
                     names[i] = EXIT_NAMES[tileset];
+                    locs[i] = EXIT_LOCS[tileset];
                     object[i] = tileset == TILESET_CAVE ? Cave(0, 11) :
                             Sprites.Picture(Sprites.ATLAS_DUNGEON, 0, 7);
                     break;
@@ -283,7 +291,7 @@ final class World {
             return null;
         }
         return new World(filename, name, w, h, startX, startY, floor,
-                object, solid, animated, names, ore);
+                object, solid, animated, names, locs, ore);
     }
 
     /** @return whether the tile is inside the map */
@@ -300,6 +308,14 @@ final class World {
     String Name(int x, int y) {
         if (!Contains(x, y)) return null;
         return RockEmpty(x, y) ? DEPLETED_NAME : names[y * w + x];
+    }
+
+    /**
+     * @return what scripts call the thing on the tile, the X of an
+     *         [oploc,X] trigger, or null if it has no such name
+     */
+    String LocAt(int x, int y) {
+        return Contains(x, y) ? locs[y * w + x] : null;
     }
 
     /** @return the Ore kind of a rock on the tile, or Ore.NONE */

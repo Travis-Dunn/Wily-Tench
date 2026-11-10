@@ -18,10 +18,10 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * player asks for.
  *
  * Left click walks the character to the clicked tile, or as close as it
- * can get; clicking an ore rock walks up to it and mines it. Tab moves
- * the character to the start of the other map, a stand-in until ladders
- * work. The view stays centered on the character. Typing goes to the
- * chat box. Escape closes the game.
+ * can get; clicking an ore rock walks up to it and mines it; clicking
+ * anything a script exists for, such as a ladder, walks up to it and
+ * runs the script. The view stays centered on the character. Typing
+ * goes to the chat box. Escape closes the game.
  *
  * After every game tick the game is saved, if the tick changed
  * anything worth saving.
@@ -31,6 +31,7 @@ final class WorldScene extends Scene {
 
     /* The first is where a new game begins. */
     private static final String[] MAPS = { "cave.txt", "dungeon.txt" };
+    private static final String[] SCRIPTS = { "travel.whtl" };
 
     /* Sprites beyond the map view: the player, with room to spare for
        the creatures and effects to come. */
@@ -47,7 +48,7 @@ final class WorldScene extends Scene {
     private static final String MSG_WELCOME_BACK =
             "Welcome back to " + Screen.TITLE + ".";
     private static final String MSG_HOW_TO = "Click the ground to walk " +
-            "and a rock to mine it. Tab takes you to the other map.";
+            "and a rock to mine it. Ladders and stairs lead elsewhere.";
     private static final String MSG_LOADED_OLDER = "Your newest saved " +
             "game was damaged, so the one before it was loaded.";
     private static final String MSG_UNREADABLE = "Your saved game could " +
@@ -57,6 +58,7 @@ final class WorldScene extends Scene {
     private static final String MSG_CANT_REACH = "You can't reach that.";
     private static final String HOVER_WALK = "Walk here";
     private static final String HOVER_MINE = "Mine ";
+    private static final String HOVER_USE = "Use ";
 
     private int w, h;
     private int viewPortX, viewPortY, viewW, viewH;
@@ -117,8 +119,8 @@ final class WorldScene extends Scene {
         chat = new ChatBox(smallFont, viewPortX, viewPortY + viewH, viewW,
                 h - viewPortY - viewH);
 
-        if ((session = Session.Create(MAPS, chat, new Random())) == null)
-            return;
+        session = Session.Create(MAPS, SCRIPTS, chat, new Random());
+        if (session == null) return;
         tiles = TileView.Create(session.Here(), viewW, viewH);
         if (tiles == null) {
             ErrorHandler.LogFatalAndStop(ERR_STR_SPRITES);
@@ -151,8 +153,6 @@ final class WorldScene extends Scene {
     @Override
     public void onInput() {
         if (InputSys.WasPressed(Button.KEY_ESCAPE)) RunFlag.Stop();
-        if (InputSys.WasPressed(Button.KEY_TAB))
-            session.TravelTo((session.Map() + 1) % session.worlds.length);
 
         DisplayLayout layout = Screen.GetLayout();
         int fbX = layout.WindowToFramebufferX(InputSys.GetMouseX());
@@ -165,10 +165,14 @@ final class WorldScene extends Scene {
             mouseX = mouseY = NOWHERE;
         }
 
-        if (mouseX != NOWHERE && InputSys.WasPressed(Button.MOUSE_LEFT)) {
+        /* A script that is part-way through has the player's attention;
+           clicks wait until it is done. */
+        if (mouseX != NOWHERE && InputSys.WasPressed(Button.MOUSE_LEFT) &&
+                !session.Busy()) {
             int tx = TileUnderMouseX(), ty = TileUnderMouseY();
 
-            if (session.Here().OreAt(tx, ty) != Ore.NONE)
+            if (session.Here().OreAt(tx, ty) != Ore.NONE ||
+                    session.Usable(tx, ty))
                 session.player.WalkToTarget(tx, ty);
             else if (!session.player.WalkTo(tx, ty))
                 chat.Add(MSG_CANT_REACH, Palette.BONE);
@@ -234,6 +238,7 @@ final class WorldScene extends Scene {
     public void onDestroy() {
         if (spritesInit) SpriteRenderer.Shutdown();
         spritesInit = false;
+        Session.Close();
         Sprites.Shutdown();
         Gfx.Shutdown();
         session = null;
@@ -255,11 +260,12 @@ final class WorldScene extends Scene {
         boolean solid = world.Solid(tx, ty);
         boolean mineable = world.OreAt(tx, ty) != Ore.NONE &&
                 !world.RockEmpty(tx, ty);
-        String name = HoverText(world, tx, ty, mineable);
+        boolean usable = session.Usable(tx, ty);
+        String name = HoverText(world, tx, ty, mineable, usable);
 
         Gfx.Outline(viewPortX + tx * TILE - viewX,
                 viewPortY + ty * TILE - viewY, TILE, TILE,
-                mineable ? Palette.MINT :
+                mineable || usable ? Palette.MINT :
                 solid ? Palette.RUST : Palette.BONE);
 
         if (name != null) {
@@ -274,14 +280,15 @@ final class WorldScene extends Scene {
     }
 
     private String HoverText(World world, int tx, int ty,
-                             boolean mineable) {
+                             boolean mineable, boolean usable) {
         int tile = world.Contains(tx, ty) ? ty * world.w + tx : NOWHERE;
 
         if (tile != hoverTile || world.Version() != hoverVersion) {
             String name = world.Name(tx, ty);
             hoverTile = tile;
             hoverVersion = world.Version();
-            hoverText = mineable ? HOVER_MINE + name : name;
+            hoverText = mineable ? HOVER_MINE + name :
+                    usable ? HOVER_USE + name : name;
         }
         return hoverText;
     }
