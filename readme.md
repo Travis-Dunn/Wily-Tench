@@ -58,16 +58,28 @@ Some other standing facts:
 
 ## Current state
 
-You can walk around a small cave. Left click a tile and the character
-walks there by the shortest route, one tile per tick, or as close as it can
-get if the tile is solid. The view follows. The name of whatever is under
-the mouse is shown at the top left.
+You can walk around a small cave and mine it.
 
-Below the view is a chat box, as in RuneScape. The game writes its
-messages there; anything you type appears on the bottom row and Enter says
-it. The mouse wheel, or Page Up and Page Down, scroll back. Escape quits.
+- **Walking.** Left click a tile and the character walks there by the
+  shortest route, one tile per tick, or as close as it can get. The view
+  follows. The name of whatever is under the mouse is shown at the top
+  left.
+- **Mining.** Left click an ore rock. The character walks up to it and
+  swings; every third tick a swing lands and the dice are rolled against
+  your Mining level. A win gives one ore and some experience and leaves
+  the rock empty for a few ticks. Copper can be mined from level 1; iron,
+  the dark red rock, needs level 15. You need the hammer you start with
+  and a free inventory slot.
+- **Side panel.** Mining level, progress to the next level, and the
+  28-slot inventory. Point at an item to see its name; right-click to drop
+  it. Dropped items vanish, for now.
+- **Chat box.** The game writes its messages there; anything you type
+  appears on the bottom row and Enter says it. The mouse wheel, or Page Up
+  and Page Down, scroll back.
 
-There are no skills, monsters, items, or side panel contents yet.
+Escape quits. **Nothing is saved yet**: every run starts from level 1.
+
+There are no monsters, other skills, or quests yet.
 
 ## Running it in IntelliJ
 
@@ -91,6 +103,15 @@ building Whitetail does. To try the game on another machine, copy
 run the same `java -jar` command there. No other setup is needed: the game
 unpacks LWJGL's native libraries by itself. On Linux the `xrandr` program
 must be installed, which it is by default on Mint.
+
+## Tests
+
+`mvn verify` also runs the tests in `src/test`, which play the game's
+rules through tick by tick with no window: walk to a rock, mine it, check
+the ore, the experience, the messages. They use no test framework, in the
+same way Whitetail's do: a public class named `*Test`, whose public `test*`
+methods pass by returning and fail by throwing. New rules should come with
+tests like these.
 
 ## Settings and logs
 
@@ -130,6 +151,11 @@ which is what makes that practical.
 | `Gfx` | Rectangles and outlines drawn straight into the picture |
 | `Font`, `Text` | Bitmap fonts, and drawing writing with them |
 | `ChatBox` | The message history and typing line under the view |
+| `SidePanel` | Skills and inventory, to the right of the view |
+| `Item`, `Inventory` | The kinds of thing that can be carried, and the 28 slots they are carried in |
+| `Skills` | Experience and levels |
+| `Ore`, `Mining` | The ore rocks and their odds, and the mining job itself |
+| `Sheet` | Reads a sprite sheet file, for both the sprite renderer and interface icons |
 
 Maps are text files in `src/main/resources/maps`, one character per tile;
 the key is at the top of `World.java`.
@@ -145,9 +171,16 @@ configuration or:
 
     mvn test-compile exec:java@atlases
 
-Things the art does not have, which shape the game: characters face one
-way and have no walking animation (they have idle, hurt, angry, and sick
-poses), and the scenery is caves and dungeons, with no outdoors.
+Things the art does not have, which shape the game:
+
+- Characters face one way and have no walking or working animation. They
+  have idle, hurt, angry, and sick poses; mining borrows "angry".
+- The scenery is caves and dungeons, with no outdoors.
+- There is no picture of ore and none of a pickaxe. Ore in the inventory
+  uses the picture of the rock it came from, and rocks are mined with the
+  hammer from the weapons art.
+- There are only orange and grey rocks. Grey serves as "mined out", and
+  other ores are the orange rock recolored by swapping palette colors.
 
 ## Fonts
 

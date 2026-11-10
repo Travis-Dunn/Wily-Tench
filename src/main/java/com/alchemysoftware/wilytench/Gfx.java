@@ -61,6 +61,32 @@ final class Gfx {
         }
     }
 
+    /**
+     * Draws one frame of a sheet with its top left at (x, y). Index 0
+     * in the sheet is see-through.
+     *
+     * @param colorMap 256 replacement indices, or null to draw the
+     *                 sheet's own colors
+     */
+    static void DrawFrame(Sheet sheet, int frame, int x, int y,
+                          byte[] colorMap) {
+        int size = Sheet.CELL;
+        int srcX = frame % sheet.perRow * size;
+        int srcY = frame / sheet.perRow * size;
+        int x0 = Math.max(x, clipX0), y0 = Math.max(y, clipY0);
+        int x1 = Math.min(x + size, clipX1), y1 = Math.min(y + size, clipY1);
+
+        for (int py = y0; py < y1; py++) {
+            int s = (srcY + py - y) * sheet.w + srcX + x0 - x;
+            int d = py * bufW + x0;
+            for (int px = x0; px < x1; px++, s++, d++) {
+                byte texel = sheet.texels[s];
+                if (texel == 0) continue;
+                buf[d] = colorMap == null ? texel : colorMap[texel & 0xFF];
+            }
+        }
+    }
+
     /** Draws the one-pixel outline of a rectangle. */
     static void Outline(int x, int y, int w, int h, int index) {
         FillRect(x, y, w, 1, index);

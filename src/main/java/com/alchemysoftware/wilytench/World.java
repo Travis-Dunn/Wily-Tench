@@ -19,7 +19,7 @@ import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
  *   .      cave floor
  *   ,      paved floor
  *   @      where the player starts
- *   r  R   rocks, orange or grey
+ *   r  R   rocks holding ore: copper or iron
  *   s  S   stalagmites, orange or grey
  *   c      crystal          m  mushrooms
  *   t      torch            b  barrel
@@ -28,6 +28,9 @@ import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
  * Everything from "r" down stands on cave floor and is solid unless
  * noted. Rows may be different lengths; the map is as wide as the
  * longest.
+ *
+ * The one thing about a map that changes during play is its ore rocks,
+ * which are empty for a while after being mined.
  */
 final class World {
     static final int NO_FRAME = -1;
@@ -59,14 +62,30 @@ final class World {
     final int w, h;
     final int startX, startY;
 
+    private static final String DEPLETED_NAME = "Rocks";
+
     private final short[] floor, object;
     private final boolean[] solid, animated;
     private final String[] names;
 
+    /* Per tile: the Ore kind of a rock there, and for a mined-out rock
+       the game ticks left until its ore is back. */
+    private final byte[] ore;
+    private final int[] emptyTicks;
+    private int emptyRocks;
+
+    /* Added to an orange rock's frame to get the same rock in grey. */
+    private final int greyRockOffset;
+
+    private int version;
+
     private World(int w, int h, int startX, int startY, short[] floor,
                   short[] object, boolean[] solid, boolean[] animated,
-                  String[] names) {
+                  String[] names, byte[] ore) {
         this.names = names;
+        this.ore = ore;
+        emptyTicks = new int[w * h];
+        greyRockOffset = Sprites.Cave(0, GREY_WALL_ROW_OFFSET);
         this.w = w;
         this.h = h;
         this.startX = startX;
@@ -95,6 +114,7 @@ final class World {
         short[] floor = new short[w * h], object = new short[w * h];
         boolean[] solid = new boolean[w * h], animated = new boolean[w * h];
         String[] names = new String[w * h];
+        byte[] ore = new byte[w * h];
         int startX = -1, startY = -1;
 
         for (y = 0; y < h; y++) {
@@ -142,12 +162,10 @@ final class World {
                     object[i] = (short) Sprites.Cave(0, 18);
                     break;
                 case 'r':
-                    names[i] = "Rocks";
-                    object[i] = (short) Sprites.Cave(5 + (mix >> 4 & 1), 1);
-                    break;
                 case 'R':
-                    names[i] = "Rocks";
-                    object[i] = (short) Sprites.Cave(5 + (mix >> 4 & 1), 4);
+                    ore[i] = (byte) (c == 'r' ? Ore.COPPER : Ore.IRON);
+                    names[i] = Ore.RockName(ore[i]);
+                    object[i] = (short) Sprites.Cave(5 + (mix >> 4 & 1), 1);
                     break;
                 case 's':
                     names[i] = "Stalagmites";
@@ -195,7 +213,7 @@ final class World {
             return null;
         }
         return new World(w, h, startX, startY, floor, object, solid,
-                animated, names);
+                animated, names, ore);
     }
 
     /** @return whether the tile is inside the map */
@@ -210,7 +228,50 @@ final class World {
 
     /** @return what stands on the tile, or null if nothing does */
     String Name(int x, int y) {
-        return Contains(x, y) ? names[y * w + x] : null;
+        if (!Contains(x, y)) return null;
+        return emptyTicks[y * w + x] > 0 ? DEPLETED_NAME : names[y * w + x];
+    }
+
+    /** @return the Ore kind of a rock on the tile, or Ore.NONE */
+    int OreAt(int x, int y) {
+        return Contains(x, y) ? ore[y * w + x] : Ore.NONE;
+    }
+
+    /** @return whether a rock there is mined out for the moment */
+    boolean RockEmpty(int x, int y) {
+        return emptyTicks[y * w + x] > 0;
+    }
+
+    /** Empties the rock on a tile for a number of game ticks. */
+    void EmptyRock(int x, int y, int ticks) {
+        int i = y * w + x;
+        if (emptyTicks[i] == 0) emptyRocks++;
+        emptyTicks[i] = ticks;
+        version++;
+    }
+
+    /** Advances one game tick: counts mined-out rocks toward refilling. */
+    void Tick() {
+        if (emptyRocks == 0) return;
+
+        for (int i = 0; i < emptyTicks.length; i++) {
+            if (emptyTicks[i] == 0 || --emptyTicks[i] > 0) continue;
+            emptyRocks--;
+            version++;
+        }
+    }
+
+    /**
+     * @return a number that changes whenever anything about how the
+     *         map looks has changed
+     */
+    int Version() { return version; }
+
+    /** @return the color map to draw what stands on the tile with */
+    int ObjectColorMap(int x, int y) {
+        int i = y * w + x;
+        return emptyTicks[i] > 0 ? Sprites.COLOR_MAP_NONE :
+                Ore.ColorMap(ore[i]);
     }
 
     /** @return the cave atlas frame of the ground, or NO_FRAME */
@@ -224,6 +285,7 @@ final class World {
      */
     int ObjectFrame(int x, int y, int phase) {
         int i = y * w + x;
+        if (emptyTicks[i] > 0) return object[i] + greyRockOffset;
         return animated[i] ? object[i] + phase : object[i];
     }
 

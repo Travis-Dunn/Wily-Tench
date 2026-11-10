@@ -48,11 +48,12 @@ run on Windows of any age.
 | C7 | `Screen.java` calls `GL11.glClear` and `glGetError` directly |
 | C8 | `Game.java` has its own frame rate cap |
 | C13 | `Game.java` starts `RunFlag` before the scenes initialize |
-| C14 | `Sprites.java` hard-codes each atlas's frames per row |
+| C14, C21 | `Sheet.java` reads `.wsa` files itself, and `Gfx.DrawFrame()` draws from them |
 | C15 | `AtlasTool.java` converts and pads the art |
 | C16 | `WorldScene.java` carries fractional milliseconds between frames |
 | C18 | `Font.java`, `Text.java`, `Gfx.java`, and `FontTool.java` are the game's own text and drawing code |
 | C19 | `ChatBox.java` uses only the direction of the mouse wheel |
+| C22 | `MiningTest.java` guards one-time initialization with a static flag |
 
 ---
 
@@ -295,7 +296,8 @@ Its fields are final but package-private, so after
 `SpriteAssetBuilder.AtlasFromResource()` a game cannot ask an atlas for
 its width, its frames per row, or its frame count. To turn "column 5, row
 1 of the sheet" into a frame number the game has to hard-code the frames
-per row for each file and keep it in step with the file by hand. Rule 5 of
+per row for each file and keep it in step with the file by hand. (Since
+C21 the game sidesteps this by reading the file itself.) Rule 5 of
 the constitution suggests these should simply be public.
 
 **C15. Getting ordinary art into an atlas takes a custom tool.** *(Hit)*  
@@ -379,6 +381,37 @@ bindings, typing "m" in chat will also open the map unless the game
 invents its own focus rule. `comp-input-mapper` could carry a "text entry
 is active, suppress plain-key actions" switch.
 
+**C21. The sprite renderer cannot draw outside its one viewport, so
+interface icons need a second renderer.** *(Hit)*  
+Status: open.
+`SpriteRenderer` clips everything to the single viewport given to
+`Init()`, which for this game is the view of the world. An inventory icon
+in the side panel is the same 16 pixel indexed art from the same atlas,
+recolored by the same kind of color map, but it lies outside that
+viewport, so the sprite renderer cannot draw it. Nor can the game draw it
+by hand from the `SpriteAtlas`, whose pixels are private (C14).
+
+The game now reads `.wsa` files itself (`Sheet.java`), gives the pixel
+array to `SpriteAtlas.Create()` for the renderer, and keeps the reference
+for its own `Gfx.DrawFrame()`, which repeats the renderer's inner loop
+including the color map lookup. That works, and holds nothing twice,
+because `Create()` retains the array it is given; but it means
+`SpriteAssetBuilder.AtlasFromResource()` is unusable for any game with an
+interface. Either of these would remove the duplication: an immediate
+`SpriteRenderer.DrawFrame(atlas, frame, x, y, colorMap)` that ignores the
+viewport, or public read access to an atlas's and a color map's data.
+
+**C22. Components with no `Shutdown()` are awkward to test around.**
+*(Hit)*  
+Status: open.
+The game's rule tests start the pieces they need for each test and stop
+them after. `SpriteRenderer` allows that. `ResourceStreamResolver` has no
+shutdown and treats a second `Init()` as fatal, so the tests initialize it
+once behind a static flag and every test shares it. `Timer` and
+`ConfigFileParser` are the same, though the tests do not use them. A
+`Shutdown()` on each, even one that only clears the flag, would let tests
+be independent.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
@@ -396,3 +429,8 @@ Worth recording, so they are not "fixed" by accident.
   map logged no garbage collections at all.
 - Text entry through `InputSys.GetEvent()` worked first time, including
   held-backspace repeat, exactly as the readme describes.
+- `SpriteRenderer` runs happily with no window, drawing into a plain
+  array, which made it possible to test the game's rules tick by tick.
+  Whitetail's framework-free Surefire test style copied over in minutes.
+- Color maps did exactly what they promise: iron rock is the copper rock
+  sprite with three palette indices swapped, set per sprite, at no cost.

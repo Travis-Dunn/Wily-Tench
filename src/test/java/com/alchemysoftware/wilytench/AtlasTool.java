@@ -25,7 +25,7 @@ import com.alchemysoftware.whitetail.sprite.SpriteAtlas;
  * placed at the top left of the smallest power-of-two canvas that holds
  * it, because that is the only atlas shape Whitetail accepts. The cell
  * at column c, row r of the region is therefore frame
- * r * (canvas width / 16) + c.
+ * r * (canvas width / 16) + c, which Sheet.Frame() works out.
  */
 public final class AtlasTool {
     private static final int CELL = 16;
@@ -39,6 +39,8 @@ public final class AtlasTool {
         /* The first hero's eleven rows; the other three columns of the
            sheet are the same poses in other clothes. */
         { "Heroes.png", "heroes.wsa", 0, 0, 64, 176 },
+        /* Everything above the sparkle and shine animations. */
+        { "Items.png", "items.wsa", 0, 0, 176, 160 },
     };
 
     private AtlasTool() {}

@@ -1,5 +1,7 @@
 package com.alchemysoftware.wilytench;
 
+import java.util.Random;
+
 import com.alchemysoftware.whitetail.display.DisplayLayout;
 import com.alchemysoftware.whitetail.error.ErrorHandler;
 import com.alchemysoftware.whitetail.error.RunFlag;
@@ -15,8 +17,12 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * and the interface around that view.
  *
  * Left click walks the character to the clicked tile, or as close as it
- * can get. The view stays centered on the character. Typing goes to the
- * chat box. Escape closes the game.
+ * can get; clicking an ore rock walks up to it and mines it. The view
+ * stays centered on the character. Typing goes to the chat box. Escape
+ * closes the game.
+ *
+ * Each game tick the map, then the player, then the player's current
+ * job are advanced, in that order.
  */
 final class WorldScene extends Scene {
     private static final int TILE = Sprites.TILE;
@@ -32,14 +38,14 @@ final class WorldScene extends Scene {
     private static final int NOWHERE = -1;
 
     private static final int HOVER_TEXT_X = 4, HOVER_TEXT_Y = 3;
-    private static final int TITLE_Y = 6;
 
-    private static final String TITLE = Screen.TITLE;
-    private static final String MSG_WELCOME = "Welcome to " + TITLE + ".";
-    private static final String MSG_HOW_TO = "Click to walk. Type and " +
-            "press Enter to talk to yourself.";
+    private static final String MSG_WELCOME =
+            "Welcome to " + Screen.TITLE + ".";
+    private static final String MSG_HOW_TO = "Click the ground to walk " +
+            "and a rock to mine it.";
     private static final String MSG_CANT_REACH = "You can't reach that.";
     private static final String HOVER_WALK = "Walk here";
+    private static final String HOVER_MINE = "Mine ";
 
     private int w, h;
     private int viewPortX, viewPortY, viewW, viewH;
@@ -49,8 +55,18 @@ final class WorldScene extends Scene {
     private TileView tiles;
     private Player player;
 
-    private Font smallFont, titleFont;
+    private Font smallFont, boldFont, titleFont;
     private ChatBox chat;
+    private SidePanel panel;
+
+    private Inventory inventory;
+    private Skills skills;
+    private Mining mining;
+
+    /* What the hover label last said, and about which tile and state of
+       the map, so the label is only rebuilt when one of those changes. */
+    private String hoverText;
+    private int hoverTile = NOWHERE, hoverVersion;
 
     /* The map pixel at the top left of the viewport, as last drawn. */
     private int viewX, viewY;
@@ -76,25 +92,39 @@ final class WorldScene extends Scene {
         Gfx.Init(buf, w, h);
 
         if ((smallFont = Font.Load("small.fnt")) == null) return;
+        if ((boldFont = Font.Load("bold.fnt")) == null) return;
         if ((titleFont = Font.Load("title.fnt")) == null) return;
-        chat = new ChatBox(smallFont, viewPortX, viewPortY + viewH, viewW,
-                h - viewPortY - viewH);
-        chat.Add(MSG_WELCOME, Palette.BONE);
-        chat.Add(MSG_HOW_TO, Palette.ASH);
-
-        if ((world = World.Load(MAP)) == null) return;
 
         if (!SpriteRenderer.Init(buf, w, h, viewPortX, viewPortY, viewW,
                 viewH, TileView.SpritesNeeded(viewW, viewH) +
                 SPARE_SPRITES)) return;
         spritesInit = true;
 
+        /* The map names its tiles by sprite frame, so sprites first. */
         if (!Sprites.Install()) return;
+        if ((world = World.Load(MAP)) == null) return;
 
         tiles = TileView.Create(world, viewW, viewH);
         player = Player.Create(world);
-        if (tiles == null || player == null)
+        if (tiles == null || player == null) {
             ErrorHandler.LogFatalAndStop(ERR_STR_SPRITES);
+            return;
+        }
+
+        inventory = new Inventory();
+        inventory.Add(Item.BRONZE_HAMMER);
+        skills = new Skills();
+
+        int panelX = viewPortX + viewW;
+        chat = new ChatBox(smallFont, viewPortX, viewPortY + viewH, viewW,
+                h - viewPortY - viewH);
+        panel = new SidePanel(smallFont, boldFont, titleFont, panelX, 0,
+                w - panelX, h, inventory, skills, chat);
+        mining = new Mining(world, player, inventory, skills, chat,
+                new Random());
+
+        chat.Add(MSG_WELCOME, Palette.BONE);
+        chat.Add(MSG_HOW_TO, Palette.ASH);
     }
 
     @Override
@@ -118,16 +148,26 @@ final class WorldScene extends Scene {
             mouseX = mouseY = NOWHERE;
         }
 
-        if (mouseX != NOWHERE && InputSys.WasPressed(Button.MOUSE_LEFT) &&
-                !player.WalkTo(TileUnderMouseX(), TileUnderMouseY()))
-            chat.Add(MSG_CANT_REACH, Palette.BONE);
+        if (mouseX != NOWHERE && InputSys.WasPressed(Button.MOUSE_LEFT)) {
+            int tx = TileUnderMouseX(), ty = TileUnderMouseY();
+
+            if (world.OreAt(tx, ty) != Ore.NONE)
+                player.WalkToTarget(tx, ty);
+            else if (!player.WalkTo(tx, ty))
+                chat.Add(MSG_CANT_REACH, Palette.BONE);
+        }
 
         chat.Input(fbX, fbY);
+        panel.Input(fbX, fbY);
     }
 
     @Override
     public void onUpdate(double delta) {
-        while (Timer.Tick()) player.Tick();
+        while (Timer.Tick()) {
+            world.Tick();
+            player.Tick();
+            mining.Tick();
+        }
 
         /* Animations count whole milliseconds; carry the fraction so
            none of the time is lost. */
@@ -160,19 +200,24 @@ final class WorldScene extends Scene {
         Gfx.ClearClip();
 
         chat.Draw();
-        DrawPanel();
+        panel.Draw();
     }
 
     @Override
     public void onDestroy() {
         if (spritesInit) SpriteRenderer.Shutdown();
         spritesInit = false;
+        Sprites.Shutdown();
         Gfx.Shutdown();
         world = null;
         tiles = null;
         player = null;
         chat = null;
-        smallFont = titleFont = null;
+        panel = null;
+        inventory = null;
+        skills = null;
+        mining = null;
+        smallFont = boldFont = titleFont = null;
     }
 
     @Override
@@ -182,10 +227,13 @@ final class WorldScene extends Scene {
     private void DrawHover() {
         int tx = TileUnderMouseX(), ty = TileUnderMouseY();
         boolean solid = world.Solid(tx, ty);
-        String name = world.Name(tx, ty);
+        boolean mineable = world.OreAt(tx, ty) != Ore.NONE &&
+                !world.RockEmpty(tx, ty);
+        String name = HoverText(tx, ty, mineable);
 
         Gfx.Outline(viewPortX + tx * TILE - viewX,
                 viewPortY + ty * TILE - viewY, TILE, TILE,
+                mineable ? Palette.MINT :
                 solid ? Palette.RUST : Palette.BONE);
 
         if (name != null) {
@@ -199,15 +247,16 @@ final class WorldScene extends Scene {
         }
     }
 
-    /* The interface panel: only a title for now. */
-    private void DrawPanel() {
-        int panelX = viewPortX + viewW, panelW = w - panelX;
+    private String HoverText(int tx, int ty, boolean mineable) {
+        int tile = world.Contains(tx, ty) ? ty * world.w + tx : NOWHERE;
 
-        Gfx.FillRect(panelX, 0, panelW, h, Palette.NIGHT);
-        Gfx.FillRect(panelX, 0, 1, h, Palette.SLATE);
-        Text.DrawShadowed(titleFont, TITLE, 0, TITLE.length(),
-                panelX + (panelW - titleFont.Width(TITLE, 0,
-                TITLE.length())) / 2, TITLE_Y, Palette.AMBER, Palette.INK);
+        if (tile != hoverTile || world.Version() != hoverVersion) {
+            String name = world.Name(tx, ty);
+            hoverTile = tile;
+            hoverVersion = world.Version();
+            hoverText = mineable ? HOVER_MINE + name : name;
+        }
+        return hoverText;
     }
 
     private int TileUnderMouseX() {

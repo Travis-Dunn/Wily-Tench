@@ -18,7 +18,7 @@ final class TileView {
     private final int cols, rows;
     private final int[] floorSprites, objectSprites;
 
-    private int shownCol, shownRow, shownPhase = NO_PHASE;
+    private int shownCol, shownRow, shownPhase = NO_PHASE, shownVersion;
 
     private TileView(World world, int cols, int rows, int[] floorSprites,
                      int[] objectSprites) {
@@ -67,7 +67,8 @@ final class TileView {
 
     /**
      * Points the sprites at the tiles now in view. Does nothing unless
-     * the view has crossed a tile boundary or the animation has stepped.
+     * the view has crossed a tile boundary, the animation has stepped,
+     * or the map itself has changed.
      *
      * @param viewX the map pixel at the left edge of the viewport
      * @param viewY the map pixel at the top edge of the viewport
@@ -75,8 +76,9 @@ final class TileView {
      */
     void Show(int viewX, int viewY, int phase) {
         int col0 = FloorDiv(viewX, TILE), row0 = FloorDiv(viewY, TILE);
-        if (col0 == shownCol && row0 == shownRow && phase == shownPhase)
-            return;
+        if (col0 == shownCol && row0 == shownRow && phase == shownPhase &&
+                world.Version() == shownVersion) return;
+        shownVersion = world.Version();
         shownCol = col0;
         shownRow = row0;
         shownPhase = phase;
@@ -93,6 +95,8 @@ final class TileView {
                 Point(floorSprites[i], x, y, world.FloorFrame(x, y));
                 Point(objectSprites[i], x, y,
                         world.ObjectFrame(x, y, phase));
+                SpriteRenderer.SetColorMap(objectSprites[i],
+                        world.ObjectColorMap(x, y));
             }
         }
     }

@@ -86,6 +86,11 @@ final class ChatBox {
         scroll = 0;
     }
 
+    /** @return the most recently added line, or null if there is none */
+    String Newest() {
+        return added == 0 ? null : lines[(added - 1) % HISTORY];
+    }
+
     /**
      * Takes this frame's typing and scrolling from InputSys.
      *
