@@ -467,6 +467,6 @@ Worth recording, so they are not "fixed" by accident.
 - Color maps did exactly what they promise: iron rock is the copper rock
   sprite with three palette indices swapped, set per sprite, at no cost.
 - `comp-save-sys` worked first time from its readme, including through
-  the writer thread. Killing the game mid-session and restarting has so
-  far always come back to the last tick, which is the property the
-  every-tick saving depends on.
+  the writer thread. Quitting and relaunching resumed correctly. Killing
+  the game mid-write, the case its two generations exist for, has not
+  been tried yet.
