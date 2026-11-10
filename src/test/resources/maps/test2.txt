@@ -1,0 +1,6 @@
+!name Second Room
+!tileset dungeon
+#####
+#..R#
+#.@.#
+#####

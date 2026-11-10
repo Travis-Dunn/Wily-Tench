@@ -8,13 +8,14 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  * It owns just enough sprites to cover the viewport, two per tile: one
  * for the ground and one for whatever stands on it. As the view moves
  * those same sprites are pointed at different map tiles, so a large map
- * costs no more to draw than a small one.
+ * costs no more to draw than a small one, and the same sprites serve
+ * whichever map the player is on.
  */
 final class TileView {
     private static final int TILE = Sprites.TILE;
     private static final int NO_PHASE = -1;
 
-    private final World world;
+    private World world;
     private final int cols, rows;
     private final int[] floorSprites, objectSprites;
 
@@ -65,6 +66,12 @@ final class TileView {
         return new TileView(world, cols, rows, floorSprites, objectSprites);
     }
 
+    /** Switches the view to another map. */
+    void SetWorld(World world) {
+        this.world = world;
+        shownPhase = NO_PHASE;
+    }
+
     /**
      * Points the sprites at the tiles now in view. Does nothing unless
      * the view has crossed a tile boundary, the animation has stepped,
@@ -92,9 +99,9 @@ final class TileView {
                     SpriteRenderer.SetVisible(objectSprites[i], false);
                     continue;
                 }
-                Point(floorSprites[i], x, y, world.FloorFrame(x, y));
+                Point(floorSprites[i], x, y, world.FloorPicture(x, y));
                 Point(objectSprites[i], x, y,
-                        world.ObjectFrame(x, y, phase));
+                        world.ObjectPicture(x, y, phase));
                 SpriteRenderer.SetColorMap(objectSprites[i],
                         world.ObjectColorMap(x, y));
             }
@@ -107,13 +114,14 @@ final class TileView {
         return a % b < 0 ? q - 1 : q;
     }
 
-    private static void Point(int sprite, int x, int y, int frame) {
-        if (frame == World.NO_FRAME) {
+    private static void Point(int sprite, int x, int y, int picture) {
+        if (picture == World.NO_PICTURE) {
             SpriteRenderer.SetVisible(sprite, false);
             return;
         }
         SpriteRenderer.SetPosition(sprite, x * TILE, y * TILE);
-        SpriteRenderer.SetFrame(sprite, frame);
+        SpriteRenderer.SetAtlas(sprite, Sprites.AtlasOf(picture),
+                Sprites.FrameOf(picture));
         SpriteRenderer.SetVisible(sprite, true);
     }
 

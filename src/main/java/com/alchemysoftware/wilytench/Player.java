@@ -12,6 +12,9 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  * tick along the planned route. Between ticks the sprite glides from
  * the previous tile to the current one so the movement looks smooth.
  *
+ * The character is on one map at a time; EnterWorld() moves it to
+ * another.
+ *
  * A walk may have a "target": a tile the character is heading for in
  * order to do something to it, such as a rock to mine. The character
  * stops beside a target rather than on it.
@@ -21,9 +24,9 @@ final class Player {
     private static final int IDLE_FRAME_MS = 250;
     private static final int WORK_FRAME_MS = 200;
 
-    private final World world;
-    private final Pathfinder pathfinder;
-    private final int[] route;
+    private World world;
+    private Pathfinder pathfinder;
+    private int[] route;
     private final int sprite;
     private final SpriteAnimation anim;
     private final SpriteAnimationDefinition idleDef, workDef;
@@ -155,6 +158,17 @@ final class Player {
         y = prevY = tileY;
         routeLen = routePos = 0;
         hasTarget = false;
+    }
+
+    /**
+     * Moves the character to a tile of another map at once, standing
+     * still.
+     */
+    void EnterWorld(World world, int tileX, int tileY) {
+        this.world = world;
+        pathfinder = new Pathfinder(world);
+        route = new int[world.w * world.h];
+        Place(tileX, tileY);
     }
 
     /** Advances one game tick: takes the next step of the walk. */

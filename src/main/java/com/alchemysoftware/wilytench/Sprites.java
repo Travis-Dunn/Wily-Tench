@@ -18,7 +18,8 @@ final class Sprites {
     static final int ATLAS_CAVE = 0;
     static final int ATLAS_HEROES = 1;
     static final int ATLAS_ITEMS = 2;
-    private static final int ATLAS_COUNT = 3;
+    static final int ATLAS_DUNGEON = 3;
+    private static final int ATLAS_COUNT = 4;
 
     /* Drawn back to front. */
     static final int LAYER_FLOOR = 0;
@@ -31,8 +32,12 @@ final class Sprites {
     private static final int COLOR_MAP_COUNT = 2;
 
     private static final String[] FILES = {
-        "cave.wsa", "heroes.wsa", "items.wsa"
+        "cave.wsa", "heroes.wsa", "items.wsa", "dungeon.wsa"
     };
+
+    /* A "picture" is an atlas and a frame in one number. */
+    private static final int PICTURE_ATLAS_SHIFT = 16;
+    private static final int PICTURE_FRAME_MASK = 0xFFFF;
 
     /* { from, to } palette index pairs. */
     private static final int[][] IRON_SWAPS = {
@@ -78,6 +83,25 @@ final class Sprites {
 
     /** @return a color map's 256 entries, or null for COLOR_MAP_NONE */
     static byte[] ColorMap(int colorMapId) { return colorMaps[colorMapId]; }
+
+    /**
+     * @return one number standing for the picture at column col, row
+     *         row of an atlas's sheet; never negative
+     */
+    static int Picture(int atlasId, int col, int row) {
+        return atlasId << PICTURE_ATLAS_SHIFT |
+                sheets[atlasId].Frame(col, row);
+    }
+
+    /** @return the atlas a picture is in */
+    static int AtlasOf(int picture) {
+        return picture >> PICTURE_ATLAS_SHIFT;
+    }
+
+    /** @return a picture's frame within its atlas */
+    static int FrameOf(int picture) {
+        return picture & PICTURE_FRAME_MASK;
+    }
 
     /** @return the frame for column col, row row of the cave sheet */
     static int Cave(int col, int row) {

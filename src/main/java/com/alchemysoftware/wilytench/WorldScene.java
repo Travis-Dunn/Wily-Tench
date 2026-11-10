@@ -13,22 +13,24 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
 import com.alchemysoftware.whitetail.timer.Timer;
 
 /**
- * The game world: the map, the player's character, the view of them,
- * and the interface around that view.
+ * The window onto a Session: draws the map the player is on, the
+ * character, and the interface around them, and passes on what the
+ * player asks for.
  *
  * Left click walks the character to the clicked tile, or as close as it
- * can get; clicking an ore rock walks up to it and mines it. The view
- * stays centered on the character. Typing goes to the chat box. Escape
- * closes the game.
+ * can get; clicking an ore rock walks up to it and mines it. Tab moves
+ * the character to the start of the other map, a stand-in until ladders
+ * work. The view stays centered on the character. Typing goes to the
+ * chat box. Escape closes the game.
  *
- * Each game tick the map, then the player, then the player's current
- * job are advanced, in that order, and then the game is saved if any
- * of that changed something worth saving.
+ * After every game tick the game is saved, if the tick changed
+ * anything worth saving.
  */
 final class WorldScene extends Scene {
     private static final int TILE = Sprites.TILE;
 
-    private static final String MAP = "cave.txt";
+    /* The first is where a new game begins. */
+    private static final String[] MAPS = { "cave.txt", "dungeon.txt" };
 
     /* Sprites beyond the map view: the player, with room to spare for
        the creatures and effects to come. */
@@ -42,10 +44,10 @@ final class WorldScene extends Scene {
 
     private static final String MSG_WELCOME =
             "Welcome to " + Screen.TITLE + ".";
-    private static final String MSG_HOW_TO = "Click the ground to walk " +
-            "and a rock to mine it.";
     private static final String MSG_WELCOME_BACK =
             "Welcome back to " + Screen.TITLE + ".";
+    private static final String MSG_HOW_TO = "Click the ground to walk " +
+            "and a rock to mine it. Tab takes you to the other map.";
     private static final String MSG_LOADED_OLDER = "Your newest saved " +
             "game was damaged, so the one before it was loaded.";
     private static final String MSG_UNREADABLE = "Your saved game could " +
@@ -60,29 +62,27 @@ final class WorldScene extends Scene {
     private int viewPortX, viewPortY, viewW, viewH;
 
     private boolean spritesInit;
-    private World world;
+    private Session session;
+    private SaveState save;
     private TileView tiles;
-    private Player player;
 
     private Font smallFont, boldFont, titleFont;
     private ChatBox chat;
     private SidePanel panel;
 
-    private Inventory inventory;
-    private Skills skills;
-    private Mining mining;
-    private PlayerSave save;
-
-    /* What the hover label last said, and about which tile and state of
-       the map, so the label is only rebuilt when one of those changes. */
-    private String hoverText;
-    private int hoverTile = NOWHERE, hoverVersion;
+    /* Which map the tiles are showing, to notice when it changes. */
+    private World shown;
 
     /* The map pixel at the top left of the viewport, as last drawn. */
     private int viewX, viewY;
 
     /* The mouse, in viewport pixels, or NOWHERE when outside it. */
     private int mouseX = NOWHERE, mouseY = NOWHERE;
+
+    /* What the hover label last said, and about which tile and state of
+       the map, so the label is only rebuilt when one of those changes. */
+    private String hoverText;
+    private int hoverTile = NOWHERE, hoverVersion;
 
     private double msCarry;
     private int animMs;
@@ -110,33 +110,28 @@ final class WorldScene extends Scene {
                 SPARE_SPRITES)) return;
         spritesInit = true;
 
-        /* The map names its tiles by sprite frame, so sprites first. */
+        /* The maps name their tiles by sprite, so sprites come first. */
         if (!Sprites.Install()) return;
-        if ((world = World.Load(MAP)) == null) return;
-
-        tiles = TileView.Create(world, viewW, viewH);
-        player = Player.Create(world);
-        if (tiles == null || player == null) {
-            ErrorHandler.LogFatalAndStop(ERR_STR_SPRITES);
-            return;
-        }
-
-        inventory = new Inventory();
-        skills = new Skills();
-        save = new PlayerSave(MAP, player, skills, inventory);
-
-        int loadOutcome = SaveGame.Load();
-        if (loadOutcome == SaveGame.LOAD_TOO_NEW) return;
-        if (SaveGame.Loaded() != null) save.Restore(SaveGame.Loaded(), world);
-        else inventory.Add(Item.BRONZE_HAMMER);
 
         int panelX = viewPortX + viewW;
         chat = new ChatBox(smallFont, viewPortX, viewPortY + viewH, viewW,
                 h - viewPortY - viewH);
+
+        if ((session = Session.Create(MAPS, chat, new Random())) == null)
+            return;
+        tiles = TileView.Create(session.Here(), viewW, viewH);
+        if (tiles == null) {
+            ErrorHandler.LogFatalAndStop(ERR_STR_SPRITES);
+            return;
+        }
         panel = new SidePanel(smallFont, boldFont, titleFont, panelX, 0,
-                w - panelX, h, inventory, skills, chat);
-        mining = new Mining(world, player, inventory, skills, chat,
-                new Random());
+                w - panelX, h, session.inventory, session.skills, chat);
+
+        save = new SaveState(session);
+        int loadOutcome = SaveGame.Load();
+        if (loadOutcome == SaveGame.LOAD_TOO_NEW) return;
+        if (SaveGame.Loaded() != null) save.Restore(SaveGame.Loaded());
+        else session.inventory.Add(Item.BRONZE_HAMMER);
 
         chat.Add(SaveGame.Loaded() != null ? MSG_WELCOME_BACK : MSG_WELCOME,
                 Palette.BONE);
@@ -156,6 +151,8 @@ final class WorldScene extends Scene {
     @Override
     public void onInput() {
         if (InputSys.WasPressed(Button.KEY_ESCAPE)) RunFlag.Stop();
+        if (InputSys.WasPressed(Button.KEY_TAB))
+            session.TravelTo((session.Map() + 1) % session.worlds.length);
 
         DisplayLayout layout = Screen.GetLayout();
         int fbX = layout.WindowToFramebufferX(InputSys.GetMouseX());
@@ -171,9 +168,9 @@ final class WorldScene extends Scene {
         if (mouseX != NOWHERE && InputSys.WasPressed(Button.MOUSE_LEFT)) {
             int tx = TileUnderMouseX(), ty = TileUnderMouseY();
 
-            if (world.OreAt(tx, ty) != Ore.NONE)
-                player.WalkToTarget(tx, ty);
-            else if (!player.WalkTo(tx, ty))
+            if (session.Here().OreAt(tx, ty) != Ore.NONE)
+                session.player.WalkToTarget(tx, ty);
+            else if (!session.player.WalkTo(tx, ty))
                 chat.Add(MSG_CANT_REACH, Palette.BONE);
         }
 
@@ -183,13 +180,19 @@ final class WorldScene extends Scene {
 
     @Override
     public void onUpdate(double delta) {
+        Player player = session.player;
+
         while (Timer.Tick()) {
-            world.Tick();
-            player.Tick();
-            mining.Tick();
+            session.Advance();
             if (save.Changed()) SaveGame.Queue(save.Capture());
         }
         if (SaveGame.TakeFailure()) chat.Add(MSG_SAVE_FAILED, Palette.PEACH);
+
+        if (shown != session.Here()) {
+            shown = session.Here();
+            tiles.SetWorld(shown);
+            hoverTile = NOWHERE;
+        }
 
         /* Animations count whole milliseconds; carry the fraction so
            none of the time is lost. */
@@ -209,6 +212,8 @@ final class WorldScene extends Scene {
 
     @Override
     public void onRender() {
+        Player player = session.player;
+
         SpriteRenderer.Clear(Palette.BACKGROUND);
         SpriteRenderer.Render(viewX, viewY);
 
@@ -231,15 +236,12 @@ final class WorldScene extends Scene {
         spritesInit = false;
         Sprites.Shutdown();
         Gfx.Shutdown();
-        world = null;
+        session = null;
+        save = null;
         tiles = null;
-        player = null;
+        shown = null;
         chat = null;
         panel = null;
-        inventory = null;
-        skills = null;
-        mining = null;
-        save = null;
         smallFont = boldFont = titleFont = null;
     }
 
@@ -248,11 +250,12 @@ final class WorldScene extends Scene {
 
     /* Outlines the tile under the mouse and names what is on it. */
     private void DrawHover() {
+        World world = session.Here();
         int tx = TileUnderMouseX(), ty = TileUnderMouseY();
         boolean solid = world.Solid(tx, ty);
         boolean mineable = world.OreAt(tx, ty) != Ore.NONE &&
                 !world.RockEmpty(tx, ty);
-        String name = HoverText(tx, ty, mineable);
+        String name = HoverText(world, tx, ty, mineable);
 
         Gfx.Outline(viewPortX + tx * TILE - viewX,
                 viewPortY + ty * TILE - viewY, TILE, TILE,
@@ -270,7 +273,8 @@ final class WorldScene extends Scene {
         }
     }
 
-    private String HoverText(int tx, int ty, boolean mineable) {
+    private String HoverText(World world, int tx, int ty,
+                             boolean mineable) {
         int tile = world.Contains(tx, ty) ? ty * world.w + tx : NOWHERE;
 
         if (tile != hoverTile || world.Version() != hoverVersion) {

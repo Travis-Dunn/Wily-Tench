@@ -444,6 +444,17 @@ from a newer release. For the usual "load the one save if there is one"
 case, a `Read()` that returned null for an absent slot, and a `SaveData`
 that carried its own `gameVersion`, would make it one call and one pass.
 
+**C25. Eight atlas banks will run out.** *(Predicted)*  
+Status: open.
+The game installs one atlas per sprite sheet and is at four of the eight
+banks after two maps: cave, heroes, items, dungeon. More art is on its
+way. Banks cannot be replaced during a renderer lifecycle, so they cannot
+be swapped as the player changes map either. The way out is in the game's
+hands, not Whitetail's: have `AtlasTool` pack several sheets into one
+large atlas, which the format allows up to 65,536 frames. It is noted here
+because the limit of eight reads as generous in the readme and turns out
+to be the first one a game with ordinary purchased art will meet.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.

@@ -58,7 +58,8 @@ Some other standing facts:
 
 ## Current state
 
-You can walk around a small cave and mine it.
+You can walk around two small maps, a cave and a dungeon, and mine the
+rocks in them.
 
 - **Walking.** Left click a tile and the character walks there by the
   shortest route, one tile per tick, or as close as it can get. The view
@@ -77,6 +78,11 @@ You can walk around a small cave and mine it.
   appears on the bottom row and Enter says it. The mouse wheel, or Page Up
   and Page Down, scroll back.
 
+- **Two maps.** The world is made of separate maps that will be joined
+  by ladders and stairs. Those do not work yet; for now **Tab** moves the
+  character to the starting tile of the other map. Each map keeps its own
+  state, so a rock mined in the cave refills on schedule while you are in
+  the dungeon.
 - **Saving.** There is no save command. As in an online game, what has
   happened has happened: the game writes itself to disk after every tick
   in which something changed, and picks up where it left off next time.
@@ -113,7 +119,9 @@ must be installed, which it is by default on Mint.
 
 `mvn verify` also runs the tests in `src/test`, which play the game's
 rules through tick by tick with no window: walk to a rock, mine it, check
-the ore, the experience, the messages; save a game and load it back. They use no test framework, in the
+the ore, the experience, the messages; travel between maps; save a game
+and load it back. They drive a `Session` directly, which is why the
+game's rules live there and not in the scene. They use no test framework, in the
 same way Whitetail's do: a public class named `*Test`, whose public `test*`
 methods pass by returning and fail by throwing. New rules should come with
 tests like these.
@@ -141,10 +149,10 @@ The game keeps a folder per user:
 
 ## Saved games
 
-The saved game holds the character's map and tile, the experience in each
-skill, and the inventory. `PlayerSave.java` lists the exact names and
-shapes. The state of the map itself, such as which rocks are mined out, is
-not saved yet; that waits on deciding how the world is divided up.
+The saved game holds the character's map and tile, the count of game
+ticks, the experience in each skill, the inventory, and for every map the
+rocks that are mined out and the tick at which each refills.
+`SaveState.java` lists the exact names and shapes.
 
 - **To start over,** delete `wts-player.a` and `wts-player.b` from the
   folder above while the game is closed.
@@ -160,7 +168,9 @@ not saved yet; that waits on deciding how the world is divided up.
   and must never be changed or reused.
 - **Cost.** One save is a few hundred bytes and, where measured, about a
   millisecond, on a thread of its own so that a slow disk cannot make the
-  game stutter. Standing still writes nothing.
+  game stutter. Standing still with every rock full writes nothing.
+- **Maps are saved by file name.** Renaming a map file strands anyone
+  saved on it at the first map's start.
 
 ## How the game is put together
 
@@ -174,10 +184,11 @@ which is what makes that practical.
 | `DataDir`, `Settings`, `Natives` | The per-user folder, `config.ini`, LWJGL's native libraries |
 | `Screen`, `Palette` | The window, the picture's size, and its colors |
 | `Sprites` | Names for the atlases, layers, and frames |
-| `World` | A map: what is on each tile and whether it is solid |
+| `World` | One map: what is on each tile, whether it is solid, and which rocks are mined out |
+| `Session` | A game in progress: all the maps, the player, skills, inventory, and tick count. The rules, with no window |
 | `TileView` | Draws the visible part of the map |
 | `Pathfinder`, `Player` | Finding a route and walking it, one tile per tick |
-| `WorldScene` | Ties the above together: input, updating, drawing |
+| `WorldScene` | The window onto a `Session`: input, drawing, and saving after each tick |
 | `Gfx` | Rectangles and outlines drawn straight into the picture |
 | `Font`, `Text` | Bitmap fonts, and drawing writing with them |
 | `ChatBox` | The message history and typing line under the view |
@@ -186,11 +197,13 @@ which is what makes that practical.
 | `Skills` | Experience and levels |
 | `Ore`, `Mining` | The ore rocks and their odds, and the mining job itself |
 | `Sheet` | Reads a sprite sheet file, for both the sprite renderer and interface icons |
-| `PlayerSave` | Turns the player's state into a saved game and back |
+| `SaveState` | Turns a `Session` into a saved game and back |
 | `SaveGame` | Keeps the saved game on disk, writing on its own thread |
 
-Maps are text files in `src/main/resources/maps`, one character per tile;
-the key is at the top of `World.java`.
+Maps are text files in `src/main/resources/maps`: a couple of settings
+(the place's name, and whether it uses the cave or the dungeon art), then
+one character per tile. The key is at the top of `World.java`. To add a
+map, write its file and add the file's name to `MAPS` in `WorldScene`.
 
 ## Art
 

@@ -41,6 +41,9 @@ public final class AtlasTool {
         { "Heroes.png", "heroes.wsa", 0, 0, 64, 176 },
         /* Everything above the sparkle and shine animations. */
         { "Items.png", "items.wsa", 0, 0, 176, 160 },
+        /* Walls, doors, floors, spikes, stairs, shelves, chests, and
+           tables; below that the sheet is small ornaments. */
+        { "Dungeon.png", "dungeon.wsa", 0, 0, 192, 208 },
     };
 
     private AtlasTool() {}

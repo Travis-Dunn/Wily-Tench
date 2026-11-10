@@ -8,84 +8,118 @@ import com.alchemysoftware.whitetail.error.ErrorHandler;
 import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
 
 /**
- * One map: for every tile, what is drawn there and whether it can be
- * walked on.
+ * One map, or "worldspace": for every tile, what is drawn there and
+ * whether it can be walked on. The game's world is several of these,
+ * joined by ladders and stairs.
  *
- * Maps are plain text files in the "maps" resource folder, one
- * character per tile, so they can be edited in any text editor:
+ * Maps are plain text files in the "maps" resource folder, so they can
+ * be edited in any text editor. A file starts with settings, one per
+ * line, each beginning with an exclamation mark:
+ *
+ *   !name Copper Cave      what the place is called
+ *   !tileset cave          which art its walls and floors use:
+ *                          "cave" or "dungeon"
+ *
+ * Everything after the settings is the map, one character per tile:
  *
  *   space  nothing; solid
- *   #  %   cave wall, orange or grey; joins up with its neighbors
- *   .      cave floor
- *   ,      paved floor
- *   @      where the player starts
+ *   #  %   wall, in the tileset's first or second color; joins up
+ *          with its neighbors
+ *   .  ,   floor, in the tileset's first or second pattern
+ *   @      where the player arrives
+ *   L      the way out: a ladder in a cave, stairs in a dungeon
  *   r  R   rocks holding ore: copper or iron
  *   s  S   stalagmites, orange or grey
  *   c      crystal          m  mushrooms
  *   t      torch            b  barrel
  *   p      pot              w  cobweb, which can be walked through
+ *   k      bookshelf        h  chest
  *
- * Everything from "r" down stands on cave floor and is solid unless
- * noted. Rows may be different lengths; the map is as wide as the
- * longest.
+ * Everything from "L" down stands on the first floor pattern and is
+ * solid unless noted. Rows may be different lengths; the map is as wide
+ * as the longest.
  *
  * The one thing about a map that changes during play is its ore rocks,
- * which are empty for a while after being mined.
+ * which are empty for a while after being mined. Each empty rock
+ * remembers the game tick at which it refills, so a map the player has
+ * left needs no attention until the player comes back.
  */
 final class World {
-    static final int NO_FRAME = -1;
+    static final int NO_PICTURE = -1;
 
     /** How many frames an animated object cycles through. */
     static final int ANIM_FRAMES = 4;
 
     private static final String FOLDER = "maps";
+    private static final char SETTING_MARK = '!';
+    private static final String SETTING_NAME = "name";
+    private static final String SETTING_TILESET = "tileset";
+
+    private static final int TILESET_CAVE = 0;
+    private static final int TILESET_DUNGEON = 1;
+    private static final String[] TILESET_NAMES = { "cave", "dungeon" };
+    private static final int[] TILESET_ATLASES = {
+        Sprites.ATLAS_CAVE, Sprites.ATLAS_DUNGEON
+    };
+    private static final String[] WALL_NAMES = {
+        "Cave wall", "Dungeon wall"
+    };
+    private static final String[] EXIT_NAMES = { "Ladder", "Stairs" };
 
     /*
-     * Wall pieces, as { column, row } on the orange part of the cave
-     * sheet, indexed by which neighbors are also wall: north 1, east 2,
-     * south 4, west 8. Found by checking which edges of each piece the
-     * wall's top surface reaches. The art has no piece for a wall with
-     * no neighbors, so slot 0 borrows the east-west one.
+     * Wall pieces, as { column, row } on a tileset's sheet, indexed by
+     * which neighbors are also wall: north 1, east 2, south 4, west 8.
+     * Found by checking which edges of each piece the wall's top
+     * surface reaches. Both tilesets lay their walls out identically.
+     * The art has no piece for a wall with no neighbors, so slot 0
+     * borrows the east-west one.
      */
     private static final int[][] WALL_PIECES = {
         { 3, 2 }, { 0, 2 }, { 2, 2 }, { 2, 1 }, { 1, 2 }, { 4, 1 },
         { 2, 0 }, { 0, 1 }, { 3, 1 }, { 4, 2 }, { 3, 0 }, { 1, 1 },
         { 4, 0 }, { 1, 0 }, { 0, 0 }, { 5, 0 }
     };
-    /* The grey wall pieces sit this many rows below the orange ones. */
-    private static final int GREY_WALL_ROW_OFFSET = 3;
+    /* The second wall color sits this many rows below the first. */
+    private static final int SECOND_WALL_ROW_OFFSET = 3;
+    /* And the grey rock this many rows below the orange. */
+    private static final int GREY_ROCK_ROW_OFFSET = 3;
 
     private static final int CRYSTAL_KINDS = 5;
     private static final int MUSHROOM_KINDS = 3;
     private static final int STALAGMITE_KINDS = 5;
+    private static final int BOOKSHELF_KINDS = 5;
+
+    private static final String DEPLETED_NAME = "Rocks";
+    private static final int FULL = 0;
+
+    /** The map's file name, which is also how saved games refer to it. */
+    final String id;
+    /** What the place is called. */
+    final String name;
 
     final int w, h;
     final int startX, startY;
 
-    private static final String DEPLETED_NAME = "Rocks";
-
-    private final short[] floor, object;
+    private final int[] floor, object;
     private final boolean[] solid, animated;
     private final String[] names;
 
     /* Per tile: the Ore kind of a rock there, and for a mined-out rock
-       the game ticks left until its ore is back. */
+       the game tick at which its ore is back, or FULL. */
     private final byte[] ore;
-    private final int[] emptyTicks;
+    private final int[] emptyUntil;
     private int emptyRocks;
 
-    /* Added to an orange rock's frame to get the same rock in grey. */
+    /* Added to an orange rock's picture to get the same rock in grey. */
     private final int greyRockOffset;
 
-    private int version;
+    private int now, version;
 
-    private World(int w, int h, int startX, int startY, short[] floor,
-                  short[] object, boolean[] solid, boolean[] animated,
-                  String[] names, byte[] ore) {
-        this.names = names;
-        this.ore = ore;
-        emptyTicks = new int[w * h];
-        greyRockOffset = Sprites.Cave(0, GREY_WALL_ROW_OFFSET);
+    private World(String id, String name, int w, int h, int startX,
+                  int startY, int[] floor, int[] object, boolean[] solid,
+                  boolean[] animated, String[] names, byte[] ore) {
+        this.id = id;
+        this.name = name;
         this.w = w;
         this.h = h;
         this.startX = startX;
@@ -94,6 +128,10 @@ final class World {
         this.object = object;
         this.solid = solid;
         this.animated = animated;
+        this.names = names;
+        this.ore = ore;
+        emptyUntil = new int[w * h];
+        greyRockOffset = Cave(0, GREY_ROCK_ROW_OFFSET) - Cave(0, 0);
     }
 
     /**
@@ -101,8 +139,33 @@ final class World {
      * @return the map, or null after a fatal error has been reported
      */
     static World Load(String filename) {
-        String[] rows = ReadRows(filename);
-        if (rows == null) return null;
+        String[] lines = ReadLines(filename);
+        if (lines == null) return null;
+
+        String name = filename;
+        int tileset = TILESET_CAVE, first = 0;
+
+        for (; first < lines.length && lines[first].length() > 0 &&
+                lines[first].charAt(0) == SETTING_MARK; first++) {
+            String setting = lines[first].substring(1).trim();
+            int space = setting.indexOf(' ');
+            String key = space < 0 ? setting : setting.substring(0, space);
+            String value = space < 0 ? "" : setting.substring(space).trim();
+
+            if (key.equals(SETTING_NAME) && value.length() > 0) {
+                name = value;
+            } else if (key.equals(SETTING_TILESET) &&
+                    (tileset = TilesetNamed(value)) >= 0) {
+                continue;
+            } else {
+                ErrorHandler.LogFatalAndStop(
+                        ErrStrSetting(filename, lines[first], first));
+                return null;
+            }
+        }
+
+        String[] rows = new String[lines.length - first];
+        System.arraycopy(lines, first, rows, 0, rows.length);
 
         int w = 0, h = rows.length, x, y;
         for (y = 0; y < h; y++) w = Math.max(w, rows[y].length());
@@ -111,7 +174,8 @@ final class World {
             return null;
         }
 
-        short[] floor = new short[w * h], object = new short[w * h];
+        int atlas = TILESET_ATLASES[tileset];
+        int[] floor = new int[w * h], object = new int[w * h];
         boolean[] solid = new boolean[w * h], animated = new boolean[w * h];
         String[] names = new String[w * h];
         byte[] ore = new byte[w * h];
@@ -122,7 +186,7 @@ final class World {
                 int i = y * w + x, mix = Mix(x, y);
                 char c = At(rows, x, y);
 
-                floor[i] = object[i] = NO_FRAME;
+                floor[i] = object[i] = NO_PICTURE;
                 solid[i] = true;
 
                 switch (c) {
@@ -130,22 +194,18 @@ final class World {
                     continue;
                 case '#':
                 case '%':
-                    object[i] = (short) WallFrame(rows, x, y, c);
-                    names[i] = "Cave wall";
+                    object[i] = WallPicture(rows, x, y, c, atlas);
+                    names[i] = WALL_NAMES[tileset];
                     continue;
                 case ',':
-                    floor[i] = (short) Sprites.Cave(8 + (mix & 1), 3);
+                    floor[i] = SecondFloor(tileset, mix);
                     solid[i] = false;
                     continue;
                 default:
                     break;
                 }
 
-                /* Everything else stands on cave floor, which is bare
-                   in about half the tiles and speckled in the rest. */
-                if ((mix & 2) != 0)
-                    floor[i] = (short) Sprites.Cave(8 + (mix >> 2 & 1),
-                            mix >> 3 & 1);
+                floor[i] = FirstFloor(tileset, mix);
 
                 switch (c) {
                 case '.':
@@ -156,53 +216,63 @@ final class World {
                     startX = x;
                     startY = y;
                     break;
+                case 'L':
+                    names[i] = EXIT_NAMES[tileset];
+                    object[i] = tileset == TILESET_CAVE ? Cave(0, 11) :
+                            Sprites.Picture(Sprites.ATLAS_DUNGEON, 0, 7);
+                    break;
                 case 'w':
                     names[i] = "Cobweb";
                     solid[i] = false;
-                    object[i] = (short) Sprites.Cave(0, 18);
+                    object[i] = Cave(0, 18);
                     break;
                 case 'r':
                 case 'R':
                     ore[i] = (byte) (c == 'r' ? Ore.COPPER : Ore.IRON);
                     names[i] = Ore.RockName(ore[i]);
-                    object[i] = (short) Sprites.Cave(5 + (mix >> 4 & 1), 1);
+                    object[i] = Cave(5 + (mix >> 4 & 1), 1);
                     break;
                 case 's':
                     names[i] = "Stalagmites";
-                    object[i] = (short) Sprites.Cave(
-                            (mix >>> 4) % STALAGMITE_KINDS, 6);
+                    object[i] = Cave((mix >>> 4) % STALAGMITE_KINDS, 6);
                     break;
                 case 'S':
                     names[i] = "Stalagmites";
-                    object[i] = (short) Sprites.Cave(
-                            (mix >>> 4) % STALAGMITE_KINDS, 8);
+                    object[i] = Cave((mix >>> 4) % STALAGMITE_KINDS, 8);
                     break;
                 case 'c':
                     names[i] = "Crystal";
-                    object[i] = (short) Sprites.Cave(
-                            (mix >>> 4) % CRYSTAL_KINDS, 16);
+                    object[i] = Cave((mix >>> 4) % CRYSTAL_KINDS, 16);
                     break;
                 case 'm':
                     names[i] = "Mushrooms";
-                    object[i] = (short) Sprites.Cave(
-                            (mix >>> 4) % MUSHROOM_KINDS, 17);
+                    object[i] = Cave((mix >>> 4) % MUSHROOM_KINDS, 17);
                     break;
                 case 't':
                     names[i] = "Torch";
-                    object[i] = (short) Sprites.Cave(0, 14);
+                    object[i] = Cave(0, 14);
                     animated[i] = true;
                     break;
                 case 'b':
                     names[i] = "Barrel";
-                    object[i] = (short) Sprites.Cave(1, 13);
+                    object[i] = Cave(1, 13);
                     break;
                 case 'p':
                     names[i] = "Pot";
-                    object[i] = (short) Sprites.Cave(0, 13);
+                    object[i] = Cave(0, 13);
+                    break;
+                case 'k':
+                    names[i] = "Bookshelf";
+                    object[i] = Sprites.Picture(Sprites.ATLAS_DUNGEON,
+                            1 + (mix >>> 4) % BOOKSHELF_KINDS, 8);
+                    break;
+                case 'h':
+                    names[i] = "Chest";
+                    object[i] = Sprites.Picture(Sprites.ATLAS_DUNGEON, 0, 9);
                     break;
                 default:
                     ErrorHandler.LogFatalAndStop(
-                            ErrStrSymbol(filename, c, x, y));
+                            ErrStrSymbol(filename, c, x, first + y));
                     return null;
                 }
             }
@@ -212,8 +282,8 @@ final class World {
             ErrorHandler.LogFatalAndStop(ErrStrNoStart(filename));
             return null;
         }
-        return new World(w, h, startX, startY, floor, object, solid,
-                animated, names, ore);
+        return new World(filename, name, w, h, startX, startY, floor,
+                object, solid, animated, names, ore);
     }
 
     /** @return whether the tile is inside the map */
@@ -229,7 +299,7 @@ final class World {
     /** @return what stands on the tile, or null if nothing does */
     String Name(int x, int y) {
         if (!Contains(x, y)) return null;
-        return emptyTicks[y * w + x] > 0 ? DEPLETED_NAME : names[y * w + x];
+        return RockEmpty(x, y) ? DEPLETED_NAME : names[y * w + x];
     }
 
     /** @return the Ore kind of a rock on the tile, or Ore.NONE */
@@ -239,64 +309,116 @@ final class World {
 
     /** @return whether a rock there is mined out for the moment */
     boolean RockEmpty(int x, int y) {
-        return emptyTicks[y * w + x] > 0;
+        return emptyUntil[y * w + x] > now;
     }
 
-    /** Empties the rock on a tile for a number of game ticks. */
-    void EmptyRock(int x, int y, int ticks) {
+    /**
+     * @return the game tick at which the rock on a tile has ore again,
+     *         if it is mined out; any earlier tick otherwise
+     */
+    int RockEmptyUntil(int x, int y) {
+        return emptyUntil[y * w + x];
+    }
+
+    /**
+     * Empties the rock on a tile until a game tick. Does nothing if
+     * there is no rock there or the tick has already come, which makes
+     * it safe to feed from a saved game.
+     */
+    void EmptyRock(int x, int y, int untilTick) {
+        if (OreAt(x, y) == Ore.NONE || untilTick <= now) return;
+
         int i = y * w + x;
-        if (emptyTicks[i] == 0) emptyRocks++;
-        emptyTicks[i] = ticks;
+        if (emptyUntil[i] == FULL) emptyRocks++;
+        emptyUntil[i] = untilTick;
         version++;
     }
 
-    /** Advances one game tick: counts mined-out rocks toward refilling. */
-    void Tick() {
+    /** @return how many rocks are mined out at the moment */
+    int EmptyRocks() { return emptyRocks; }
+
+    /**
+     * Brings the map up to a game tick, refilling the rocks that are
+     * due. Call every tick while the player is here, and once on
+     * arrival to catch up on the ticks spent elsewhere.
+     */
+    void Tick(int tick) {
+        now = tick;
         if (emptyRocks == 0) return;
 
-        for (int i = 0; i < emptyTicks.length; i++) {
-            if (emptyTicks[i] == 0 || --emptyTicks[i] > 0) continue;
+        for (int i = 0; i < emptyUntil.length; i++) {
+            if (emptyUntil[i] == FULL || emptyUntil[i] > now) continue;
+            emptyUntil[i] = FULL;
             emptyRocks--;
             version++;
         }
     }
 
+    /** @return the game tick the map was last brought up to */
+    int Now() { return now; }
+
     /**
-     * @return a number that changes whenever anything about how the
-     *         map looks has changed
+     * @return a number that changes whenever anything about the map
+     *         has changed
      */
     int Version() { return version; }
 
-    /** @return the color map to draw what stands on the tile with */
-    int ObjectColorMap(int x, int y) {
-        int i = y * w + x;
-        return emptyTicks[i] > 0 ? Sprites.COLOR_MAP_NONE :
-                Ore.ColorMap(ore[i]);
-    }
-
-    /** @return the cave atlas frame of the ground, or NO_FRAME */
-    int FloorFrame(int x, int y) {
+    /** @return the picture of the ground, or NO_PICTURE */
+    int FloorPicture(int x, int y) {
         return floor[y * w + x];
     }
 
     /**
      * @param phase the animation step, 0 to ANIM_FRAMES - 1
-     * @return the cave atlas frame of what stands there, or NO_FRAME
+     * @return the picture of what stands there, or NO_PICTURE
      */
-    int ObjectFrame(int x, int y, int phase) {
+    int ObjectPicture(int x, int y, int phase) {
         int i = y * w + x;
-        if (emptyTicks[i] > 0) return object[i] + greyRockOffset;
+        if (emptyUntil[i] > now) return object[i] + greyRockOffset;
         return animated[i] ? object[i] + phase : object[i];
     }
 
-    private static int WallFrame(String[] rows, int x, int y, char kind) {
+    /** @return the color map to draw what stands on the tile with */
+    int ObjectColorMap(int x, int y) {
+        int i = y * w + x;
+        return emptyUntil[i] > now ? Sprites.COLOR_MAP_NONE :
+                Ore.ColorMap(ore[i]);
+    }
+
+    private static int Cave(int col, int row) {
+        return Sprites.Picture(Sprites.ATLAS_CAVE, col, row);
+    }
+
+    /* Cave floor is bare in about half the tiles and speckled in the
+       rest; dungeon floor is one dark checkered pattern throughout. */
+    private static int FirstFloor(int tileset, int mix) {
+        if (tileset == TILESET_DUNGEON)
+            return Sprites.Picture(Sprites.ATLAS_DUNGEON, 11, 1);
+        return (mix & 2) == 0 ? NO_PICTURE :
+                Cave(8 + (mix >> 2 & 1), mix >> 3 & 1);
+    }
+
+    private static int SecondFloor(int tileset, int mix) {
+        if (tileset == TILESET_DUNGEON)
+            return Sprites.Picture(Sprites.ATLAS_DUNGEON, 9, 2);
+        return Cave(8 + (mix & 1), 3);
+    }
+
+    private static int WallPicture(String[] rows, int x, int y, char kind,
+                                   int atlas) {
         int[] piece = WALL_PIECES[
                 (At(rows, x, y - 1) == kind ? 1 : 0) |
                 (At(rows, x + 1, y) == kind ? 2 : 0) |
                 (At(rows, x, y + 1) == kind ? 4 : 0) |
                 (At(rows, x - 1, y) == kind ? 8 : 0)];
-        return Sprites.Cave(piece[0],
-                piece[1] + (kind == '%' ? GREY_WALL_ROW_OFFSET : 0));
+        return Sprites.Picture(atlas, piece[0],
+                piece[1] + (kind == '%' ? SECOND_WALL_ROW_OFFSET : 0));
+    }
+
+    private static int TilesetNamed(String name) {
+        for (int i = 0; i < TILESET_NAMES.length; i++)
+            if (TILESET_NAMES[i].equals(name)) return i;
+        return -1;
     }
 
     private static char At(String[] rows, int x, int y) {
@@ -313,7 +435,7 @@ final class World {
         return (n ^ n >>> 15) & 0x7FFFFFFF;
     }
 
-    private static String[] ReadRows(String filename) {
+    private static String[] ReadLines(String filename) {
         InputStream in = ResourceStreamResolver.Get(FOLDER, filename);
         if (in == null) return null;
 
@@ -333,12 +455,12 @@ final class World {
             return null;
         }
 
-        String[] rows = text.replace("\r", "").split("\n", -1);
-        int h = rows.length;
-        while (h > 0 && rows[h - 1].trim().length() == 0) h--;
+        String[] lines = text.replace("\r", "").split("\n", -1);
+        int n = lines.length;
+        while (n > 0 && lines[n - 1].trim().length() == 0) n--;
 
-        String[] trimmed = new String[h];
-        System.arraycopy(rows, 0, trimmed, 0, h);
+        String[] trimmed = new String[n];
+        System.arraycopy(lines, 0, trimmed, 0, n);
         return trimmed;
     }
 
@@ -355,10 +477,18 @@ final class World {
         return CLASS + " failed to load the map [" + filename +
                 "] because it has no player start, the symbol [@].\n";
     }
+    private static String ErrStrSetting(String filename, String line,
+                                        int lineIndex) {
+        return CLASS + " failed to load the map [" + filename +
+                "] because the setting [" + line + "] on line [" +
+                (lineIndex + 1) + "] is not one it knows; settings are " +
+                "[!name] followed by some text and [!tileset] followed " +
+                "by [cave] or [dungeon].\n";
+    }
     private static String ErrStrSymbol(String filename, char c, int x,
-                                       int y) {
+                                       int lineIndex) {
         return CLASS + " failed to load the map [" + filename +
                 "] because the symbol [" + c + "] at column [" + (x + 1) +
-                "] of line [" + (y + 1) + "] is not one it knows.\n";
+                "] of line [" + (lineIndex + 1) + "] is not one it knows.\n";
     }
 }

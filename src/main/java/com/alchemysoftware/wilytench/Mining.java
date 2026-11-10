@@ -16,7 +16,7 @@ final class Mining {
     private static final int SWING_TICKS = 3;
     private static final int TOOL = Item.BRONZE_HAMMER;
 
-    private final World world;
+    private final Session session;
     private final Player player;
     private final Inventory inventory;
     private final Skills skills;
@@ -26,18 +26,18 @@ final class Mining {
     private boolean swinging;
     private int ticksSwinging;
 
-    Mining(World world, Player player, Inventory inventory, Skills skills,
-           ChatBox chat, Random rng) {
-        this.world = world;
-        this.player = player;
-        this.inventory = inventory;
-        this.skills = skills;
-        this.chat = chat;
+    Mining(Session session, Random rng) {
+        this.session = session;
         this.rng = rng;
+        player = session.player;
+        inventory = session.inventory;
+        skills = session.skills;
+        chat = session.chat;
     }
 
     /** Advances one game tick. Call after the player has moved. */
     void Tick() {
+        World world = session.Here();
         int x = player.TargetX(), y = player.TargetY();
         int ore = player.HasTarget() ? world.OreAt(x, y) : Ore.NONE;
 
@@ -47,7 +47,7 @@ final class Mining {
         }
 
         if (!swinging) {
-            if (!MayStart(ore, x, y)) {
+            if (!MayStart(world, ore, x, y)) {
                 player.ClearTarget();
                 return;
             }
@@ -70,7 +70,7 @@ final class Mining {
 
         int item = Ore.ItemOf(ore);
         inventory.Add(item);
-        world.EmptyRock(x, y, Ore.RespawnTicks(ore));
+        world.EmptyRock(x, y, session.Tick() + Ore.RespawnTicks(ore));
         chat.Add("You manage to mine some " + Item.LowerName(item) + ".",
                 Palette.BONE);
 
@@ -83,7 +83,7 @@ final class Mining {
     }
 
     /* Says why not, when the answer is no. */
-    private boolean MayStart(int ore, int x, int y) {
+    private boolean MayStart(World world, int ore, int x, int y) {
         int item = Ore.ItemOf(ore);
 
         if (!player.BesideTarget()) {

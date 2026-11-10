@@ -1,54 +1,38 @@
 package com.alchemysoftware.wilytench;
 
-import java.util.Random;
+import static com.alchemysoftware.wilytench.Fixture.Check;
+import static com.alchemysoftware.wilytench.Fixture.Count;
+import static com.alchemysoftware.wilytench.Fixture.Run;
 
 /**
- * Plays the mining rules through, tick by tick, with no window: the
- * sprite renderer draws into a plain array nobody looks at.
- *
- * The map is src/test/resources/maps/test.txt, a single room:
- *
- *     #######
- *     #@.rR.#      @ start (1,1)   r copper (3,1)   R iron (4,1)
- *     #.....#
- *     #######
+ * Plays the mining rules through, tick by tick. Fixture describes the
+ * map.
  */
 public class MiningTest {
     private static final int COPPER_X = 3, IRON_X = 4, ROCK_Y = 1;
     private static final int PLENTY_OF_TICKS = 40;
+    private static final int WIN = 0, LOSE = 255;
 
-    /* Dice that always come up the same: 0 always wins a swing, 255
-       never does. */
-    private static final class FixedDice extends Random {
-        private static final long serialVersionUID = 1L;
-        private final int roll;
-        FixedDice(int roll) { this.roll = roll; }
-        public int nextInt(int n) { return roll; }
-    }
-
-    private World world;
-    private Player player;
-    private Inventory inventory;
-    private Skills skills;
-    private ChatBox chat;
-    private Mining mining;
+    private Session s;
 
     public void testWinningSwingGivesOreAndXpAndEmptiesRock() {
-        Start(0, true);
-        player.WalkToTarget(COPPER_X, ROCK_Y);
+        Start(WIN, true);
+        s.player.WalkToTarget(COPPER_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
         Check("one ore mined", Count(Item.COPPER_ORE) == 1);
-        Check("17.5 xp", skills.XpTenths(Skills.MINING) == 175);
-        Check("job over", !player.HasTarget());
-        Check("said so", chat.Newest().equals(
+        Check("17.5 xp", s.skills.XpTenths(Skills.MINING) == 175);
+        Check("job over", !s.player.HasTarget());
+        Check("said so", s.chat.Newest().equals(
                 "You manage to mine some copper ore."));
-        Finish();
+        Fixture.Finish();
     }
 
     public void testRockIsEmptyThenRefills() {
-        Start(0, true);
-        player.WalkToTarget(COPPER_X, ROCK_Y);
+        World world;
+        Start(WIN, true);
+        world = s.Here();
+        s.player.WalkToTarget(COPPER_X, ROCK_Y);
 
         int ticks = 0;
         while (!world.RockEmpty(COPPER_X, ROCK_Y)) {
@@ -59,90 +43,92 @@ public class MiningTest {
                 .equals("Rocks"));
 
         /* Clicking it while empty gets a refusal, not an ore. */
-        player.WalkToTarget(COPPER_X, ROCK_Y);
+        s.player.WalkToTarget(COPPER_X, ROCK_Y);
         Run(1);
-        Check("refused", chat.Newest().startsWith("There is no ore"));
+        Check("refused", s.chat.Newest().startsWith("There is no ore"));
 
-        Run(Ore.RespawnTicks(Ore.COPPER));
+        Run(Ore.RespawnTicks(Ore.COPPER) - 2);
+        Check("not yet", world.RockEmpty(COPPER_X, ROCK_Y));
+        Run(1);
         Check("refilled", !world.RockEmpty(COPPER_X, ROCK_Y));
         Check("named again", world.Name(COPPER_X, ROCK_Y)
                 .equals("Copper rocks"));
         Check("still one ore", Count(Item.COPPER_ORE) == 1);
-        Finish();
+        Fixture.Finish();
     }
 
     public void testLosingSwingsMineNothing() {
-        Start(255, true);
-        player.WalkToTarget(COPPER_X, ROCK_Y);
+        Start(LOSE, true);
+        s.player.WalkToTarget(COPPER_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
         Check("no ore", Count(Item.COPPER_ORE) == 0);
-        Check("no xp", skills.XpTenths(Skills.MINING) == 0);
-        Check("still trying", player.HasTarget());
-        Finish();
+        Check("no xp", s.skills.XpTenths(Skills.MINING) == 0);
+        Check("still trying", s.player.HasTarget());
+        Fixture.Finish();
     }
 
     public void testIronNeedsLevelFifteen() {
-        Start(0, true);
-        player.WalkToTarget(IRON_X, ROCK_Y);
+        Start(WIN, true);
+        s.player.WalkToTarget(IRON_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
         Check("no iron", Count(Item.IRON_ORE) == 0);
-        Check("told why", chat.Newest().equals(
+        Check("told why", s.chat.Newest().equals(
                 "You need a Mining level of 15 to mine this rock."));
 
-        skills.AddXp(Skills.MINING, Skills.XpForLevel(15) * 10);
-        player.WalkToTarget(IRON_X, ROCK_Y);
+        s.skills.AddXp(Skills.MINING, Skills.XpForLevel(15) * 10);
+        s.player.WalkToTarget(IRON_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
         Check("iron at 15", Count(Item.IRON_ORE) == 1);
-        Finish();
+        Fixture.Finish();
     }
 
     public void testNoHammerNoMining() {
-        Start(0, false);
-        player.WalkToTarget(COPPER_X, ROCK_Y);
+        Start(WIN, false);
+        s.player.WalkToTarget(COPPER_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
         Check("no ore", Count(Item.COPPER_ORE) == 0);
-        Check("told why", chat.Newest().equals(
+        Check("told why", s.chat.Newest().equals(
                 "You need a hammer to mine this rock."));
-        Finish();
+        Fixture.Finish();
     }
 
     public void testFullInventoryStopsMining() {
-        Start(0, true);
-        while (!inventory.Full()) inventory.Add(Item.IRON_ORE);
-        player.WalkToTarget(COPPER_X, ROCK_Y);
+        Start(WIN, true);
+        while (!s.inventory.Full()) s.inventory.Add(Item.IRON_ORE);
+        s.player.WalkToTarget(COPPER_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
         Check("no ore", Count(Item.COPPER_ORE) == 0);
-        Check("told why", chat.Newest().startsWith(
+        Check("told why", s.chat.Newest().startsWith(
                 "Your inventory is too full"));
-        Check("rock untouched", !world.RockEmpty(COPPER_X, ROCK_Y));
-        Finish();
+        Check("rock untouched", !s.Here().RockEmpty(COPPER_X, ROCK_Y));
+        Fixture.Finish();
     }
 
     public void testWalkingAwayCancels() {
-        Start(255, true);
-        player.WalkToTarget(COPPER_X, ROCK_Y);
+        Start(LOSE, true);
+        s.player.WalkToTarget(COPPER_X, ROCK_Y);
         Run(5);
-        Check("mining", player.HasTarget());
+        Check("mining", s.player.HasTarget());
 
-        player.WalkTo(1, 2);
-        Check("forgotten", !player.HasTarget());
-        Finish();
+        s.player.WalkTo(1, 2);
+        Check("forgotten", !s.player.HasTarget());
+        Fixture.Finish();
     }
 
     public void testLevelCurve() {
-        Skills s = new Skills();
+        Skills skills = new Skills();
 
         Check("level 2 at 83", Skills.XpForLevel(2) == 83);
         Check("level 99 at 13,034,431",
                 Skills.XpForLevel(Skills.MAX_LEVEL) == 13034431);
-        Check("starts at 1", s.Level(Skills.MINING) == 1);
-        Check("82.9 is not enough", !s.AddXp(Skills.MINING, 829));
-        Check("83.0 is", s.AddXp(Skills.MINING, 1));
-        Check("now 2", s.Level(Skills.MINING) == 2);
+        Check("starts at 1", skills.Level(Skills.MINING) == 1);
+        Check("82.9 is not enough", !skills.AddXp(Skills.MINING, 829));
+        Check("83.0 is", skills.AddXp(Skills.MINING, 1));
+        Check("now 2", skills.Level(Skills.MINING) == 2);
         Check("formats tenths", Skills.Format(175).equals("17.5"));
     }
 
@@ -160,39 +146,8 @@ public class MiningTest {
     }
 
     private void Start(int roll, boolean withHammer) {
-        Fixture.Start();
-        world = Fixture.world;
-        player = Fixture.player;
-        chat = Fixture.chat;
-
-        inventory = new Inventory();
-        if (withHammer) inventory.Add(Item.BRONZE_HAMMER);
-        skills = new Skills();
-        mining = new Mining(world, player, inventory, skills, chat,
-                new FixedDice(roll));
-    }
-
-    private void Finish() {
-        Fixture.Finish();
-    }
-
-    /* The same order WorldScene advances things in. */
-    private void Run(int ticks) {
-        for (int i = 0; i < ticks; i++) {
-            world.Tick();
-            player.Tick();
-            mining.Tick();
-        }
-    }
-
-    private int Count(int item) {
-        int n = 0;
-        for (int i = 0; i < Inventory.SLOTS; i++)
-            if (inventory.At(i) == item) n++;
-        return n;
-    }
-
-    private static void Check(String what, boolean ok) {
-        Fixture.Check(what, ok);
+        Fixture.Start(roll);
+        s = Fixture.session;
+        if (withHammer) s.inventory.Add(Item.BRONZE_HAMMER);
     }
 }
