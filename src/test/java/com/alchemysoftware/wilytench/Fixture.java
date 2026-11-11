@@ -79,8 +79,13 @@ final class Fixture {
         if (started) Finish();
         RunFlag.Start();
 
-        Check("sprites", SpriteRenderer.Init(new byte[BUF_W * BUF_H], BUF_W,
-                BUF_H, 0, 0, BUF_W, BUF_H, 64) && Content.Load());
+        Check("sprite renderer", SpriteRenderer.Init(
+                new byte[BUF_W * BUF_H], BUF_W, BUF_H, 0, 0, BUF_W, BUF_H,
+                64));
+        /* From here on a failure must not leave the renderer running,
+           or every later test fails for the wrong reason. */
+        started = true;
+        Check("data files", Content.Load());
 
         Font font = Font.Load("small.fnt");
         Check("font", font != null);
@@ -89,15 +94,16 @@ final class Fixture {
                 new LoadedDice());
         Fixture.roll = roll;
         Check("session", session != null);
-        started = true;
     }
 
     static void Finish() {
-        Check("no fatal error", RunFlag.IsRunning());
+        boolean clean = RunFlag.IsRunning();
+
         Session.Close();
         SpriteRenderer.Shutdown();
         Content.Shutdown();
         started = false;
+        Check("no fatal error", clean);
     }
 
     /** Changes what every roll of the dice comes up from now on. */

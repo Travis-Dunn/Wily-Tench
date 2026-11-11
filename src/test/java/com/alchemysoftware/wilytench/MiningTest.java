@@ -86,11 +86,11 @@ public class MiningTest {
         Run(1);
         Check("tick 10 wins", Count(Fixture.Item("copper_ore")) == 1 && !s.Busy());
         Check("the swing was announced once, not per swing",
-                Fixture.Said("You swing your hammer at the rock.") == 1);
+                Fixture.Said("You swing your pickaxe at the rock.") == 1);
         Fixture.Finish();
     }
 
-    public void testLosingTheHammerStopsTheNextSwing() {
+    public void testLosingThePickaxeStopsTheNextSwing() {
         Start(LOSE, true);
         s.Use(COPPER_X, ROCK_Y);
         Run(2);
@@ -99,7 +99,7 @@ public class MiningTest {
 
         Check("stopped", !s.Busy());
         Check("told why", s.chat.Newest().equals(
-                "You need a hammer to mine this rock."));
+                "You need a pickaxe to mine this rock."));
         Fixture.Finish();
     }
 
@@ -154,14 +154,14 @@ public class MiningTest {
         Fixture.Finish();
     }
 
-    public void testNoHammerNoMining() {
+    public void testNoPickaxeNoMining() {
         Start(WIN, false);
         s.Use(COPPER_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
         Check("no ore", Count(Fixture.Item("copper_ore")) == 0);
         Check("told why", s.chat.Newest().equals(
-                "You need a hammer to mine this rock."));
+                "You need a pickaxe to mine this rock."));
         Fixture.Finish();
     }
 
@@ -219,9 +219,9 @@ public class MiningTest {
         Check("fills the gap", inv.Add(other) && inv.At(3) == other);
     }
 
-    private void Start(int roll, boolean withHammer) {
+    private void Start(int roll, boolean withPickaxe) {
         Fixture.Start(roll);
         s = Fixture.session;
-        if (withHammer) s.inventory.Add(Fixture.Item("bronze_hammer"));
+        if (withPickaxe) s.inventory.Add(Fixture.Item("bronze_pickaxe"));
     }
 }

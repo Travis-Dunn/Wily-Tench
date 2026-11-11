@@ -205,9 +205,9 @@ which is what makes that practical.
 | ---- | ------------ |
 | `Main`, `Game` | Startup, the frame loop, shutdown |
 | `DataDir`, `Settings`, `Natives` | The per-user folder, `config.ini`, LWJGL's native libraries |
-| `Screen`, `Palette` | The window, the picture's size, and its colors |
+| `Screen`, `Palette` | The window, the picture's size, and its colors, from `palette.json` |
 | `Content`, `DataNode`, `DataError` | Loading the data files, strictly, with explanations of mistakes |
-| `Sprites` | The sprite sheets and color maps, from `sprites.json` |
+| `Sprites` | The sprite sheets and color maps, from `sprites.json`, and where the atlas tool packed each sheet |
 | `Tiles` | What each map character means, from `tiles.json` |
 | `World` | One map: what is on each tile, whether it is solid, and which rocks are mined out |
 | `Session` | A game in progress: all the maps, the player, skills, inventory, script variables, and tick count. The rules, with no window |
@@ -222,7 +222,7 @@ which is what makes that practical.
 | `Item`, `Inventory` | The kinds of thing that can be carried, from `items.json`, and the 28 slots they are carried in |
 | `Skills` | Experience and levels |
 | `Loc` | The kinds of thing on a map that can be used, from `locs.json`, and the values scripts read from them |
-| `Sheet` | Reads a sprite sheet file, for both the sprite renderer and interface icons |
+| `Sheet` | Reads an atlas file, for both the sprite renderer and interface icons |
 | `SaveState` | Turns a `Session` into a saved game and back |
 | `SaveGame` | Keeps the saved game on disk, writing on its own thread |
 
@@ -297,26 +297,30 @@ To add a script file, write it and add its name to `scripts` in
 
 ## Art
 
-`DD-core` and `DD-UI` hold the purchased Demonic Dungeon art by VEXED,
-untouched. The game does not read those PNGs. `AtlasTool` (under
-`src/test`) converts the parts listed in `data/sprites.json` into
-Whitetail's `.wsa` atlas format in `src/main/resources/sprites`, and draws
-a labeled catalog of each sheet into `docs/sprites/`. Both are committed.
-Rerun it only when a sheet is added or changed, with the **Build Atlases**
-run configuration or:
+The `DD-...` folders hold the purchased Demonic Dungeon art by VEXED,
+untouched: the core pack, the interface pack, and five expansions. The
+game does not read those PNGs. `data/sprites.json` lists the images in
+use, which is nearly all of them, and `AtlasTool` (under `src/test`)
+converts them: it turns every pixel into a position in the game's palette,
+packs all the sheets into a few large atlas files in
+`src/main/resources/sprites`, records where each sheet went in
+`index.json` beside them, and draws a labeled catalog of each sheet into
+`docs/sprites/`. All of that is committed. Rerun it whenever
+`sprites.json`, `palette.json`, or a source image changes, with the
+**Build Atlases** run configuration or:
 
     mvn test-compile exec:java@atlases
+
+The game checks at startup that its atlases match those files and says so
+if they do not. `docs/content.md` has the details.
 
 Things the art does not have, which shape the game:
 
 - Characters face one way and have no walking or working animation. They
   have idle, hurt, angry, and sick poses; mining borrows "angry".
-- The scenery is caves and dungeons, with no outdoors.
-- There is no picture of ore and none of a pickaxe. Ore in the inventory
-  uses the picture of the rock it came from, and rocks are mined with the
-  hammer from the weapons art.
-- There are only orange and grey rocks. Grey serves as "mined out", and
-  other ores are the orange rock recolored by swapping palette colors.
+- There are only orange and grey rocks to mine. Grey serves as "mined
+  out", and other ores are the orange rock recolored by swapping palette
+  colors.
 
 ## Fonts
 

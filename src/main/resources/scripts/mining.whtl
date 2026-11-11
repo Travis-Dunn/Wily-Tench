@@ -20,8 +20,8 @@ if (loc_empty() = 1) {
     }
     return
 }
-if (inv_has("bronze_hammer") = 0) {
-    mes("You need a hammer to mine this rock.")
+if (inv_has("bronze_pickaxe") = 0) {
+    mes("You need a pickaxe to mine this rock.")
     return
 }
 if (stat_level("mining") < loc_int("level")) {
@@ -36,7 +36,7 @@ if (inv_free() = 0) {
 }
 
 if (repeating() = 0) {
-    mes("You swing your hammer at the rock.")
+    mes("You swing your pickaxe at the rock.")
 }
 anim("work")
 delay(3)

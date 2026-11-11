@@ -49,7 +49,7 @@ run on Windows of any age.
 | C8 | `Game.java` has its own frame rate cap |
 | C13 | `Game.java` starts `RunFlag` before the scenes initialize |
 | C14, C21 | `Sheet.java` reads `.wsa` files itself, and `Gfx.DrawFrame()` draws from them |
-| C15 | `AtlasTool.java` converts and pads the art |
+| C15, C25 | `AtlasTool.java` converts the art and packs every sheet into a few atlases; `Sprites.java` reads its index |
 | C16 | `WorldScene.java` carries fractional milliseconds between frames |
 | C18 | `Font.java`, `Text.java`, `Gfx.java`, and `FontTool.java` are the game's own text and drawing code |
 | C19 | `ChatBox.java` uses only the direction of the mouse wheel |
@@ -449,16 +449,24 @@ from a newer release. For the usual "load the one save if there is one"
 case, a `Read()` that returned null for an absent slot, and a `SaveData`
 that carried its own `gameVersion`, would make it one call and one pass.
 
-**C25. Eight atlas banks will run out.** *(Predicted)*  
-Status: open.
-The game installs one atlas per sprite sheet and is at four of the eight
-banks after two maps: cave, heroes, items, dungeon. More art is on its
-way. Banks cannot be replaced during a renderer lifecycle, so they cannot
-be swapped as the player changes map either. The way out is in the game's
-hands, not Whitetail's: have `AtlasTool` pack several sheets into one
-large atlas, which the format allows up to 65,536 frames. It is noted here
-because the limit of eight reads as generous in the readme and turns out
-to be the first one a game with ordinary purchased art will meet.
+**C25. Eight atlas banks are far too few for one atlas per sheet.**
+*(Hit)*  
+Status: open. Worked around in the game.
+The purchased art is 36 sheets. The sprite renderer holds eight atlases,
+which cannot be replaced during its lifetime, so one atlas per sheet was
+never going to last; the game hit four after two maps. `AtlasTool` now
+packs every sheet, whole, into as few 2048 by 2048 atlases as it can (two,
+at present) and writes an index saying where each went, and `Sprites`
+turns "sheet and cell" into "atlas and frame" from that index. Content
+still refers to art by its own sheet, so nothing else had to change.
+
+That is a few hundred lines of tool and loader standing between ordinary
+purchased art and the renderer. It is noted here because the limit of
+eight reads as generous in the readme and turns out to be the first wall
+a game with real art meets; and because, together with C15, it suggests
+the missing piece is less "more banks" than a supported way to build an
+atlas from several images. The format coped well: a 2048 square atlas is
+16,384 frames, comfortably inside the 65,536 limit.
 
 **C26. A command handler has no way to reach the game it is acting
 on.** *(Hit)*  
@@ -623,3 +631,6 @@ Worth recording, so they are not "fixed" by accident.
 - `comp-json` parsed every data file first time, and its parse errors,
   with line, column, and a caret under the spot, are passed straight
   through to whoever edited the file. They need no rewording.
+- `ImageBuilder.FromPNG()` decoded all 36 purchased sheets, from five
+  different packs, without a single rejection, and two 4 MB atlases load
+  and install with no visible delay inside a 64 MB heap.

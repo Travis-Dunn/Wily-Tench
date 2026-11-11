@@ -69,6 +69,12 @@ public class ContentTest {
                 "{ \"id\": \"gem\", \"name\": \"Gem 2\", \"sheet\": " +
                 "\"items\", \"cell\": [1, 0] } ] }",
                 "there are two items with this id");
+        Refused("a former id that is someone else's id", "{ \"items\": [" +
+                "{ \"id\": \"gem\", \"name\": \"Gem\", \"sheet\": \"items\"," +
+                " \"cell\": [0, 0] }," +
+                "{ \"id\": \"jewel\", \"was\": [\"gem\"], \"name\": " +
+                "\"Jewel\", \"sheet\": \"items\", \"cell\": [1, 0] } ] }",
+                "[was] lists the id [gem], which belongs to another item");
         Refused("broken JSON", "{ \"items\": [ { \"id\": \"gem\", } ] }",
                 "items.json is not valid JSON, at line 1");
 

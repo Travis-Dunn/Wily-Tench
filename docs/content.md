@@ -10,6 +10,7 @@ guide to those files, for a person or an AI.
 | What can be used on a map: rocks, ladders | `data/locs.json` |
 | What a map-file character means and looks like | `data/tiles.json` |
 | Which sprite sheets and recolorings exist | `data/sprites.json` |
+| The colors | `data/palette.json` |
 | Which maps and scripts the game has; what a new player starts with | `data/game.json` |
 | The layout of a place | `maps/*.txt` |
 | What happens when something is used | `scripts/*.whtl` |
@@ -52,7 +53,9 @@ both counted from zero.
 
 To find a cell, open the catalog image for the sheet in `docs/sprites/`,
 such as `docs/sprites/items.png`. Every cell is labeled with its column and
-row. Where a list of cells is asked for (`"cells": [[5, 1], [6, 1]]`), each
+row. There is one catalog for every sheet in `sprites.json`, and the file
+is named after the sheet's id. All of the purchased art is there, most of
+it not yet used by anything. Where a list of cells is asked for (`"cells": [[5, 1], [6, 1]]`), each
 map tile picks one, so that a field of rocks is not all the same rock.
 
 ## items.json
@@ -70,6 +73,16 @@ map tile picks one, so that a field of rocks is not all the same rock.
 | `name` | What the player sees, written as it would head a label. Messages use it in lower case |
 | `sheet`, `cell` | Its icon |
 | `color_map` | Optional. A recoloring from `sprites.json` to draw the icon through |
+| `was` | Optional. A list of ids the item used to have |
+
+An item's id is written into players' saved games, so it cannot simply be
+changed. To rename an item, give it the new id and put the old one under
+`was`:
+
+    "id": "bronze_pickaxe", "was": ["bronze_hammer"]
+
+Saved games, scripts, and data that still say `bronze_hammer` then find
+the pickaxe.
 
 ## locs.json
 
@@ -183,41 +196,76 @@ A thing:
 
 ## sprites.json
 
+A sheet is one of the purchased images, cut into 16 pixel cells:
+
     {
       "id": "cave",
-      "file": "cave.wsa",
-      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Cave.png",
-      "region": [0, 0, 160, 304]
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Cave.png"
     }
 
 | Value | Meaning |
 | ----- | ------- |
-| `id` | What `"sheet"` values elsewhere refer to |
-| `file` | The converted sheet the game loads, in `src/main/resources/sprites` |
+| `id` | What `"sheet"` values elsewhere refer to, and the name of its catalog image |
 | `source` | The original PNG, from the repository's root |
-| `region` | The part of the PNG to take: left, top, width, height, in pixels. Width and height must be multiples of 16 |
+| `region` | Optional. The part of the PNG to take: left, top, width, height, in pixels. Without it, the whole image |
 
-After adding a sheet or changing a `source` or `region`, run the **Build
-Atlases** run configuration, or
+A sheet's width and height must be multiples of 16, and its pixels must
+each be fully transparent or an opaque palette color.
+
+**After changing this file, `palette.json`, or a source image, rebuild the
+atlases:** run the **Build Atlases** run configuration, or
 
     mvn test-compile exec:java@atlases
 
-which writes the `.wsa` file and the catalog image. The art must use only
-the game's seventeen palette colors and full transparency; the tool says
-which pixel does not.
+The game cannot read PNGs. The tool converts every sheet, packs them
+together into a few large *atlas* files that the game can load quickly,
+and redraws the catalogs. If you forget, the game notices that its
+atlases are out of date and says so when it starts. The tool's own
+complaints are specific: an unknown color, for instance, is reported with
+its value and how many pixels use it.
 
-There is room for **eight sheets**. When more are needed, several source
-images will have to be combined into one sheet, which the tool cannot do
-yet.
+You never need to know which atlas a sheet ended up in. Everything refers
+to a picture by its own sheet and cell, and that does not change when the
+packing does.
+
+All the purchased art is listed except a few images the game cannot use
+as they stand: the mini-map and particle images, which are drawn on an 8
+pixel grid rather than 16, and the interface pack's `Other.png`, which
+has partly transparent pixels.
+
+**Room.** The tool fills atlases of 2048 by 2048 pixels and the game can
+hold eight of them. All the art so far takes two. If that ever runs out,
+give large sheets a `region` covering only what is used.
 
 A color map redraws a picture with some palette colors swapped:
 
     { "id": "iron", "swaps": [["tan", "rust"], ["rust", "maroon"]] }
 
-Each pair is "this color becomes that one". The colors, darkest first:
-ink, night, plum, maroon, moss, slate, pine, rust, blood, rose, ash, tan,
-leaf, mint, amber, peach, bone. The catalog images show them in use. There
-is room for seven color maps.
+Each pair is "this color becomes that one", using the names in
+`palette.json`. There is room for seven color maps.
+
+## palette.json
+
+The game shows a fixed set of colors, and every pixel of every sprite is
+one of them.
+
+    { "name": "tan", "rgb": "D1935F" }
+
+`colors` lists them. **The order matters**: converted art stores each
+pixel as a position in this list, so add new colors at the end, and
+rebuild the atlases after any change. Ten of the names are used by the
+game's own interface and must stay: ink, night, slate, rust, ash, leaf,
+mint, amber, peach, bone.
+
+When new art brings a new color, the atlas tool refuses it and reports
+the color and how many pixels use it. If it is a real color of the art,
+add it to `colors`. If it is a handful of stray pixels a shade away from
+a real color, add it to `corrections` instead, which reads it as the color
+it was meant to be without touching the artist's file:
+
+    { "from": "17111A", "to": "ink" }
+
+`background` is the color of empty screen.
 
 ## game.json
 

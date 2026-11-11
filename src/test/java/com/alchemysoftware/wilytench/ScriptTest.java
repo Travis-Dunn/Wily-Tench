@@ -92,7 +92,7 @@ public class ScriptTest {
         Fixture.Start(WIN);
         Session s = Fixture.session;
 
-        s.inventory.Add(Fixture.Item("bronze_hammer"));
+        s.inventory.Add(Fixture.Item("bronze_pickaxe"));
         s.Use(3, 1);
         Run(20);
         Check("ore mined", Fixture.Count(Fixture.Item("copper_ore")) == 1);

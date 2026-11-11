@@ -1,0 +1,36 @@
+{
+  "note": "Every color the game can show. The order matters: the converted sprite sheets store each pixel as a position in this list, so after adding, removing, or reordering colors the atlases must be rebuilt. Add new colors at the end.",
+
+  "background": "160D13",
+
+  "colors": [
+    { "name": "ink",      "rgb": "160D13" },
+    { "name": "night",    "rgb": "31293E" },
+    { "name": "plum",     "rgb": "432142" },
+    { "name": "maroon",   "rgb": "56212A" },
+    { "name": "moss",     "rgb": "2F3D3A" },
+    { "name": "slate",    "rgb": "5F575E" },
+    { "name": "pine",     "rgb": "4D6660" },
+    { "name": "rust",     "rgb": "904B41" },
+    { "name": "blood",    "rgb": "AD4030" },
+    { "name": "rose",     "rgb": "9B4C63" },
+    { "name": "ash",      "rgb": "A69998" },
+    { "name": "tan",      "rgb": "D1935F" },
+    { "name": "leaf",     "rgb": "95B666" },
+    { "name": "mint",     "rgb": "8EB89E" },
+    { "name": "amber",    "rgb": "EF9E4E" },
+    { "name": "peach",    "rgb": "E79B7C" },
+    { "name": "bone",     "rgb": "F6F2C3" },
+    { "name": "obsidian", "rgb": "271528", "note": "Magma Maze: the obsidian cave walls." },
+    { "name": "fern",     "rgb": "657D43", "note": "Building Interior: plants and green cloth." },
+    { "name": "silver",   "rgb": "B7ABAA", "note": "Haunted Temple." },
+    { "name": "mauve",    "rgb": "AA8C94", "note": "Frozen Cavern." },
+    { "name": "dusk",     "rgb": "6E516A", "note": "Frozen Cavern." },
+    { "name": "ochre",    "rgb": "AE7032", "note": "Arid Underground monsters." }
+  ],
+
+  "corrections": [
+    { "from": "17111A", "to": "ink",   "note": "One stray pixel in the Frozen Cavern sheet." },
+    { "from": "7A716E", "to": "slate", "note": "One stray pixel in the Haunted Temple sheet." }
+  ]
+}

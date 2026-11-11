@@ -171,11 +171,25 @@ public class SaveTest {
         data.setBytes("inventory", slots);
 
         save.Restore(data);
-        Check("hammer", s.inventory.At(0) == Fixture.Item("bronze_hammer"));
+        Check("the hammer, since renamed", s.inventory.At(0) ==
+                Fixture.Item("bronze_pickaxe"));
         Check("iron ore", s.inventory.At(1) == Fixture.Item("iron_ore"));
         Check("gap kept", s.inventory.At(2) == Item.NONE);
         Check("copper ore", s.inventory.At(3) == Fixture.Item("copper_ore"));
         Check("nonsense dropped", s.inventory.Used() == 3);
+        Fixture.Finish();
+    }
+
+    public void testItemsSavedUnderAFormerIdAreStillFound() {
+        Start();
+        SaveData data = SaveData.Create();
+        data.setString("inventory", "bronze_hammer,copper_ore");
+
+        save.Restore(data);
+        Check("found by its old id", s.inventory.At(0) ==
+                Fixture.Item("bronze_pickaxe"));
+        Check("and saved under the new one", save.Capture()
+                .getString("inventory").startsWith("bronze_pickaxe,"));
         Fixture.Finish();
     }
 
@@ -196,10 +210,10 @@ public class SaveTest {
 
     public void testEmptyFileChangesNothing() {
         Start();
-        s.inventory.Add(Fixture.Item("bronze_hammer"));
+        s.inventory.Add(Fixture.Item("bronze_pickaxe"));
         save.Restore(SaveData.Create());
 
-        Check("hammer kept", s.inventory.At(0) == Fixture.Item("bronze_hammer"));
+        Check("hammer kept", s.inventory.At(0) == Fixture.Item("bronze_pickaxe"));
         Check("at start", s.player.X() == s.Here().startX);
         Fixture.Finish();
     }
@@ -267,7 +281,7 @@ public class SaveTest {
         s.vars.setInt("climbed", 1);
         s.vars.setString("last_place", "somewhere odd");
         s.skills.AddXp(Skills.MINING, 12345);
-        s.inventory.Add(Fixture.Item("bronze_hammer"));
+        s.inventory.Add(Fixture.Item("bronze_pickaxe"));
         s.inventory.Add(Fixture.Item("copper_ore"));
         s.inventory.Add(Fixture.Item("iron_ore"));
         s.inventory.Remove(1);
@@ -280,7 +294,7 @@ public class SaveTest {
         Check("position", s.player.X() == 1 && s.player.Y() == 2);
         Check("tick", s.Tick() == SCRAMBLED_TICKS);
         Check("xp", s.skills.XpTenths(Skills.MINING) == 12345);
-        Check("slot 0", s.inventory.At(0) == Fixture.Item("bronze_hammer"));
+        Check("slot 0", s.inventory.At(0) == Fixture.Item("bronze_pickaxe"));
         Check("slot 1 empty", s.inventory.At(1) == Item.NONE);
         Check("slot 2", s.inventory.At(2) == Fixture.Item("iron_ore"));
         Check("two items", s.inventory.Used() == 2);
