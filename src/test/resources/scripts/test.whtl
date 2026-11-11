@@ -1,0 +1,19 @@
+// Scripts for the two test maps described in Fixture.java.
+
+def_int %climbed
+def_string %last_place
+
+[oploc,ladder]
+mes("Down you go.")
+delay(2)
+travel("test2.txt")
+%climbed = 1
+%last_place = "below"
+
+[oploc,stairs]
+if (%climbed = 1) {
+    mes("Back again.")
+} else {
+    mes("First time up.")
+}
+travel("test.txt")

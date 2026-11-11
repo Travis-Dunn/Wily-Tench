@@ -1,0 +1,39 @@
+{
+  "sheets": [
+    {
+      "id": "cave",
+      "file": "cave.wsa",
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Cave.png",
+      "region": [0, 0, 160, 304]
+    },
+    {
+      "id": "heroes",
+      "file": "heroes.wsa",
+      "note": "The first hero's eleven rows. The other three columns of the sheet are the same poses in other clothes.",
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Heroes.png",
+      "region": [0, 0, 64, 176]
+    },
+    {
+      "id": "items",
+      "file": "items.wsa",
+      "note": "Everything above the sparkle and shine animations.",
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Items.png",
+      "region": [0, 0, 176, 160]
+    },
+    {
+      "id": "dungeon",
+      "file": "dungeon.wsa",
+      "note": "Walls, doors, floors, spikes, stairs, shelves, chests, and tables. Below that the sheet is small ornaments.",
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Dungeon.png",
+      "region": [0, 0, 192, 208]
+    }
+  ],
+
+  "color_maps": [
+    {
+      "id": "iron",
+      "note": "Turns the orange rock into dark red-brown iron rock.",
+      "swaps": [["tan", "rust"], ["rust", "maroon"], ["maroon", "plum"]]
+    }
+  ]
+}

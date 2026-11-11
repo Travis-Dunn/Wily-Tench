@@ -1,0 +1,6 @@
+!name Test Room
+!tileset cave
+#######
+#@.rR.#
+#L....#
+#######

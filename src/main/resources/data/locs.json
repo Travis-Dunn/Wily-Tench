@@ -1,0 +1,49 @@
+{
+  "categories": [
+    {
+      "id": "ore_rock",
+      "note": "An ordinary mining rock. mining.whtl is the script for all of them.",
+      "verb": "Mine",
+      "empty_name": "Rocks",
+      "params": {
+        "ore": "item",
+        "level": "whole",
+        "xp": "tenths",
+        "chance_at_1": "whole",
+        "chance_at_99": "whole",
+        "respawn": "whole"
+      }
+    }
+  ],
+
+  "locs": [
+    { "id": "ladder", "name": "Ladder", "verb": "Climb down" },
+    { "id": "stairs", "name": "Stairs", "verb": "Climb" },
+    {
+      "id": "copper_rocks",
+      "name": "Copper rocks",
+      "category": "ore_rock",
+      "params": {
+        "ore": "copper_ore",
+        "level": 1,
+        "xp": 17.5,
+        "chance_at_1": 100,
+        "chance_at_99": 400,
+        "respawn": 4
+      }
+    },
+    {
+      "id": "iron_rocks",
+      "name": "Iron rocks",
+      "category": "ore_rock",
+      "params": {
+        "ore": "iron_ore",
+        "level": 15,
+        "xp": 35,
+        "chance_at_1": 60,
+        "chance_at_99": 300,
+        "respawn": 9
+      }
+    }
+  ]
+}

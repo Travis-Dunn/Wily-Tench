@@ -40,6 +40,8 @@
         <maven.toolchains.plugin.version>3.2.0</maven.toolchains.plugin.version>
         <maven.jar.plugin.version>3.4.2</maven.jar.plugin.version>
         <maven.dependency.plugin.version>3.8.1</maven.dependency.plugin.version>
+        <exec.maven.plugin.version>3.5.0</exec.maven.plugin.version>
+        <maven.surefire.plugin.version>3.5.3</maven.surefire.plugin.version>
     </properties>
 
     <dependencies>
@@ -111,6 +113,36 @@
         <dependency>
             <groupId>com.alchemysoftware</groupId>
             <artifactId>comp-input-lwjgl</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-resource-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-image</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-sprite-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-save-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-script-sys</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-json</artifactId>
             <version>${whitetail.version}</version>
         </dependency>
 
@@ -190,6 +222,28 @@
                 </executions>
             </plugin>
 
+            <!-- Runs the tests of the game's rules, Whitetail's way:
+                 with no test framework on the classpath, any public
+                 class named *Test is a test, and each of its public
+                 test* methods passes by returning and fails by
+                 throwing. Headless, so that a fatal error ends a test
+                 instead of waiting behind an error dialog. -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${maven.surefire.plugin.version}</version>
+
+                <configuration>
+                    <argLine>-ea -Djava.awt.headless=true</argLine>
+                    <systemPropertyVariables>
+                        <wilytench.test.dir>
+                            ${project.build.directory}/test-logs
+                        </wilytench.test.dir>
+                    </systemPropertyVariables>
+                    <trimStackTrace>false</trimStackTrace>
+                </configuration>
+            </plugin>
+
             <!-- "mvn package" leaves a runnable game in target/:
                  wily-tench.jar plus lib/. Copy both to another machine
                  and start it with "java -jar wily-tench.jar". -->
@@ -228,6 +282,41 @@
                             <outputDirectory>
                                 ${project.build.directory}/lib
                             </outputDirectory>
+                        </configuration>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Rebuilds the game's sprite atlases and fonts from their
+                 sources: "mvn test-compile exec:java@atlases" and
+                 "mvn test-compile exec:java@fonts". Only needed after a
+                 tool or a source file changes; the results are
+                 committed. -->
+            <plugin>
+                <groupId>org.codehaus.mojo</groupId>
+                <artifactId>exec-maven-plugin</artifactId>
+                <version>${exec.maven.plugin.version}</version>
+
+                <executions>
+                    <execution>
+                        <id>fonts</id>
+
+                        <configuration>
+                            <mainClass>
+                                com.alchemysoftware.wilytench.FontTool
+                            </mainClass>
+                            <classpathScope>test</classpathScope>
+                        </configuration>
+                    </execution>
+
+                    <execution>
+                        <id>atlases</id>
+
+                        <configuration>
+                            <mainClass>
+                                com.alchemysoftware.wilytench.AtlasTool
+                            </mainClass>
+                            <classpathScope>test</classpathScope>
                         </configuration>
                     </execution>
                 </executions>

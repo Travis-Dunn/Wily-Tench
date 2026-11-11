@@ -26,14 +26,18 @@ import com.alchemysoftware.whitetail.window.Window;
  *
  * The game pixel grid is chosen from PRESETS to suit the desktop: the
  * one that covers the most of the screen wins. Each preset reserves a
- * side panel PANEL_W wide on the right for the interface; the rest is
- * the viewport onto the world.
+ * side panel PANEL_W wide on the right for the interface and a chat
+ * box CHAT_H tall along the bottom; the rest is the viewport onto the
+ * world.
  */
 final class Screen {
     static final String TITLE = "Wily Tench";
 
     /** Width in game pixels of the interface panel right of the world. */
     static final int PANEL_W = 128;
+
+    /** Height in game pixels of the chat box below the world. */
+    static final int CHAT_H = 88;
 
     /*
      * 512x384 doubles to exactly 1024x768, the usual laptop panel of
@@ -80,7 +84,7 @@ final class Screen {
         for (int i = 0; i < presets.length; i++) {
             int w = PRESET_SIZES[i][0], h = PRESET_SIZES[i][1];
             presets[i] = FramebufferPreset.Create(w, h, 0, 0,
-                    w - PANEL_W, h);
+                    w - PANEL_W, h - CHAT_H);
             if (presets[i] == null) return false;
         }
 

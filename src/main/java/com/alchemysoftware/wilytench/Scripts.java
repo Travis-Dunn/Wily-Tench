@@ -1,0 +1,320 @@
+package com.alchemysoftware.wilytench;
+
+import com.alchemysoftware.whitetail.error.ErrorHandler;
+import com.alchemysoftware.whitetail.script.CommandHandler;
+import com.alchemysoftware.whitetail.script.ExecutionState;
+import com.alchemysoftware.whitetail.script.PlayerVars;
+import com.alchemysoftware.whitetail.script.ScriptManager;
+import com.alchemysoftware.whitetail.script.ScriptState;
+import com.alchemysoftware.whitetail.script.ValueType;
+
+/**
+ * The bridge between the game and its scripts.
+ *
+ * Scripts are .whtl files in the "scripts" resource folder, written in
+ * Whitetail's script language, and are where the game's content lives:
+ * what happens when the player uses a ladder or mines a rock, and in
+ * time what a character says and what a quest asks. Whitetail supplies
+ * the language; everything a script can actually do is a command
+ * defined here.
+ *
+ * Triggers the game fires:
+ *
+ *   [oploc,X]   the player used a loc, having walked up beside it. X
+ *               is the loc's own name ("ladder") or, when no script
+ *               has that name, an underscore and its category
+ *               ("_ore_rock"). See Loc.
+ *
+ * Commands scripts may call. "The loc" is the one being used.
+ *
+ *   Talking
+ *   mes(text)              writes a line in the chat box
+ *   join(text, text)       -> text: the two run together
+ *   str(whole)             -> text: the number written out
+ *
+ *   The run itself
+ *   interruptible()        lets the player's next click cancel this
+ *                          run; without it the player is held until
+ *                          the script ends
+ *   again()                asks for the script to be run once more as
+ *                          soon as this run ends
+ *   repeating()            -> 1 if this run was asked for by again(),
+ *                          0 if by the player
+ *   anim(name)             plays "work" or "idle" on the player until
+ *                          the script ends
+ *
+ *   The loc
+ *   loc_int(key)           -> whole: one of the loc's parameters
+ *   loc_string(key)        -> text: one of the loc's parameters
+ *   loc_empty()            -> 1 if the loc is emptied, 0 if not
+ *   loc_empty_for(ticks)   empties the loc for that many game ticks
+ *
+ *   The player
+ *   stat_level(skill)      -> whole: the level of "mining"
+ *   stat_xp(skill, tenths) awards experience, announcing a new level
+ *   stat_roll(level, chance_at_1, chance_at_99)
+ *                          -> 1 or 0: rolls the dice with a chance out
+ *                          of 256 that rises evenly from the first
+ *                          figure at level 1 to the second at level 99
+ *   inv_has(item)          -> 1 if the player carries the item, else 0
+ *   inv_free()             -> whole: empty inventory slots
+ *   inv_add(item)          gives the player the item, if there is room
+ *   item_name(item)        -> text: the item's name, in lower case
+ *   travel(map)            moves the player to the start of a map,
+ *                          named by its file, such as "dungeon.txt"
+ *
+ * Items and skills are named in scripts by the keys in Item and Skills.
+ * A script that names something that does not exist is a mistake in
+ * the game's content and stops the game with an error saying where.
+ *
+ * There is one game in progress at a time, and commands act on it.
+ */
+final class Scripts {
+    /** The trigger type for using a loc. */
+    static final String TRIGGER_USE = "oploc";
+
+    private static final String FOLDER = "scripts";
+    private static final String CATEGORY_MARK = "_";
+    private static final int ROLL_SIDES = 256;
+
+    private static final ValueType INT = ValueType.INT;
+    private static final ValueType STRING = ValueType.STRING;
+    private static final ValueType VOID = ValueType.VOID;
+
+    private static boolean init;
+    private static Session session;
+
+    private Scripts() {}
+
+    /**
+     * Registers the commands and compiles the scripts.
+     *
+     * @param files files in the "scripts" resource folder
+     * @return false after a fatal error has been reported
+     */
+    static boolean Init(String[] files) {
+        if (!ScriptManager.Init()) return false;
+        init = true;
+
+        Register();
+
+        String[] paths = new String[files.length];
+        for (int i = 0; i < files.length; i++)
+            paths[i] = FOLDER + "/" + files[i];
+        return ScriptManager.LoadScripts(paths);
+    }
+
+    /** Safe to call whether or not Init() succeeded. */
+    static void Shutdown() {
+        if (init) ScriptManager.Shutdown();
+        init = false;
+        session = null;
+    }
+
+    /** Names the game in progress that commands act on. */
+    static void Bind(Session session) { Scripts.session = session; }
+
+    /** @return fresh storage for a player's script variables */
+    static PlayerVars NewVars() { return ScriptManager.NewPlayerVars(); }
+
+    /**
+     * @return the X of the [oploc,X] script that using a loc runs, or
+     *         null if there is no script for it
+     */
+    static String UseSubject(Loc loc) {
+        if (loc == null) return null;
+        if (ScriptManager.HasTrigger(TRIGGER_USE, loc.id)) return loc.id;
+        if (loc.category == null) return null;
+
+        String subject = CATEGORY_MARK + loc.category;
+        return ScriptManager.HasTrigger(TRIGGER_USE, subject) ?
+                subject : null;
+    }
+
+    /**
+     * Starts the script for using a loc.
+     *
+     * @param subject what UseSubject() answered for the loc
+     * @return the running script, or null if it has already finished
+     */
+    static ScriptState Use(String subject, PlayerVars vars) {
+        return Unfinished(
+                ScriptManager.FireTrigger(TRIGGER_USE, subject, vars));
+    }
+
+    /**
+     * Gives a waiting script its game tick.
+     *
+     * @return the script, or null once it has finished
+     */
+    static ScriptState Tick(ScriptState state) {
+        if (state.getState() == ExecutionState.DELAYED)
+            ScriptManager.Tick(state);
+        return Unfinished(state);
+    }
+
+    private static ScriptState Unfinished(ScriptState state) {
+        return state == null ||
+                state.getState() == ExecutionState.FINISHED ? null : state;
+    }
+
+    private static void Register() {
+        Add("mes", new ValueType[] { STRING }, VOID, new CommandHandler() {
+            public void execute(ScriptState s) {
+                session.chat.Add(s.argString(0), Palette.BONE);
+            }
+        });
+        Add("join", new ValueType[] { STRING, STRING }, STRING,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                s.pushString(s.argString(0) + s.argString(1));
+            }
+        });
+        Add("str", new ValueType[] { INT }, STRING, new CommandHandler() {
+            public void execute(ScriptState s) {
+                s.pushString(String.valueOf(s.argInt(0)));
+            }
+        });
+
+        Add("interruptible", new ValueType[0], VOID, new CommandHandler() {
+            public void execute(ScriptState s) {
+                session.ScriptInterruptible();
+            }
+        });
+        Add("again", new ValueType[0], VOID, new CommandHandler() {
+            public void execute(ScriptState s) { session.ScriptAgain(); }
+        });
+        Add("repeating", new ValueType[0], INT, new CommandHandler() {
+            public void execute(ScriptState s) {
+                s.pushInt(session.ScriptRepeating() ? 1 : 0);
+            }
+        });
+        Add("anim", new ValueType[] { STRING }, VOID, new CommandHandler() {
+            public void execute(ScriptState s) {
+                String name = s.argString(0);
+                boolean work = name.equals("work");
+
+                if (!work && !name.equals("idle")) {
+                    Fail(s, "animation", name);
+                    return;
+                }
+                session.player.SetWorking(work);
+            }
+        });
+
+        Add("loc_int", new ValueType[] { STRING }, INT, new CommandHandler() {
+            public void execute(ScriptState s) {
+                Integer v = session.UsedLoc().Int(s.argString(0));
+
+                if (v == null) Fail(s, "whole-number parameter of the " +
+                        "loc [" + session.UsedLoc().id + "]", s.argString(0));
+                s.pushInt(v == null ? 0 : v.intValue());
+            }
+        });
+        Add("loc_string", new ValueType[] { STRING }, STRING,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                String v = session.UsedLoc().Str(s.argString(0));
+
+                if (v == null) Fail(s, "text parameter of the loc [" +
+                        session.UsedLoc().id + "]", s.argString(0));
+                s.pushString(v == null ? "" : v);
+            }
+        });
+        Add("loc_empty", new ValueType[0], INT, new CommandHandler() {
+            public void execute(ScriptState s) {
+                s.pushInt(session.UsedLocEmpty() ? 1 : 0);
+            }
+        });
+        Add("loc_empty_for", new ValueType[] { INT }, VOID,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                session.EmptyUsedLoc(s.argInt(0));
+            }
+        });
+
+        Add("stat_level", new ValueType[] { STRING }, INT,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int skill = Skill(s, 0);
+                s.pushInt(skill < 0 ? 1 : session.skills.Level(skill));
+            }
+        });
+        Add("stat_xp", new ValueType[] { STRING, INT }, VOID,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int skill = Skill(s, 0);
+                if (skill >= 0) session.GainXp(skill, s.argInt(1));
+            }
+        });
+        Add("stat_roll", new ValueType[] { INT, INT, INT }, INT,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int level = s.argInt(0), span = Skills.MAX_LEVEL - 1;
+                int chance = (s.argInt(1) * (Skills.MAX_LEVEL - level) +
+                        s.argInt(2) * (level - 1)) / span;
+                s.pushInt(session.rng.nextInt(ROLL_SIDES) < chance ? 1 : 0);
+            }
+        });
+        Add("inv_has", new ValueType[] { STRING }, INT, new CommandHandler() {
+            public void execute(ScriptState s) {
+                int item = ItemArg(s, 0);
+                s.pushInt(item != Item.NONE &&
+                        session.inventory.Has(item) ? 1 : 0);
+            }
+        });
+        Add("inv_free", new ValueType[0], INT, new CommandHandler() {
+            public void execute(ScriptState s) {
+                s.pushInt(Inventory.SLOTS - session.inventory.Used());
+            }
+        });
+        Add("inv_add", new ValueType[] { STRING }, VOID,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int item = ItemArg(s, 0);
+                if (item != Item.NONE) session.inventory.Add(item);
+            }
+        });
+        Add("item_name", new ValueType[] { STRING }, STRING,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int item = ItemArg(s, 0);
+                s.pushString(item == Item.NONE ? "" : Item.LowerName(item));
+            }
+        });
+        Add("travel", new ValueType[] { STRING }, VOID, new CommandHandler() {
+            public void execute(ScriptState s) {
+                int map = session.MapNamed(s.argString(0));
+
+                if (map < 0) Fail(s, "map", s.argString(0));
+                else session.Travel(map);
+            }
+        });
+    }
+
+    private static void Add(String name, ValueType[] params, ValueType ret,
+                            CommandHandler handler) {
+        ScriptManager.RegisterCommand(name, params, ret, handler);
+    }
+
+    /* The skill named by a text argument, or -1 after reporting. */
+    private static int Skill(ScriptState s, int arg) {
+        int skill = Skills.Named(s.argString(arg));
+        if (skill < 0) Fail(s, "skill", s.argString(arg));
+        return skill;
+    }
+
+    /* The item named by a text argument, or NONE after reporting. */
+    private static int ItemArg(ScriptState s, int arg) {
+        int item = Item.Named(s.argString(arg));
+        if (item == Item.NONE) Fail(s, "item", s.argString(arg));
+        return item;
+    }
+
+    private static void Fail(ScriptState s, String kind, String name) {
+        ErrorHandler.LogFatalAndStop("The script " + s.script.trigger() +
+                " in [" + s.script.sourceName + "] failed to run because " +
+                "it names the " + kind + " [" + name + "], and there is " +
+                "no such thing.\n");
+    }
+}

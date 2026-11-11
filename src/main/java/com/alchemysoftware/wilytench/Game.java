@@ -10,6 +10,7 @@ import com.alchemysoftware.whitetail.input.InputSys;
 import com.alchemysoftware.whitetail.input.lwjgl.LwjglInput;
 import com.alchemysoftware.whitetail.log.LogLevel;
 import com.alchemysoftware.whitetail.log.Logger;
+import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
 import com.alchemysoftware.whitetail.scene.SceneManager;
 import com.alchemysoftware.whitetail.timer.Timer;
 import com.alchemysoftware.whitetail.window.Window;
@@ -36,7 +37,8 @@ final class Game {
     private static final int STAGE_SCREEN = 2;
     private static final int STAGE_INPUT_SYS = 3;
     private static final int STAGE_INPUT_BACKEND = 4;
-    private static final int STAGE_SCENES = 5;
+    private static final int STAGE_SAVE = 5;
+    private static final int STAGE_SCENES = 6;
 
     private static int stage = STAGE_NONE;
 
@@ -71,8 +73,16 @@ final class Game {
     private static boolean Init(File dataDir) {
         Logger.LogSession(LogLevel.DEBUG, LogStrSystem());
 
+        /* Started first so that a fatal error anywhere below, which
+           stops the flag, is still in force when startup finishes. */
+        RunFlag.Start();
+
         if (!Settings.Init(dataDir)) return false;
         if (!Natives.Install(dataDir)) return false;
+
+        /* Art and maps are read from inside the game's own jar. */
+        if (!ResourceStreamResolver.Init(null,
+                ResourceStreamResolver.MODE_CLASSPATH)) return false;
 
         if (!GCPriest.Init()) return false;
         stage = STAGE_GC_PRIEST;
@@ -92,14 +102,16 @@ final class Game {
 
         if (!Timer.Init(TICK_NS)) return false;
 
+        if (!SaveGame.Init(dataDir)) return false;
+        stage = STAGE_SAVE;
+
         if (!SceneManager.Init()) return false;
         stage = STAGE_SCENES;
         SceneManager.RegisterScene(SCENE_WORLD, new WorldScene());
         SceneManager.InitScenes();
         SceneManager.TransitionTo(SCENE_WORLD);
 
-        RunFlag.Start();
-        return true;
+        return RunFlag.IsRunning();
     }
 
     private static void Loop() {
@@ -140,6 +152,8 @@ final class Game {
 
     private static void Shutdown() {
         if (stage >= STAGE_SCENES) SceneManager.Shutdown();
+        /* After the scenes, so the last tick's state gets written. */
+        if (stage >= STAGE_SAVE) SaveGame.Shutdown();
         if (stage >= STAGE_INPUT_BACKEND) LwjglInput.Shutdown();
         if (stage >= STAGE_INPUT_SYS) InputSys.Shutdown();
         if (stage >= STAGE_SCREEN) Screen.Shutdown();

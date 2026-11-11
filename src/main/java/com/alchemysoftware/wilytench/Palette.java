@@ -53,6 +53,43 @@ final class Palette {
 
     private Palette() {}
 
+    /* What data files call the art colors, in index order starting
+       at ART_FIRST. */
+    private static final String[] ART_NAMES = {
+        "ink", "night", "plum", "maroon", "moss", "slate", "pine", "rust",
+        "blood", "rose", "ash", "tan", "leaf", "mint", "amber", "peach",
+        "bone"
+    };
+
+    /**
+     * @return the palette index of the art color data files call name,
+     *         or -1 if there is none
+     */
+    static int Named(String name) {
+        for (int i = 0; i < ART_COUNT; i++)
+            if (ART_NAMES[i].equals(name)) return ART_FIRST + i;
+        return -1;
+    }
+
+    /** @return every name Named() knows, for error messages */
+    static String Names() {
+        StringBuffer sb = new StringBuffer();
+        for (int i = 0; i < ART_COUNT; i++)
+            sb.append(i == 0 ? "" : ", ").append(ART_NAMES[i]);
+        return sb.toString();
+    }
+
+    /**
+     * @param rgb a color as 0xRRGGBB
+     * @return the palette index of that art color, or -1 if the art
+     *         palette does not contain it
+     */
+    static int IndexOfArtRgb(int rgb) {
+        for (int i = 0; i < ART_COUNT; i++)
+            if (ART_RGB[i] == rgb) return ART_FIRST + i;
+        return -1;
+    }
+
     private static int[] Build() {
         int[] p = new int[SIZE];
         int i;
