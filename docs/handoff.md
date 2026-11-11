@@ -23,7 +23,8 @@ into bronze bars at a furnace, hammer the bars into five bronze items
 at an anvil, carry it all in an inventory,
 with a chat box, a right-click menu, a tabbed side panel for inventory
 and skills, and a save written every tick. The game opens on a main
-menu, with an options screen behind it.
+menu, with an options screen behind it. There is one person to talk to,
+Harl, and he gives one small quest.
 `readme.md` "Current state" has the full list.
 
 **Unmerged work.** At the time of writing, the branch
@@ -37,7 +38,7 @@ an item on a loc, tin, smelting, and the anvil with its menu. Check
 the pull requests himself; once one is merged, restart the branch from
 `master` rather than stacking on it.
 
-**Tests.** `mvn verify` runs 97 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 108 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -107,6 +108,22 @@ been run on Windows of any age.
   a specification: this game is single-player and offline and need not
   match it. It was not consulted for the make menu.
 
+- **Dialogue is Java drawing driven by script**, the same split as the
+  make menu. `chatnpc`, `chatplayer`, and `choiceN` pause the script;
+  `Session` holds the talk on show; `DialogueBox` draws it where the
+  chat box is. Travis asked for it plain, partly because anything
+  permanent waits on the 384 by 216 picture: parchment, text, "Click
+  here to continue", centered choices lit on hover.
+- **The chat box and dialogue are different things**, as in RuneScape.
+  The chat box is for game messages ("You swing your pickaxe") and, one
+  day, players typing. Dialogue is for talk with people, and now and
+  then the character thinking aloud. Quest completion is announced in
+  the chat box; there is no banner, journal, or quest tab yet, by
+  Travis's choice for now.
+- **Quest progress is a script player variable**, `%harl_axe`, saved
+  with the game like any other. There is no notion of a quest in Java.
+  A journal will want a list of quests in data, each naming its
+  variable.
 - **Menus are laid out for 384 by 216** and centered on whatever the
   picture is, so they will not need redoing when the picture shrinks.
   The world scene's interface is still laid out for the larger picture.
@@ -169,6 +186,18 @@ been run on Windows of any age.
 - **The make menu makes until the bars run out.** There is no "make 1 /
   5 / 10". Clicking elsewhere stops it. Counting down a number would
   need arithmetic the script language lacks (feedback C38).
+- **People are part of the map.** Harl is a thing on a tile, like a
+  rock, with an `npc` where a rock has a `loc`. He cannot move, and the
+  character sprite is still inside `Player`. Real NPCs that walk will
+  replace this; `Npc.java` and the `[opnpc,...]` trigger should survive
+  it, the tile placement will not.
+- **Portraits are stand-ins**: a 32 pixel square with the name in it.
+  Travis intends real portraits. The player is called "You".
+- **Speech longer than four lines is cut off**, silently. Nothing
+  measures a script's text against the box.
+- **Dialogue shows the font's apostrophe gap** more than anything else
+  has: "aren 't", "I 'll".
+- **An item cannot be used on a person** yet; only talking.
 - **The system message box has only been seen on Linux**, over a
   window. Whether it comes to the front over a fullscreen game, and on
   Windows, is untested.

@@ -66,6 +66,12 @@
       "animated": true
     },
     {
+      "symbol": "H",
+      "npc": "harl",
+      "sheet": "interior_people",
+      "cells": [[0, 3]]
+    },
+    {
       "symbol": "A",
       "note": "A stand-in picture: the art has no anvil.",
       "loc": "anvil",

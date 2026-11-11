@@ -64,7 +64,8 @@ run on Windows of any age.
 | C42 | `Assets.java` loads what every scene needs before any scene starts |
 | C43 | `Assets.DiscardTicks()` throws ticks away in scenes where the world stands still |
 | C44 | `OptionsScene.java` asks for a relaunch and calls `JOptionPane` itself |
-| C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, with the pick kept in `Session` |
+| C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, and `choiceN` and `chosen`, with the pick kept in `Session` |
+| C45 | `Scripts.java` registers `choice2`, `choice3`, and `choice4` |
 | C38 | `Scripts.java` registers `inv_del_n` because a script cannot count |
 | C31, C32, C33, C34 | `DataNode.java` wraps `comp-json` with checked, typed reading; data files use lists with ids and a `note` convention |
 
@@ -686,6 +687,9 @@ command reads a stale answer. `Resume(state, value)`, supplying the
 suspended command's return value, would let it be one line:
 `def_string $item = make_choose($list)`.
 
+Dialogue made the same pair a second time: `choice2("Yes", "No")` and
+then `chosen()`.
+
 **C38. Scripts cannot do arithmetic.** *(Hit)*  
 Status: open. Partly by design.
 An expression is a literal, a variable, or a command call; there is no
@@ -752,6 +756,31 @@ game. An `ErrorHandler`-style `Notify(message)` would keep that in one
 place, and matters for Windows 98, where whether Swing dialogs behave
 over an LWJGL window is one more thing to find out.
 
+**C45. A command takes a fixed number of arguments.** *(Hit)*  
+Status: open. Minor.
+Offering the player two, three, or four things to say is one idea and
+three commands, `choice2`, `choice3`, `choice4`, because a signature is
+a fixed list of types and names cannot be overloaded. (The tutorial's
+answer is one string split on `|`, which loses the compiler's check that
+each option is text and makes a `|` in an option a bug.) `join` has the
+same limit (C29). Allowing a command to be registered with a last
+parameter that repeats would cover both.
+
+**C46. A long piece of text has to be one long line.** *(Hit)*  
+Status: open.
+String literals are single-line and there is nothing to join two of
+them at compile time, so every speech in a dialogue script is one line
+of the file, commonly 150 characters. Dialogue is where most of a
+game's text will live, and those files will not fit in any editor
+window or diff. Letting adjacent literals run together, as C does
+(`"first half " "second half"`), would fix it with no run-time cost.
+
+Related, and more the game's problem than Whitetail's: the game cannot
+see a script's text until the line runs, so it cannot check at startup
+that every speech fits the talk box. A way to walk the string constants
+of a compiled script, with the command each is an argument of, would let
+a host check its content the way `mvn verify` checks the data files.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
@@ -798,6 +827,13 @@ Worth recording, so they are not "fixed" by accident.
   trigger types are just names, `HasTrigger()` answered whether a loc
   takes items, and the smelting script compiled and ran first time.
   String locals and string comparison did what the readme says.
+- Dialogue needed nothing new from the script system. `suspend()` and
+  `Resume()`, already used for the make menu, carried a whole
+  conversation: nine commands' worth of talk, a choice, and a quest, with
+  the script reading top to bottom like the conversation it is. Player
+  variables declared in the script were saved and restored by code
+  written months before quests existed. The quest's eleven tests passed
+  the first time they ran.
 - Three scenes and the transitions between them worked first time:
   `TransitionTo()` from inside `onInput()`, `onEnter()` for resetting a
   scene's widgets. `Window.SetVSyncEnabled()` took effect at once from

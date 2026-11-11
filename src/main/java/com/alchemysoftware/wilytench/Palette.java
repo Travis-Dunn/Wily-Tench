@@ -24,6 +24,7 @@ final class Palette {
     static final int BACKGROUND = 0;
 
     static int INK, NIGHT, SLATE, RUST, ASH, LEAF, MINT, AMBER, PEACH, BONE;
+    static int MAROON, TAN;
 
     private static final int FIRST = 1;
     private static final int RGB_DIGITS = 6;
@@ -110,6 +111,8 @@ final class Palette {
         AMBER = Need(root, "amber");
         PEACH = Need(root, "peach");
         BONE = Need(root, "bone");
+        MAROON = Need(root, "maroon");
+        TAN = Need(root, "tan");
     }
 
     static void Shutdown() {

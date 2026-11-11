@@ -1,0 +1,76 @@
+// Harl, the old smith in the forge room, and his small quest:
+// "Harl's Axe". He wants a bronze axe made, and pays in Smithing
+// experience.
+//
+// %harl_axe is how far the quest has got:
+//   0  not begun
+//   1  Harl has asked for the axe
+//   2  done
+//
+// chatnpc and chatplayer each put up one screen of talk and wait for
+// the player to click. Keep each to four lines of the box, about fifty
+// words. choice2 offers things to say, and chosen() is which was
+// picked. Taking any other action ends the talk, and the script with
+// it, so nothing is changed until the talk that leads to it has been
+// read.
+
+def_int %harl_axe
+
+[opnpc,harl]
+interruptible()
+
+if (%harl_axe = 2) {
+    chatnpc("That axe of yours bites well. If you ever tire of adventuring, there's a place at this forge for you.")
+    return
+}
+
+if (%harl_axe = 1) {
+    if (inv_has("bronze_axe") = 0) {
+        chatnpc("No axe yet? Copper and tin from the rocks west of here, both into the furnace, and the bar onto the anvil. It's all there waiting for you.")
+        if (inv_has("bronze_pickaxe") = 0) {
+            if (inv_free() = 0) {
+                chatnpc("You've no pickaxe, and no room to carry one. Make some space and come back.")
+                return
+            }
+            chatnpc("And you've lost your pickaxe. Here, take another, and look after this one.")
+            inv_add("bronze_pickaxe")
+            mes("Harl hands you a bronze pickaxe.")
+        }
+        return
+    }
+
+    chatplayer("I've made your axe.")
+    chatnpc("Let me see it. Hm. The edge wanders a little, but it's honest work. You have the makings of a smith.")
+    // It may have been dropped while he was talking.
+    if (inv_has("bronze_axe") = 0) {
+        return
+    }
+    inv_del("bronze_axe")
+    %harl_axe = 2
+    mes("You hand Harl the bronze axe.")
+    mes("You have completed Harl's Axe.")
+    stat_xp("smithing", 2500)
+    return
+}
+
+chatnpc("You there. My eyes aren't what they were, and my arm's worse. I need a bronze axe made, and I can't swing the hammer for it.")
+choice2("I'll make you one.", "Not just now.")
+if (chosen() = 2) {
+    chatplayer("Not just now.")
+    chatnpc("Suit yourself. The forge will still be here.")
+    return
+}
+
+chatplayer("I'll make you one.")
+chatnpc("Good. Mine copper and tin, smelt them together at the furnace, and work the bar on the anvil. Bring me the axe and I'll teach you a thing or two.")
+%harl_axe = 1
+
+if (inv_has("bronze_pickaxe") = 0) {
+    if (inv_free() = 0) {
+        chatnpc("You'll want a pickaxe, but you've no room to carry one. Make some space and talk to me again.")
+        return
+    }
+    chatnpc("You'll want a pickaxe. Take this one.")
+    inv_add("bronze_pickaxe")
+    mes("Harl hands you a bronze pickaxe.")
+}

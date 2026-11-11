@@ -35,16 +35,17 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  *
  *     test3.txt
  *     #######            @ start (1,1)
- *     #@F...#            F furnace (2,1)
- *     #....A#            A anvil (5,2)
- *     #.T.r.#            T tin (2,3)
- *     #######            r copper (4,3)
+ *     #@F..H#            F furnace (2,1)
+ *     #....A#            H Harl (5,1)
+ *     #.T.r.#            A anvil (5,2)
+ *     #######            T tin (2,3)
+ *                        r copper (4,3)
  */
 final class Fixture {
     static final String[] MAPS = { "test.txt", "test2.txt", "test3.txt" };
     /* The others are the game's real scripts. */
     static final String[] SCRIPTS = {
-        "test.whtl", "mining.whtl", "smithing.whtl"
+        "test.whtl", "mining.whtl", "smithing.whtl", "harl.whtl"
     };
     static final int FIRST = 0, SECOND = 1, FORGE = 2;
 

@@ -27,6 +27,8 @@ import com.alchemysoftware.whitetail.script.ValueType;
  *   [oplocu,X]  the player used an item on a loc, having walked up
  *               beside it. X is found the same way. used_item() says
  *               which item.
+ *   [opnpc,X]   the player talked to a person, having walked up beside
+ *               them. X is the person's id in npcs.json.
  *
  * Commands scripts may call. "The loc" is the one being used.
  *
@@ -73,6 +75,15 @@ import com.alchemysoftware.whitetail.script.ValueType;
  *   travel(map)            moves the player to the start of a map,
  *                          named by its file, such as "dungeon.txt"
  *
+ *   Talking with someone. These show in place of the chat box, and
+ *   each waits there until the player clicks. If the player does
+ *   something else instead, the script ends.
+ *   chatnpc(text)          the person being talked to says something
+ *   chatplayer(text)       the player's character says something
+ *   choice2(text, text)    offers the player things to say; also
+ *   choice3(...), choice4(...)
+ *   chosen()               -> whole: which was picked, counting from 1
+ *
  *   Making things. A "list" is one of those in recipes.json.
  *   make_has(list)         -> 1 if there is a list with that id, else 0
  *   make_open(list)        shows the list as a menu and waits there
@@ -98,6 +109,8 @@ final class Scripts {
     static final String TRIGGER_USE = "oploc";
     /** The trigger type for using an item on a loc. */
     static final String TRIGGER_USE_ITEM = "oplocu";
+    /** The trigger type for talking to a person. */
+    static final String TRIGGER_TALK = "opnpc";
 
     private static final String FOLDER = "scripts";
     private static final String CATEGORY_MARK = "_";
@@ -155,6 +168,15 @@ final class Scripts {
 
         String subject = CATEGORY_MARK + loc.category;
         return ScriptManager.HasTrigger(trigger, subject) ? subject : null;
+    }
+
+    /**
+     * @return the X of the [opnpc,X] script that talking to a person
+     *         runs, or null if there is no script for them
+     */
+    static String TalkSubject(Npc npc) {
+        return npc != null && ScriptManager.HasTrigger(TRIGGER_TALK,
+                npc.id) ? npc.id : null;
     }
 
     /**
@@ -334,6 +356,33 @@ final class Scripts {
                         session.inventory.Count(item));
             }
         });
+        Add("chatnpc", new ValueType[] { STRING }, VOID,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                if (session.UsedNpc() == null) {
+                    Fail(s, "person to speak, there being nobody this " +
+                            "script is about, for the command", "chatnpc");
+                    return;
+                }
+                session.ScriptSay(Session.TALK_NPC, s.argString(0));
+                s.suspend();
+            }
+        });
+        Add("chatplayer", new ValueType[] { STRING }, VOID,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                session.ScriptSay(Session.TALK_PLAYER, s.argString(0));
+                s.suspend();
+            }
+        });
+        AddChoice("choice2", 2);
+        AddChoice("choice3", 3);
+        AddChoice("choice4", 4);
+        Add("chosen", new ValueType[0], INT, new CommandHandler() {
+            public void execute(ScriptState s) {
+                s.pushInt(session.TalkChosen());
+            }
+        });
         Add("make_has", new ValueType[] { STRING }, INT,
                 new CommandHandler() {
             public void execute(ScriptState s) {
@@ -412,6 +461,21 @@ final class Scripts {
 
                 if (map < 0) Fail(s, "map", s.argString(0));
                 else session.Travel(map);
+            }
+        });
+    }
+
+    /* Registers a command that offers n things to say. */
+    private static void AddChoice(String name, final int n) {
+        ValueType[] params = new ValueType[n];
+        for (int i = 0; i < n; i++) params[i] = STRING;
+
+        Add(name, params, VOID, new CommandHandler() {
+            public void execute(ScriptState s) {
+                String[] options = new String[n];
+                for (int i = 0; i < n; i++) options[i] = s.argString(i);
+                session.ScriptAsk(options);
+                s.suspend();
             }
         });
     }

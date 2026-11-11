@@ -11,6 +11,7 @@ guide to those files, for a person or an AI.
 | The pictures on the side panel's tabs, and the menu widgets | `data/interface.json` |
 | What can be made from what | `data/recipes.json` |
 | What can be used on a map: rocks, ladders | `data/locs.json` |
+| Who can be talked to | `data/npcs.json` |
 | What a map-file character means and looks like | `data/tiles.json` |
 | Which sprite sheets and recolorings exist | `data/sprites.json` |
 | The colors | `data/palette.json` |
@@ -255,6 +256,37 @@ interesting happens." for the rest. `inv_del` takes an item away and
 Every loc still needs a `verb` and an `[oploc,...]` script for a plain
 click, even if all that does is explain.
 
+## npcs.json
+
+A person. For now people stand still on one tile and can only be talked
+to; what they say is the script `[opnpc,id]`. See "Talk" in the readme.
+
+    {
+      "id": "harl",
+      "name": "Harl",
+      "examine": "An old smith. His hands have seen a lot of work."
+    }
+
+| Value | Meaning |
+| ----- | ------- |
+| `id` | How tiles and scripts refer to them. `[opnpc,harl]` is his script |
+| `name` | What the player sees, and what heads their side of a talk |
+| `examine` | Optional. What the Examine option says |
+
+### Adding someone to talk to
+
+1. Add them to `npcs.json`.
+2. Give them a character in `tiles.json`, as a thing with `"npc"` set to
+   their id, a `sheet`, and `cells`. A thing cannot have both `"npc"` and
+   `"loc"`.
+3. Put that character on a map.
+4. Write their `[opnpc,id]` block in a script file, and list the file in
+   `game.json` if it is new.
+
+Keep each `chatnpc` and `chatplayer` to what fits the talk box: four
+lines, about fifty words. Anything longer is cut off, and nothing checks
+this for you. Split a long speech into two.
+
 ## tiles.json
 
 This file gives meaning to the characters in map files. A **tileset** is
@@ -304,6 +336,7 @@ A thing:
 | `name` | What the player sees it called. Needed unless it has a `loc`, which has a name of its own |
 | `examine` | Optional. What the Examine option says about it. Not allowed with a `loc`, which has its own. Walls may have one too |
 | `loc` | Optional. Makes it usable, as that loc |
+| `npc` | Optional. Makes it a person, as that npc. Not with `loc` |
 | `sheet`, `cells` | What it looks like |
 | `empty_cells` | What it looks like when emptied: one cell for each of `cells`. Required if its loc can be emptied |
 | `color_map` | Optional. A recoloring from `sprites.json` |
@@ -317,7 +350,7 @@ first; a right click opens the whole list as a menu. For now the lists
 are fixed by kind:
 
 - A tile of the map: the loc's `verb`, if a loc with a script stands
-  there; then Walk here; then Examine, if anything stands there; then
+  there, or Talk-to, if a person with a script does; then Walk here; then Examine, if anything stands there; then
   Cancel.
 - An item in the inventory: Use, Drop, Examine, Cancel.
 
@@ -406,7 +439,7 @@ it was meant to be without touching the artist's file:
 
     {
       "maps": ["cave.txt", "dungeon.txt"],
-      "scripts": ["travel.whtl", "mining.whtl", "smithing.whtl"],
+      "scripts": ["travel.whtl", "mining.whtl", "smithing.whtl", "harl.whtl"],
       "starting_items": ["bronze_pickaxe"]
     }
 

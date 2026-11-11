@@ -26,6 +26,9 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * choices in the middle of the view and has the mouse to itself until
  * one is picked or it is dismissed.
  *
+ * Talk with someone is shown by DialogueBox in place of the chat box,
+ * and nothing can be typed while it is up.
+ *
  * The buttons above the inventory switch the side panel between the
  * inventory and the skills; a click on one goes no further.
  *
@@ -46,6 +49,12 @@ final class WorldScene extends Scene {
     private static final int NOWHERE = -1;
 
     private static final int HOVER_TEXT_X = 4, HOVER_TEXT_Y = 3;
+
+    /* The keys that pick the first, second, third, and fourth thing
+       offered to say. */
+    private static final int[] CHOICE_KEYS = {
+        Button.KEY_1, Button.KEY_2, Button.KEY_3, Button.KEY_4
+    };
 
     private static final String MSG_WELCOME =
             "Welcome to " + Screen.TITLE + ".";
@@ -75,6 +84,7 @@ final class WorldScene extends Scene {
     private SidePanel panel;
     private ContextMenu menu;
     private MakeMenu makeMenu;
+    private DialogueBox dialogue;
     private Actions actions;
 
     /* The pointer in picture pixels, negative when outside it. */
@@ -130,6 +140,8 @@ final class WorldScene extends Scene {
         menu = new ContextMenu(smallFont, w, h);
         makeMenu = new MakeMenu(smallFont, session, viewPortX, viewPortY,
                 viewW, viewH);
+        dialogue = new DialogueBox(smallFont, boldFont, session, viewPortX,
+                viewPortY + viewH, viewW, h - viewPortY - viewH);
         actions = new Actions(session);
 
         save = new SaveState(session);
@@ -183,7 +195,14 @@ final class WorldScene extends Scene {
             mouseX = mouseY = NOWHERE;
         }
 
-        chat.Input(pointerX, pointerY);
+        if (session.TalkKind() != Session.TALK_NONE) {
+            /* Talk stands where the chat box does and takes its
+               clicks and keys. A click anywhere else is an order like
+               any other, and ends the talk if it cancels the script. */
+            if (TalkInput(left)) return;
+        } else {
+            chat.Input(pointerX, pointerY);
+        }
 
         if (session.OpenMake() != Recipes.NONE) {
             /* The window asking what to make has the mouse to itself.
@@ -293,7 +312,9 @@ final class WorldScene extends Scene {
         if (session.OpenMake() == Recipes.NONE) DrawHover();
         Gfx.ClearClip();
 
-        chat.Draw();
+        if (session.TalkKind() != Session.TALK_NONE)
+            dialogue.Draw(pointerX, pointerY);
+        else chat.Draw();
         panel.Select(actions.SelectedSlot());
         panel.Draw();
         if (session.OpenMake() != Recipes.NONE) {
@@ -317,12 +338,36 @@ final class WorldScene extends Scene {
         panel = null;
         menu = null;
         makeMenu = null;
+        dialogue = null;
         actions = null;
         smallFont = boldFont = titleFont = null;
     }
 
     @Override
     public boolean handleEvent(Event e) { return false; }
+
+    /*
+     * Passes on the player's answer to the talk on show: Space, or a
+     * click on the box, reads on; a number key, or a click on one of
+     * the things offered to say, picks it.
+     *
+     * Returns whether a click was on the box, and so is used up.
+     */
+    private boolean TalkInput(boolean left) {
+        boolean onBox = dialogue.Contains(pointerX, pointerY);
+
+        if (session.TalkKind() == Session.TALK_CHOICE) {
+            int option = left ? dialogue.OptionAt(pointerX, pointerY) :
+                    DialogueBox.NO_OPTION;
+            for (int i = 0; i < CHOICE_KEYS.length; i++)
+                if (InputSys.WasPressed(CHOICE_KEYS[i])) option = i;
+            if (option != DialogueBox.NO_OPTION) session.ChooseTalk(option);
+        } else if ((left && onBox) ||
+                InputSys.WasPressed(Button.KEY_SPACE)) {
+            session.ContinueTalk();
+        }
+        return onBox;
+    }
 
     /*
      * Fills the option list for whatever the pointer is over: an item

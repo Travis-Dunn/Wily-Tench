@@ -16,6 +16,7 @@ import com.alchemysoftware.whitetail.error.ErrorHandler;
  *                  widgets
  *   recipes.json   what can be made from what
  *   locs.json      the things on a map that can be used
+ *   npcs.json      the people
  *   tiles.json     what each character in a map file stands for
  *
  * docs/content.md explains each file for someone editing it. A mistake
@@ -71,6 +72,7 @@ final class Content {
         Skin.Load(ui.Obj("widgets"));
         Recipes.Load(DataNode.Load("recipes.json"));
         Loc.Load(DataNode.Load("locs.json"));
+        Npc.Load(DataNode.Load("npcs.json"));
         Tiles.Load(DataNode.Load("tiles.json"));
 
         DataNode game = DataNode.Load("game.json");
@@ -97,6 +99,7 @@ final class Content {
 
     static void Shutdown() {
         Tiles.Shutdown();
+        Npc.Shutdown();
         Loc.Shutdown();
         Recipes.Shutdown();
         Skin.Shutdown();

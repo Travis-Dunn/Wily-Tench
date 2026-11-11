@@ -75,6 +75,7 @@ final class World {
     /* Per tile: the loc there, or null, and for one that has been
        emptied the game tick at which it is full again, or FULL. */
     private final Loc[] locs;
+    private final Npc[] npcs;
     private final int[] emptyUntil;
     private int emptyRocks;
 
@@ -83,7 +84,8 @@ final class World {
     private World(String id, String name, int w, int h, int startX,
                   int startY, int[] floor, int[] object, int[] emptyObject,
                   byte[] colorMap, boolean[] solid, boolean[] animated,
-                  String[] names, String[] examines, Loc[] locs) {
+                  String[] names, String[] examines, Loc[] locs,
+                  Npc[] npcs) {
         this.examines = examines;
         this.id = id;
         this.name = name;
@@ -99,6 +101,7 @@ final class World {
         this.animated = animated;
         this.names = names;
         this.locs = locs;
+        this.npcs = npcs;
         emptyUntil = new int[w * h];
     }
 
@@ -153,6 +156,7 @@ final class World {
         boolean[] solid = new boolean[w * h], animated = new boolean[w * h];
         String[] names = new String[w * h], examines = new String[w * h];
         Loc[] locs = new Loc[w * h];
+        Npc[] npcs = new Npc[w * h];
         int startX = -1, startY = -1;
 
         for (y = 0; y < h; y++) {
@@ -197,9 +201,11 @@ final class World {
                     solid[i] = !thing.walkable;
                     animated[i] = thing.animated;
                     names[i] = thing.name;
-                    examines[i] = thing.loc == null ? thing.examine :
-                            thing.loc.examine;
+                    examines[i] = thing.loc != null ? thing.loc.examine :
+                            thing.npc != null ? thing.npc.examine :
+                            thing.examine;
                     locs[i] = thing.loc;
+                    npcs[i] = thing.npc;
                 } else {
                     ErrorHandler.LogFatalAndStop(
                             ErrStrSymbol(filename, c, x, first + y, set.id));
@@ -214,7 +220,7 @@ final class World {
         }
         return new World(filename, name, w, h, startX, startY, floor,
                 object, emptyObject, colorMap, solid, animated, names,
-                examines, locs);
+                examines, locs, npcs);
     }
 
     /**
@@ -254,6 +260,11 @@ final class World {
         if (!Contains(x, y)) return null;
         int i = y * w + x;
         return emptyUntil[i] > now ? locs[i].emptyExamine : examines[i];
+    }
+
+    /** @return the person on the tile, or null if there is none */
+    Npc NpcAt(int x, int y) {
+        return Contains(x, y) ? npcs[y * w + x] : null;
     }
 
     /** @return the loc on the tile, or null if there is none */

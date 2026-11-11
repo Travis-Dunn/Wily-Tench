@@ -100,6 +100,17 @@ into weapons and armor.
   takes. What you lack is shown in red. Click one and the character
   keeps making it, one every three ticks, until the bars run out or you
   click elsewhere. Escape, or a click off the menu, closes it.
+- **Talking.** Harl, an old smith, stands in the forge room. Click him
+  and the character walks over and talks. Talk takes the place of the
+  chat box: what is said, on parchment, under the speaker's name and
+  beside a square standing in for their portrait, with the other person
+  on the left and your character on the right. Click the box, or press
+  Space, to read on. Sometimes you are offered things to say; click one,
+  or press its number. Doing anything else ends the talk.
+- **A first quest.** Harl asks for a bronze axe. Agree, and he gives you
+  a pickaxe if you have none. Mine, smelt, and smith the axe, bring it
+  to him, and he takes it and gives 250 Smithing experience. The chat
+  box says when it is done. There is no quest list yet.
 - **Using an item on something.** Choosing Use on an item selects it,
   marked by an amber outline. Whatever is pointed at next offers, first,
   to have the item used on it: "Use Copper ore -> Furnace". Doing
@@ -146,7 +157,7 @@ into weapons and armor.
   and the game says so with a system message box when you leave the
   screen.
 
-There are no monsters or quests yet.
+There are no monsters yet.
 
 ## Running it in IntelliJ
 
@@ -267,6 +278,8 @@ which is what makes that practical.
 | `Font`, `Text` | Bitmap fonts, and drawing writing with them |
 | `ChatBox` | The message history and typing line under the view |
 | `SidePanel` | The inventory and the skills, on tabs, to the right of the view; the tab pictures come from `interface.json` |
+| `Npc` | The people, from `npcs.json`. For now they stand still on a tile and can only be talked to |
+| `DialogueBox` | Talk with someone, drawn in place of the chat box: speech with a stand-in portrait, or a choice of things to say |
 | `Recipes` | The lists of what can be made from what, from `recipes.json` |
 | `MakeMenu` | The window that shows one of those lists and asks what to make |
 | `Tooltip` | The small box beside the pointer that says more about what it is over |
@@ -329,6 +342,32 @@ it is running for what to give:
 three data files and no script; `docs/content.md` has the recipe. A rock
 that should behave differently gets its own `[oploc,its_name]` block, which
 takes precedence.
+
+### Talk
+
+Talking to a person runs `[opnpc,their_id]`. In it, `chatnpc("...")` has
+them say something and `chatplayer("...")` has the player's character
+say something; each fills the talk box and the script waits there until
+the player clicks. `choice2("...", "...")`, `choice3`, and `choice4`
+offer things to say, and `chosen()` then answers 1, 2, 3, or 4.
+
+    chatnpc("I need a bronze axe made.")
+    choice2("I'll make you one.", "Not just now.")
+    if (chosen() = 2) {
+        chatplayer("Not just now.")
+        return
+    }
+
+A script that talks should call `interruptible()` first, so that walking
+away ends it. Because the player can leave at any click, a script should
+change nothing (give an item, advance a quest) until the talk leading up
+to it has been read; put the change after the last line of that talk,
+not before it.
+
+**A quest is a player variable.** `def_int %harl_axe` at the top of the
+file declares one; it starts at 0, the script sets it as the quest moves
+on, and it is saved with the game. `harl.whtl` is the whole of the first
+quest and the example to copy.
 
 ### Asking the player to choose
 

@@ -35,6 +35,10 @@ public class ContentTest {
                             " has a script", loc == null ||
                             Scripts.Subject(Scripts.TRIGGER_USE, loc)
                             != null);
+                    Npc npc = world.NpcAt(x, y);
+                    Check(world.id + ": the npc at " + x + "," + y +
+                            " has a script", npc == null ||
+                            Scripts.TalkSubject(npc) != null);
                 }
             }
         }
