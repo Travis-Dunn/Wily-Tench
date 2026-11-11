@@ -66,6 +66,13 @@
       "animated": true
     },
     {
+      "symbol": "A",
+      "note": "A stand-in picture: the art has no anvil.",
+      "loc": "anvil",
+      "sheet": "frozen_cavern",
+      "cells": [[0, 23]]
+    },
+    {
       "symbol": "s",
       "name": "Stalagmites", "examine": "They have been growing for a very long time.",
       "sheet": "cave",

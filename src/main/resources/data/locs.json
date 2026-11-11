@@ -66,6 +66,13 @@
       "examine": "A stone hearth, hot enough to melt ore."
     },
     {
+      "id": "anvil",
+      "note": "smithing.whtl holds its scripts. A bar used on it opens the list of recipes called anvil_ and the bar's id, in recipes.json.",
+      "name": "Anvil",
+      "verb": "Smith",
+      "examine": "A block of iron for hammering metal on."
+    },
+    {
       "id": "iron_rocks",
       "name": "Iron rocks",
       "examine": "A rocky outcrop streaked with dark red.",

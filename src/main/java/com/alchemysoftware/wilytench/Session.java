@@ -25,6 +25,11 @@ import com.alchemysoftware.whitetail.script.ScriptState;
  * Held(): new orders are ignored until it ends. An order given while
  * merely busy cancels the script.
  *
+ * A script may stop to ask what the player wants made. OpenMake()
+ * then names the list of recipes to show, and nothing more happens
+ * until ChooseMake() or CloseMake(), or an order that cancels the
+ * script.
+ *
  * The methods named Script... and ...Used... are for the commands
  * in Scripts, and speak of the script in progress, the loc it is
  * about, and the item being used on that loc, if one is.
@@ -54,6 +59,11 @@ final class Session {
     private int usedX, usedY;
 
     private boolean interruptible, againAsked, repeating;
+
+    /* The list of recipes whose menu the script in progress is waiting
+       at, and the list and recipe last picked from such a menu. */
+    private int openMake = Recipes.NONE;
+    private int madeList = Recipes.NONE, madeRecipe;
 
     private Session(World[] worlds, Player player, PlayerVars vars,
                     ChatBox chat, Random rng) {
@@ -183,6 +193,31 @@ final class Session {
     }
 
     /**
+     * @return the list of recipes the player is being asked to pick
+     *         from, or Recipes.NONE
+     */
+    int OpenMake() { return openMake; }
+
+    /**
+     * Picks a recipe from the list being shown, and lets the script
+     * that showed it carry on.
+     */
+    void ChooseMake(int recipe) {
+        if (openMake == Recipes.NONE) return;
+
+        madeList = openMake;
+        madeRecipe = recipe;
+        openMake = Recipes.NONE;
+        script = Scripts.Resume(script);
+        if (script == null) AfterRun();
+    }
+
+    /** Declines to pick, which ends the script that asked. */
+    void CloseMake() {
+        if (openMake != Recipes.NONE) EndScript();
+    }
+
+    /**
      * Looks closely at what stands on a tile of this map, and says
      * what there is to see. Costs no time and interrupts nothing.
      */
@@ -261,6 +296,13 @@ final class Session {
 
     boolean ScriptRepeating() { return repeating; }
 
+    void ScriptOpenMake(int list) { openMake = list; }
+
+    /** @return the list last picked from, or Recipes.NONE */
+    int MadeList() { return madeList; }
+
+    int MadeRecipe() { return madeRecipe; }
+
     /** @return the loc the script in progress is about */
     Loc UsedLoc() { return usedLoc; }
 
@@ -330,6 +372,7 @@ final class Session {
     /* Forgets the script in progress, finished or not. */
     private void EndScript() {
         script = null;
+        openMake = Recipes.NONE;
         interruptible = againAsked = repeating = false;
         player.SetWorking(false);
     }

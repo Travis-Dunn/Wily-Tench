@@ -23,6 +23,10 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * the top left of the view names the first. Actions decides what is on
  * the list and carries an option out.
  *
+ * When a script asks what the player wants made, MakeMenu shows the
+ * choices in the middle of the view and has the mouse to itself until
+ * one is picked or it is dismissed.
+ *
  * The buttons above the inventory switch the side panel between the
  * inventory and the skills; a click on one goes no further.
  *
@@ -75,6 +79,7 @@ final class WorldScene extends Scene {
     private ChatBox chat;
     private SidePanel panel;
     private ContextMenu menu;
+    private MakeMenu makeMenu;
     private Actions actions;
 
     /* The pointer in picture pixels, negative when outside it. */
@@ -140,6 +145,8 @@ final class WorldScene extends Scene {
         panel = new SidePanel(smallFont, boldFont, titleFont, panelX, 0,
                 w - panelX, h, w, h, session.inventory, session.skills);
         menu = new ContextMenu(smallFont, w, h);
+        makeMenu = new MakeMenu(smallFont, session, viewPortX, viewPortY,
+                viewW, viewH);
         actions = new Actions(session);
 
         save = new SaveState(session);
@@ -174,7 +181,8 @@ final class WorldScene extends Scene {
         boolean right = InputSys.WasPressed(Button.MOUSE_RIGHT);
 
         if (InputSys.WasPressed(Button.KEY_ESCAPE)) {
-            if (menu.IsOpen()) menu.Close();
+            if (session.OpenMake() != Recipes.NONE) session.CloseMake();
+            else if (menu.IsOpen()) menu.Close();
             else if (actions.SelectedSlot() != Actions.NO_SLOT)
                 actions.Deselect();
             else RunFlag.Stop();
@@ -193,6 +201,22 @@ final class WorldScene extends Scene {
         }
 
         chat.Input(pointerX, pointerY);
+
+        if (session.OpenMake() != Recipes.NONE) {
+            /* The window asking what to make has the mouse to itself.
+               A left click on a recipe picks it; a click of either
+               button off the window declines. */
+            menu.Close();
+            makeMenu.Layout(session.OpenMake());
+
+            int recipe = makeMenu.RecipeAt(pointerX, pointerY);
+            if (left && recipe != MakeMenu.NO_RECIPE)
+                session.ChooseMake(recipe);
+            else if ((left || right) &&
+                    !makeMenu.Contains(pointerX, pointerY))
+                session.CloseMake();
+            return;
+        }
 
         if (menu.IsOpen()) {
             /* The menu has the mouse to itself. A left click chooses
@@ -283,14 +307,20 @@ final class WorldScene extends Scene {
                     viewPortY + player.DestY() * TILE - viewY,
                     TILE, TILE, MARKER_ARM, Palette.AMBER);
         }
-        DrawHover();
+        if (session.OpenMake() == Recipes.NONE) DrawHover();
         Gfx.ClearClip();
 
         chat.Draw();
         panel.Select(actions.SelectedSlot());
         panel.Draw();
-        if (menu.IsOpen()) menu.Draw(pointerX, pointerY);
-        else panel.DrawTip();
+        if (session.OpenMake() != Recipes.NONE) {
+            makeMenu.Layout(session.OpenMake());
+            makeMenu.Draw(pointerX, pointerY);
+        } else if (menu.IsOpen()) {
+            menu.Draw(pointerX, pointerY);
+        } else {
+            panel.DrawTip();
+        }
     }
 
     @Override
@@ -307,6 +337,7 @@ final class WorldScene extends Scene {
         chat = null;
         panel = null;
         menu = null;
+        makeMenu = null;
         actions = null;
         smallFont = boldFont = titleFont = null;
     }

@@ -19,7 +19,8 @@ file does not repeat them.
 
 The game is a small playable loop: walk around two maps joined by a
 ladder, mine copper, tin, and iron for experience, smelt copper and tin
-into bronze bars at a furnace, carry it all in an inventory,
+into bronze bars at a furnace, hammer the bars into five bronze items
+at an anvil, carry it all in an inventory,
 with a chat box, a right-click menu, a tabbed side panel for inventory
 and skills, and a save written every tick.
 `readme.md` "Current state" has the full list.
@@ -30,12 +31,12 @@ merged: all the art and atlas packing, the palette file, movement easing
 and the camera, four-way pathfinding, and the right-click menu. The
 branch `claude/relaxed-ride-n5sh5i` was started from its tip, not from
 `master`, and adds the tabbed side panel, the skill list in data, using
-an item on a loc, tin, and smelting. Check
+an item on a loc, tin, smelting, and the anvil with its menu. Check
 `git log origin/master..HEAD` before starting. Travis opens and merges
 the pull requests himself; once one is merged, restart the branch from
 `master` rather than stacking on it.
 
-**Tests.** `mvn verify` runs 79 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 88 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -93,6 +94,18 @@ been run on Windows of any age.
   `Player`; it should be pulled out the same way when the first NPC
   arrives.
 
+- **A menu is three parts: data, Java, script.** Travis asked whether
+  the smithing menu should "just be Java". The answer built: what can be
+  made is `recipes.json`; one Java window, `MakeMenu`, draws any list
+  from the list alone; and the script decides when to show it and what a
+  pick does, pausing on `make_open` until the player chooses. Future
+  menus (dialogue options, shops) should follow the same split.
+- **Lost City is available as a reference.** Travis follows that
+  project, a faithful reimplementation of 2004 RuneScape whose source is
+  public. It may be consulted for how RuneScape did something. It is not
+  a specification: this game is single-player and offline and need not
+  match it. It was not consulted for the make menu.
+
 ## Known rough edges
 
 - **Movement still looks slightly "gritty"** to Travis, after one round
@@ -127,9 +140,20 @@ been run on Windows of any age.
   Smithing a hammer from the item art; the tabs show coins and a star.
   Travis will draw real ones; they are not in the asset pack. A skill
   with no picture in `skills.json` is drawn as its first letter.
-- **Smithing stops at bars.** Smelting bronze is all there is: no
-  anvil, nothing to make from a bar, no other metals. Bronze has no
-  level requirement and never fails.
+- **Smithing is bronze only.** The furnace's script knows one alloy;
+  the anvil's serves any list in `recipes.json`. Smelting bronze has no
+  level requirement and never fails. No hammer is needed at the anvil.
+- **The anvil's picture is a stand-in**, `frozen_cavern` [0,23], a grey
+  iron weight. Every sheet was searched and the art has no anvil.
+- **The made items do nothing.** They cannot be worn or wielded. Their
+  levels and costs are placeholders loosely after RuneScape: one bar
+  and 12.5 experience for small things, three bars for large.
+- **The make menu makes until the bars run out.** There is no "make 1 /
+  5 / 10". Clicking elsewhere stops it. Counting down a number would
+  need arithmetic the script language lacks (feedback C38).
+- **The make menu has no scrolling.** It runs to a new column every ten
+  recipes, which fits two columns in today's view. A long list will need
+  another answer, more so at 384 by 216.
 - **A skill's current level is always its earned level.**
   `Skills.CurrentLevel()` exists so the panel can show "current/earned",
   but nothing raises or lowers a level yet, and scripts' `stat_level`
@@ -164,9 +188,10 @@ exists.
 2. Items on the ground: drop, pick up, despawn, saved per map. It fits
    the tick-stamped map state already there.
 3. Option lists from data, with "Use item on thing".
-4. The rest of Smithing: an anvil and things to make from bars, which
-   will want a way to choose what to make; iron smelting. The Magma Maze
-   item art has a grey and a gold bar besides the one used for bronze.
+4. More Smithing: iron smelting, which means making the furnace's
+   script as data-driven as the anvil's; more metals and items. The
+   Magma Maze item art has a grey and a gold bar besides the one used
+   for bronze.
 5. The first NPC or monster, which forces the character sprite out of
    `Player`.
 

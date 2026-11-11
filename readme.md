@@ -76,7 +76,8 @@ picture, look it up in the labeled catalog images in `docs/sprites/`.
 ## Current state
 
 You can walk around two small maps, a cave and a dungeon, mine the
-rocks in them, and smelt copper and tin into bronze.
+rocks in them, smelt copper and tin into bronze, and hammer the bronze
+into weapons and armor.
 
 - **Walking.** Left click a tile and the character walks there by the
   shortest route, one tile per tick, or as close as it can get. Movement
@@ -93,11 +94,17 @@ rocks in them, and smelt copper and tin into bronze.
   copper ore or tin ore on it and the character walks over and smelts:
   every three ticks one of each ore becomes a bronze bar and 6.2
   Smithing experience, until one ore runs out or you click elsewhere.
+- **Smithing.** Beside the furnace is an anvil. Use a bronze bar on it
+  and a menu asks what to make: an axe, gauntlets, a sword, a warhammer,
+  or a chainbody, each with the Smithing level it needs and the bars it
+  takes. What you lack is shown in red. Click one and the character
+  keeps making it, one every three ticks, until the bars run out or you
+  click elsewhere. Escape, or a click off the menu, closes it.
 - **Using an item on something.** Choosing Use on an item selects it,
   marked by an amber outline. Whatever is pointed at next offers, first,
   to have the item used on it: "Use Copper ore -> Furnace". Doing
-  anything, or pressing Escape, lets go of it. Only ore on the furnace
-  does anything so far.
+  anything, or pressing Escape, lets go of it. Ore on the furnace and
+  bars on the anvil are what it does so far.
 - **Options.** Whatever the mouse is over has a list of things to do to
   it. A left click does the first, which the label at the top left of the
   view names; a right click opens the whole list as a menu. Tiles offer
@@ -246,6 +253,8 @@ which is what makes that practical.
 | `Font`, `Text` | Bitmap fonts, and drawing writing with them |
 | `ChatBox` | The message history and typing line under the view |
 | `SidePanel` | The inventory and the skills, on tabs, to the right of the view; the tab pictures come from `interface.json` |
+| `Recipes` | The lists of what can be made from what, from `recipes.json` |
+| `MakeMenu` | The window that shows one of those lists and asks what to make |
 | `Tooltip` | The small box beside the pointer that says more about what it is over |
 | `Actions` | What can be done to each tile and item, and the doing of it |
 | `ContextMenu` | The list of options for what is under the mouse, and the right-click menu that shows it |
@@ -306,6 +315,20 @@ it is running for what to give:
 three data files and no script; `docs/content.md` has the recipe. A rock
 that should behave differently gets its own `[oploc,its_name]` block, which
 takes precedence.
+
+### Asking the player to choose
+
+A script can stop and ask what to make. `make_open("anvil_bronze_bar")`
+shows that list from `data/recipes.json` as a menu and the script waits
+there, for as long as the player takes. When a recipe is picked the
+script carries on, and `make_item()`, `make_int("uses")`,
+`make_int("level")`, `make_int("xp")`, and `make_string("material")`
+describe the pick. If the menu is closed instead, the script simply ends.
+The anvil's block in `smithing.whtl` is the example.
+
+The split is deliberate: **what can be made is data, how the menu looks
+is Java, and what picking does is script.** `MakeMenu.java` draws any
+list the same way, from the list alone.
 
 ### Things worth knowing when writing one
 

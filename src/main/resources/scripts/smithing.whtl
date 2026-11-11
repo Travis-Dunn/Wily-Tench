@@ -1,4 +1,5 @@
-// Smithing: so far, smelting bronze at a furnace.
+// Smithing: smelting bronze at a furnace, and hammering bars into
+// things at an anvil.
 //
 // Bronze is one copper ore and one tin ore. The player uses either ore
 // on the furnace, which runs [oplocu,furnace]; used_item() says which
@@ -58,3 +59,62 @@ again()
 // Clicking the furnace with nothing in hand.
 [oploc,furnace]
 mes("The furnace is hot. Use an ore on it to smelt it.")
+
+// Using a bar on an anvil.
+//
+// What the bar can become is a list in recipes.json, found by name:
+// "anvil_" and the id of the item used, so "anvil_bronze_bar". An item
+// with no such list is not something an anvil can work. A new metal
+// therefore needs a list there and nothing here.
+//
+// make_open shows the list and waits for the player to pick. After
+// that, make_item, make_int, and make_string speak of the recipe
+// picked. Like smelting, one run makes one thing and asks to be run
+// again; the rerun skips the menu and makes the same thing, until the
+// bars run out.
+
+[oplocu,anvil]
+def_string $list = join("anvil_", used_item())
+interruptible()
+
+if (make_has($list) = 0) {
+    mes("Nothing interesting happens.")
+    return
+}
+if (repeating() = 0) {
+    make_open($list)
+}
+
+if (stat_level(make_string("skill")) < make_int("level")) {
+    mes(join(join("You need a Smithing level of ", str(make_int("level"))),
+            " to make that."))
+    return
+}
+if (inv_count(make_string("material")) < make_int("uses")) {
+    if (repeating() = 0) {
+        mes(join(join("You don't have enough ",
+                item_name(make_string("material"))), "s to make that."))
+    }
+    return
+}
+
+if (repeating() = 0) {
+    mes("You set to work at the anvil.")
+}
+anim("work")
+delay(3)
+
+// The bars may have been dropped in the meantime.
+if (inv_count(make_string("material")) < make_int("uses")) {
+    return
+}
+
+inv_del_n(make_string("material"), make_int("uses"))
+inv_add(make_item())
+mes(join(join("You finish the ", item_name(make_item())), "."))
+stat_xp("smithing", make_int("xp"))
+again()
+
+// Clicking the anvil with nothing in hand.
+[oploc,anvil]
+mes("Use a bar of metal on the anvil to work it.")

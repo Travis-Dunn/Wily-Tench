@@ -9,6 +9,7 @@ guide to those files, for a person or an AI.
 | What can be carried | `data/items.json` |
 | What skills there are | `data/skills.json` |
 | The pictures on the side panel's tabs | `data/interface.json` |
+| What can be made from what | `data/recipes.json` |
 | What can be used on a map: rocks, ladders | `data/locs.json` |
 | What a map-file character means and looks like | `data/tiles.json` |
 | Which sprite sheets and recolorings exist | `data/sprites.json` |
@@ -117,6 +118,52 @@ are, add their sheet to `sprites.json` and point each skill at its cell.
 The tabs above the side panel's box. The game has exactly two,
 `inventory` and `skills`, and both must be listed; this file chooses only
 each one's name and picture. These pictures are stand-ins too.
+
+## recipes.json
+
+A *list* is what one material can be made into at one kind of place. A
+script shows it as a menu and acts on the player's pick.
+
+    {
+      "id": "anvil_bronze_bar",
+      "title": "What would you like to make?",
+      "skill": "smithing",
+      "material": "bronze_bar",
+      "recipes": [
+        { "makes": "bronze_axe", "uses": 1, "level": 1, "xp": 12.5 },
+        { "makes": "bronze_warhammer", "uses": 3, "level": 9, "xp": 37.5 }
+      ]
+    }
+
+| Value | Meaning |
+| ----- | ------- |
+| `id` | How a script asks for the list. The anvil looks for `anvil_` followed by the id of the item used on it |
+| `title` | The words at the top of the menu |
+| `skill` | The skill whose level the recipes need |
+| `material` | The item every recipe in the list uses up. Its icon is drawn beside each recipe's cost |
+| `makes` | The item a recipe makes |
+| `uses` | How many of the material it uses up |
+| `level` | The level needed, 1 to 99 |
+| `xp` | The experience earned, with at most one decimal place |
+
+Recipes are shown in the order written, ten to a column. The menu takes
+every name and picture from `items.json`, so renaming an item or giving
+it a new picture there changes the menu too.
+
+### Adding something to make from bronze
+
+1. Add the item to `items.json`.
+2. Add a recipe for it to the `anvil_bronze_bar` list.
+
+### Adding another metal to the anvil
+
+1. Add the bar and the things made from it to `items.json`.
+2. Add a list with the id `anvil_` and the bar's id, such as
+   `anvil_iron_bar`, with `"material"` set to the bar.
+
+No script changes: the anvil's block in `smithing.whtl` serves every
+list. Getting the bar in the first place, by smelting, does need a
+script change for now; the furnace only knows bronze.
 
 ## locs.json
 

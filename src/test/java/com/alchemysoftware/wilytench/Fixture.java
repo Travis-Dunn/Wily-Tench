@@ -34,11 +34,11 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  * A third map, which nothing leads to, is for smelting:
  *
  *     test3.txt
- *     ######             @ start (1,1)
- *     #@F..#             F furnace (2,1)
- *     #....#             T tin (2,3)
- *     #.T.r#             r copper (4,3)
- *     ######
+ *     #######            @ start (1,1)
+ *     #@F...#            F furnace (2,1)
+ *     #....A#            A anvil (5,2)
+ *     #.T.r.#            T tin (2,3)
+ *     #######            r copper (4,3)
  */
 final class Fixture {
     static final String[] MAPS = { "test.txt", "test2.txt", "test3.txt" };

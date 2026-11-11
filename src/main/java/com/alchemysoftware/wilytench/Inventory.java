@@ -59,6 +59,13 @@ final class Inventory {
         return false;
     }
 
+    /** @return how many of an item are carried */
+    int Count(int item) {
+        int n = 0;
+        for (int i = 0; i < SLOTS; i++) if (slots[i] == item) n++;
+        return n;
+    }
+
     /** @return the item in a slot, or Item.NONE */
     int At(int slot) { return slots[slot]; }
 

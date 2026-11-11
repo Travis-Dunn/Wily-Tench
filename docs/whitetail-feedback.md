@@ -60,6 +60,8 @@ run on Windows of any age.
 | C27 | `data/game.json` lists every script and map file by name |
 | C28 | `Session.java` reruns a script that called the game's `again()` command |
 | C29 | `Scripts.java` registers `join` and `str` commands for building messages |
+| C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, with the pick kept in `Session` |
+| C38 | `Scripts.java` registers `inv_del_n` because a script cannot count |
 | C31, C32, C33, C34 | `DataNode.java` wraps `comp-json` with checked, typed reading; data files use lists with ids and a `note` convention |
 
 ---
@@ -660,6 +662,35 @@ The same will come up for every loc that takes items, and for any two
 locs that behave nearly alike but not enough to share a category. A
 block that can be called from another, even with no arguments, would do.
 
+**C37. A command that waits cannot answer.** *(Hit)*  
+Status: open.
+The anvil's menu is the tutorial's dialogue case exactly: a command
+shows the choices and calls `suspend()`, and the host calls `Resume()`
+on the click. But a handler must push its return value before it
+returns, which is before the player has chosen, so the waiting command
+has to be `void` and a second command fetches the answer:
+
+    make_open($list)
+    ... make_item() ...
+
+The tutorial shows the same pair (`dlg_option` then `get_option`), so
+this is known. It still means the host keeps the answer somewhere of its
+own between the two (C26 again), and a script that forgets the first
+command reads a stale answer. `Resume(state, value)`, supplying the
+suspended command's return value, would let it be one line:
+`def_string $item = make_choose($list)`.
+
+**C38. Scripts cannot do arithmetic.** *(Hit)*  
+Status: open. Partly by design.
+An expression is a literal, a variable, or a command call; there is no
+`+` or `-`. A recipe that uses three bars cannot remove them with three
+calls chosen at run time (no loops) or count down (no subtraction), so
+the game registers `inv_del_n(item, n)`. "Make five of these" cannot be
+written in a script at all without the host counting for it. The game
+could register `add(a, b)` and `sub(a, b)` commands, as it did `join`
+(C29), but a script language without sums will surprise everyone who
+writes content.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
@@ -706,6 +737,11 @@ Worth recording, so they are not "fixed" by accident.
   trigger types are just names, `HasTrigger()` answered whether a loc
   takes items, and the smelting script compiled and ran first time.
   String locals and string comparison did what the readme says.
+- `suspend()` and `Resume()` worked first time and exactly as the
+  tutorial describes. A script that stops at a menu for as long as the
+  player likes needed no change to how the game ticks scripts, because
+  a suspended state is simply left alone. Cancelling one is just
+  dropping the state.
 - `comp-json` parsed every data file first time, and its parse errors,
   with line, column, and a caret under the spot, are passed straight
   through to whoever edited the file. They need no rewording.

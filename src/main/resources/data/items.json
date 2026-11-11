@@ -38,6 +38,41 @@
       "examine": "It's a bar of bronze.",
       "sheet": "magma_items",
       "cell": [1, 2]
+    },
+    {
+      "id": "bronze_axe",
+      "name": "Bronze axe",
+      "examine": "A two-bladed axe of bronze.",
+      "sheet": "items",
+      "cell": [1, 1]
+    },
+    {
+      "id": "bronze_gauntlets",
+      "name": "Bronze gauntlets",
+      "examine": "They would stop a blade, once.",
+      "sheet": "magma_items",
+      "cell": [1, 0]
+    },
+    {
+      "id": "bronze_sword",
+      "name": "Bronze sword",
+      "examine": "A straight sword of bronze.",
+      "sheet": "items",
+      "cell": [5, 1]
+    },
+    {
+      "id": "bronze_warhammer",
+      "name": "Bronze warhammer",
+      "examine": "Heavy, and meant to be.",
+      "sheet": "items",
+      "cell": [3, 1]
+    },
+    {
+      "id": "bronze_chainbody",
+      "name": "Bronze chainbody",
+      "examine": "A shirt of bronze rings.",
+      "sheet": "items",
+      "cell": [1, 3]
     }
   ]
 }
