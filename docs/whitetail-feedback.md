@@ -608,6 +608,11 @@ out-of-range numbers, with a good log line naming the offending text. A
 `TYPE_CHOICE` taking a list of allowed strings would give choices the
 same treatment.
 
+A cosmetic thing seen in passing: when the config system appends a newly
+registered key to an existing `config.ini`, it leaves a blank line before
+it, so a file that has grown over several releases ends up unevenly
+spaced.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
