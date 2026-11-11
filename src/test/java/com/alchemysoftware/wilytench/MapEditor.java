@@ -79,8 +79,10 @@ import javax.swing.event.ListSelectionListener;
  *   left mouse button. The pencil paints tile by tile as it is
  *   dragged; the rectangle fills the area dragged over.
  *   The right mouse button picks up whatever is under it.
- *   The map grows as tiles are painted past its right and bottom
- *   edges. To make room at the top or left, use the Map menu.
+ *   Dragging with the middle mouse button moves the view.
+ *   The map lies in a wide field of empty space and can be painted
+ *   outward in any direction. The space is the editor's alone: a map
+ *   is saved with none around it.
  *   Things only this map has, a person or a named point, are on the
  *   "This map" list, and are added with the buttons under it.
  *   The line at the bottom says what is under the pointer and, in
@@ -94,15 +96,18 @@ public final class MapEditor {
     private static final int TILE = MapPicture.TILE;
 
     private static final int MIN_ZOOM = 1, MAX_ZOOM = 6, START_ZOOM = 3;
-    /* Tiles of empty space shown past the map's right and bottom
-       edges, to paint into. */
-    private static final int SPARE = 12;
+    /* Tiles of empty space kept on every side of the map, to paint
+       into and to look at the map's edges against. */
+    private static final int MARGIN = 48;
     private static final int ICON_SCALE = 2;
     private static final int PALETTE_W = 250;
 
     private static final int TOOL_PENCIL = 0, TOOL_RECT = 1;
 
-    private static final Color EMPTY = new Color(0x26262E);
+    /* The game's own background, so that the empty space beyond the
+       map's picture looks the same as the empty space within it. */
+    private static final Color EMPTY = new Color(0x160D13);
+    private static final Color ICON_BACK = new Color(0x26262E);
     private static final Color GRID = new Color(0x38FFFFFF, true);
     private static final Color EDGE = new Color(0x90FFE66E, true);
     private static final Color HOVER = new Color(0xFFFFFF);
@@ -144,6 +149,13 @@ public final class MapEditor {
     private boolean showGrid = true, showSymbols = true;
     private boolean selecting;
 
+    /* How far the map had been slid when the view was last put right,
+       and a remark for the bottom line that lasts until the next
+       change. */
+    private int shownSlidX, shownSlidY;
+    private String notice;
+    private JScrollPane scroll;
+
     private AbstractAction undoAction, redoAction;
 
     private MapEditor() {}
@@ -182,7 +194,7 @@ public final class MapEditor {
             public void windowClosing(WindowEvent e) { Quit(); }
         });
 
-        JScrollPane scroll = new JScrollPane(canvas);
+        scroll = new JScrollPane(canvas);
         scroll.getViewport().setBackground(EMPTY);
         scroll.getVerticalScrollBar().setUnitIncrement(TILE * 2);
         scroll.getHorizontalScrollBar().setUnitIncrement(TILE * 2);
@@ -198,8 +210,12 @@ public final class MapEditor {
         frame.getContentPane().add(PalettePanel(), BorderLayout.WEST);
         frame.getContentPane().add(scroll, BorderLayout.CENTER);
         frame.getContentPane().add(bottom, BorderLayout.SOUTH);
-        frame.setSize(1280, 800);
-        frame.setLocationRelativeTo(null);
+        /* Maximized: the whole screen but for the taskbar, still an
+           ordinary window. Sized to that first as well, for desktops
+           that ignore the request to maximize. */
+        frame.setBounds(java.awt.GraphicsEnvironment
+                .getLocalGraphicsEnvironment().getMaximumWindowBounds());
+        frame.setExtendedState(JFrame.MAXIMIZED_BOTH);
         frame.setVisible(true);
     }
 
@@ -250,23 +266,6 @@ public final class MapEditor {
         JMenu mapMenu = new JMenu("Map");
         mapMenu.add(Item("Rename the place...", 0, 0, new ActionListener() {
             public void actionPerformed(ActionEvent e) { Rename(); }
-        }));
-        mapMenu.addSeparator();
-        mapMenu.add(Item("Add a row at the top", 0, 0, new ActionListener() {
-            public void actionPerformed(ActionEvent e) { Shift(0, 1); }
-        }));
-        mapMenu.add(Item("Add a column at the left", 0, 0,
-                new ActionListener() {
-            public void actionPerformed(ActionEvent e) { Shift(1, 0); }
-        }));
-        mapMenu.add(Item("Crop the empty space around the map", 0, 0,
-                new ActionListener() {
-            public void actionPerformed(ActionEvent e) {
-                if (!ConfirmMove()) return;
-                edit.Begin();
-                edit.Crop();
-                Changed();
-            }
         }));
 
         JMenu viewMenu = new JMenu("View");
@@ -432,17 +431,48 @@ public final class MapEditor {
             /* Refuse now what could not be shown. */
             World.Build(from.getName(), map, false);
 
-            file = from;
-            edit = loaded;
-            FillPalettes();
-            SetBrush(Tiles.NOTHING);
-            Changed();
+            Show(from, loaded);
         } catch (DataError e) {
             Complain("This map cannot be opened until the mistake in it " +
                     "is put right in a text editor.\n\n" + e.getMessage());
         } catch (IOException e) {
             Complain("The file could not be read: " + e.getMessage());
         }
+    }
+
+    /* Makes a map the one being edited, in the middle of the view. */
+    private void Show(File from, MapEdit map) {
+        map.Settle(MARGIN);
+        file = from;
+        edit = map;
+        shownSlidX = edit.SlidX();
+        shownSlidY = edit.SlidY();
+        notice = null;
+        FillPalettes();
+        SetBrush(Tiles.NOTHING);
+        Changed();
+
+        /* Once the window has been laid out and knows its size. */
+        SwingUtilities.invokeLater(new Runnable() {
+            public void run() {
+                int step = TILE * zoom;
+                Dimension view = scroll.getViewport().getExtentSize();
+                int midX = (edit.Left() + edit.Width()) * step / 2;
+                int midY = (edit.Top() + edit.Height()) * step / 2;
+                MoveView(midX - view.width / 2, midY - view.height / 2);
+            }
+        });
+    }
+
+    /* Puts the view's top left corner at a point of the canvas, or as
+       near as the canvas allows. */
+    private void MoveView(int x, int y) {
+        Dimension view = scroll.getViewport().getExtentSize();
+        Dimension all = canvas.getPreferredSize();
+
+        scroll.getViewport().setViewPosition(new java.awt.Point(
+                Math.max(0, Math.min(x, all.width - view.width)),
+                Math.max(0, Math.min(y, all.height - view.height))));
     }
 
     private void Open() {
@@ -500,11 +530,7 @@ public final class MapEditor {
         try {
             MapEdit made = new MapEdit(map);
             StarterRoom(made);
-            file = target;
-            edit = made;
-            FillPalettes();
-            SetBrush(Tiles.NOTHING);
-            Changed();
+            Show(target, made);
         } catch (DataError e) {
             Complain(e.getMessage());
         }
@@ -542,13 +568,20 @@ public final class MapEditor {
 
         try {
             MapTool.WriteFile(file, text);
-            edit.MarkSaved();
             if (trouble == null) {
                 MapFile map = MapFile.Parse(text, file.getName());
                 MapPicture.Save(file.getName(), map,
                         World.Build(file.getName(), map, true));
             }
+            int movedX = edit.MovedX(), movedY = edit.MovedY();
+            edit.MarkSaved();
             Changed();
+            notice = "Saved " + file.getName() + "." +
+                    (movedX == 0 && movedY == 0 ? "" : "  Its tiles are " +
+                    "now " + movedX + " to the right and " + movedY +
+                    " down of where they were saved before, so a game " +
+                    "saved on this map will have things out of place.");
+            problem.setText(Problem() == null ? notice : Problem());
             if (isNew) {
                 JOptionPane.showMessageDialog(frame, "Saved as " +
                         file.getPath() + ".\n\nFor the game to use the " +
@@ -594,24 +627,6 @@ public final class MapEditor {
         edit.Begin();
         edit.SetName(name.trim());
         Changed();
-    }
-
-    private void Shift(int dx, int dy) {
-        if (!ConfirmMove()) return;
-        edit.Begin();
-        edit.Shift(dx, dy);
-        Changed();
-    }
-
-    /* Moving every tile matters to saved games, so it is asked about,
-       once a map has been saved and so may have been played. */
-    private boolean ConfirmMove() {
-        if (!file.exists()) return true;
-        return JOptionPane.showConfirmDialog(frame, "This moves every " +
-                "tile of the map, so a game saved on it will find the " +
-                "player and\nany mined-out rocks in the wrong place. " +
-                "Go ahead?", TITLE, JOptionPane.OK_CANCEL_OPTION)
-                == JOptionPane.OK_OPTION;
     }
 
     private void AddPerson() {
@@ -723,7 +738,7 @@ public final class MapEditor {
     private void Changed() {
         try {
             picture = MapPicture.Draw(World.Build(file.getName(),
-                    edit.File(), false));
+                    edit.Layout(), false));
         } catch (DataError e) {
             /* MapEdit only makes maps that can be shown, so this is a
                fault in the editor; say so and keep the old picture. */
@@ -737,8 +752,18 @@ public final class MapEditor {
                 file.getName() + " - " + edit.Name() + " - " + TITLE);
 
         String trouble = Problem();
+        notice = null;
         problem.setText(trouble == null ? " " : trouble);
         canvas.Resize();
+
+        /* If the map was slid to keep its margin, slide the view with
+           it, so that nothing moves on the screen. */
+        java.awt.Point at = scroll.getViewport().getViewPosition();
+        int step = TILE * zoom;
+        int dx = edit.SlidX() - shownSlidX, dy = edit.SlidY() - shownSlidY;
+        shownSlidX = edit.SlidX();
+        shownSlidY = edit.SlidY();
+        if (dx != 0 || dy != 0) MoveView(at.x + dx * step, at.y + dy * step);
         canvas.repaint();
     }
 
@@ -815,7 +840,7 @@ public final class MapEditor {
         BufferedImage big = new BufferedImage(TILE * ICON_SCALE,
                 TILE * ICON_SCALE, BufferedImage.TYPE_INT_ARGB);
         Graphics2D g = big.createGraphics();
-        g.setColor(EMPTY);
+        g.setColor(ICON_BACK);
         g.fillRect(0, 0, big.getWidth(), big.getHeight());
         g.drawImage(small, 0, 0, big.getWidth(), big.getHeight(), null);
         g.dispose();
@@ -860,9 +885,16 @@ public final class MapEditor {
         return null;
     }
 
+    /* Zooms about the middle of the view. */
     private void Zoom(int by) {
+        int old = zoom;
+        Dimension view = scroll.getViewport().getExtentSize();
+        java.awt.Point at = scroll.getViewport().getViewPosition();
+
         zoom = Math.max(MIN_ZOOM, Math.min(zoom + by, MAX_ZOOM));
         canvas.Resize();
+        MoveView((at.x + view.width / 2) * zoom / old - view.width / 2,
+                (at.y + view.height / 2) * zoom / old - view.height / 2);
         canvas.repaint();
     }
 
@@ -880,6 +912,10 @@ public final class MapEditor {
         /* Where a rectangle drag began, or -1. */
         private int dragX = -1, dragY = -1;
         private boolean painting;
+        /* While the middle button drags the view: where on the screen
+           the drag began, and where the view was then. */
+        private boolean panning;
+        private int panFromX, panFromY, panViewX, panViewY;
 
         Canvas() {
             addMouseListener(new MouseAdapter() {
@@ -899,9 +935,12 @@ public final class MapEditor {
 
         void Resize() {
             if (edit == null) return;
-            setPreferredSize(new Dimension(
-                    (edit.Width() + SPARE) * TILE * zoom,
-                    (edit.Height() + SPARE) * TILE * zoom));
+            Dimension size = new Dimension(
+                    (edit.Width() + MARGIN) * TILE * zoom,
+                    (edit.Height() + MARGIN) * TILE * zoom);
+            setPreferredSize(size);
+            /* At once, so the view can be moved within it at once. */
+            setSize(size);
             revalidate();
         }
 
@@ -909,11 +948,20 @@ public final class MapEditor {
             if (edit == null) return;
             int x = e.getX() / (TILE * zoom), y = e.getY() / (TILE * zoom);
 
-            if (SwingUtilities.isRightMouseButton(e)) {
+            if (SwingUtilities.isMiddleMouseButton(e)) {
+                java.awt.Point at = scroll.getViewport().getViewPosition();
+                panning = true;
+                panFromX = e.getXOnScreen();
+                panFromY = e.getYOnScreen();
+                panViewX = at.x;
+                panViewY = at.y;
+            } else if (SwingUtilities.isRightMouseButton(e)) {
                 SetBrush(edit.At(x, y));
             } else if (SwingUtilities.isLeftMouseButton(e)) {
                 edit.Begin();
                 painting = true;
+                hoverX = x;
+                hoverY = y;
                 if (tool == TOOL_RECT) {
                     dragX = x;
                     dragY = y;
@@ -925,19 +973,28 @@ public final class MapEditor {
 
         private void Moved(MouseEvent e) {
             if (edit == null) return;
+            if (panning) {
+                MoveView(panViewX - (e.getXOnScreen() - panFromX),
+                        panViewY - (e.getYOnScreen() - panFromY));
+                return;
+            }
             int x = e.getX() / (TILE * zoom), y = e.getY() / (TILE * zoom);
             if (x == hoverX && y == hoverY) return;
 
+            /* The pointer may have crossed several tiles since it was
+               last heard from; paint all of them. */
+            boolean drew = painting && tool == TOOL_PENCIL && hoverX >= 0 &&
+                    edit.Line(hoverX, hoverY, x, y, brush);
             hoverX = x;
             hoverY = y;
-            if (painting && tool == TOOL_PENCIL && edit.Paint(x, y, brush))
-                Changed();
+            if (drew) Changed();
             Describe();
             repaint();
         }
 
         private void Released(MouseEvent e) {
-            if (!painting) return;
+            if (SwingUtilities.isMiddleMouseButton(e)) panning = false;
+            if (!painting || !SwingUtilities.isLeftMouseButton(e)) return;
             painting = false;
 
             if (tool == TOOL_RECT && dragX >= 0) {
@@ -946,6 +1003,9 @@ public final class MapEditor {
                 dragX = dragY = -1;
                 Changed();
             }
+            /* Painting at an edge uses up the margin there; put it
+               back, as part of the stroke. */
+            edit.Settle(MARGIN);
             edit.End();
             Changed();
         }
@@ -958,9 +1018,12 @@ public final class MapEditor {
             }
             char c = edit.At(hoverX, hoverY);
             Entry entry = EntryFor(c);
-            status.setText("Column " + hoverX + ", row " + hoverY + ":  " +
+            /* Counted as the saved file will count them. */
+            status.setText("Column " + (hoverX - edit.Left()) + ", row " +
+                    (hoverY - edit.Top()) + ":  " +
                     (entry == null ? "[" + c + "]" : entry.label) +
-                    "      Map " + edit.Width() + " by " + edit.Height());
+                    "      Map " + (edit.Width() - edit.Left()) + " by " +
+                    (edit.Height() - edit.Top()));
         }
 
         protected void paintComponent(Graphics g) {
@@ -982,7 +1045,9 @@ public final class MapEditor {
                     g.drawLine(0, y, getWidth(), y);
             }
             g.setColor(EDGE);
-            g.drawRect(0, 0, edit.Width() * step, edit.Height() * step);
+            g.drawRect(edit.Left() * step, edit.Top() * step,
+                    (edit.Width() - edit.Left()) * step,
+                    (edit.Height() - edit.Top()) * step);
 
             if (showSymbols) {
                 g.setFont(new Font(Font.MONOSPACED, Font.BOLD,

@@ -38,7 +38,7 @@ an item on a loc, tin, smelting, and the anvil with its menu. Check
 the pull requests himself; once one is merged, restart the branch from
 `master` rather than stacking on it.
 
-**Tests.** `mvn verify` runs 129 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 132 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -196,8 +196,17 @@ Known limits of the editor as built:
 
 - **Only tried on a virtual display with no window manager.** Painting,
   the rectangle, picking, the lists, the dialogs, undo by Ctrl+Z, new
-  map, and save were all driven there and looked at. How it feels on a
-  real desktop, at real sizes, is for Travis to say.
+  map, save, middle-button panning, and painting outward past each edge
+  were all driven there and looked at. How it feels on a real desktop,
+  at real sizes, is for Travis to say. In particular the window asks to
+  be maximized, which only a window manager can grant; here it was seen
+  only to size itself to the screen.
+- **Travis's first round of changes, done:** the view drags with the
+  middle button; the map sits in 48 tiles of empty space on every side
+  and is painted outward freely; the Map menu's "add a row", "add a
+  column", and "crop" are gone, cropping being part of saving (and of
+  the canonical form, so `MapTool` crops too); it starts maximized. He
+  has said to expect a steady stream of such changes.
 - **One map at a time**, and the tileset cannot be changed after a map
   is made.
 - **It reads the data files as they were when it started**, from the
@@ -214,7 +223,9 @@ Known limits of step 1:
 - **Nothing checks that every place can be reached**, or that a point
   named in a script exists.
 - **Saved positions are columns and rows**, so reshaping a map can move
-  a saved player or leave a rock's emptied state on the wrong tile.
+  a saved player or leave a rock's emptied state on the wrong tile. The
+  cave and dungeon each moved a few columns left when cropping became
+  part of the canonical form.
 
 ## Known rough edges
 

@@ -47,7 +47,9 @@ import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
  *
  * Write() always lays a file out the same way, the "canonical form":
  * name, tileset, a blank line, the defines in order of symbol, a blank
- * line, "!map", and the rows with nothing after their last character.
+ * line, "!map", and the rows, with no empty space around the map: no
+ * blank rows above or below it, no column at the left that every row
+ * leaves blank, and nothing after a row's last character.
  * Every map in the game is kept in that form, which the build checks,
  * so that a file comes out the same whoever or whatever wrote it.
  */
@@ -217,10 +219,39 @@ final class MapFile {
         }
         sb.append('\n').append(MARK).append(MAP).append('\n');
 
-        int end = rows.length;
-        while (end > 0 && rows[end - 1].trim().length() == 0) end--;
-        for (i = 0; i < end; i++) sb.append(TrimEnd(rows[i])).append('\n');
+        String[] cropped = Crop(rows);
+        for (i = 0; i < cropped.length; i++)
+            sb.append(cropped[i]).append('\n');
         return sb.toString();
+    }
+
+    /**
+     * @return a grid with the empty space around it taken away: blank
+     *         rows at the top and bottom, columns at the left that
+     *         every row leaves blank, and spaces at the ends of rows.
+     *         Blank rows inside the map are kept
+     */
+    static String[] Crop(String[] rows) {
+        int top = 0, bottom = rows.length, left = Integer.MAX_VALUE;
+
+        while (top < bottom && rows[top].trim().length() == 0) top++;
+        while (bottom > top && rows[bottom - 1].trim().length() == 0)
+            bottom--;
+        for (int y = top; y < bottom; y++) {
+            String row = rows[y];
+            int indent = 0;
+            if (row.trim().length() == 0) continue;
+            while (row.charAt(indent) == ' ') indent++;
+            left = Math.min(left, indent);
+        }
+
+        String[] cropped = new String[bottom - top];
+        for (int y = top; y < bottom; y++) {
+            String row = TrimEnd(rows[y]);
+            cropped[y - top] = row.length() > left ? row.substring(left) :
+                    "";
+        }
+        return cropped;
     }
 
     /* "define", the symbol, a kind, a value, and perhaps "on" and a

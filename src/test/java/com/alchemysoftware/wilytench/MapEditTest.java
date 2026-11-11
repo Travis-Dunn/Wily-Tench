@@ -48,6 +48,27 @@ public class MapEditTest {
         Fixture.Finish();
     }
 
+    public void testALineLeavesNoGaps() {
+        MapEdit edit = Start(ROOM);
+
+        edit.Begin();
+        Check("changed", edit.Line(6, 1, 12, 4, '#'));
+        Check("both ends", edit.At(6, 1) == '#' && edit.At(12, 4) == '#');
+        for (int x = 6; x <= 12; x++) {
+            int inColumn = 0;
+            for (int y = 0; y < edit.Height(); y++)
+                if (edit.At(x, y) == '#' && x > 4) inColumn++;
+            Check("something in column " + x, inColumn >= 1);
+        }
+        Check("backward works as well", edit.Line(12, 6, 6, 6, '.') &&
+                edit.At(9, 6) == '.');
+        Check("a line of one tile", edit.Line(8, 8, 8, 8, '.') &&
+                edit.At(8, 8) == '.');
+        Check("a line of the start is one start",
+                edit.Line(1, 2, 3, 2, '@') && edit.Count('@') == 1);
+        Fixture.Finish();
+    }
+
     public void testFillingARectangle() {
         MapEdit edit = Start(ROOM);
 
@@ -213,32 +234,85 @@ public class MapEditTest {
         Fixture.Finish();
     }
 
-    public void testShiftingMakesRoomAtTheTopAndLeft() {
-        MapEdit edit = Start(ROOM);
-
-        edit.Begin();
-        edit.Shift(2, 1);
-        Check("a row taller, two columns wider", edit.Height() == 5 &&
-                edit.Width() == 7);
-        Check("everything moved with it", edit.At(3, 2) == '@' &&
-                edit.At(2, 1) == '#');
-        Check("room at the top and left", edit.At(0, 1) == ' ' &&
-                edit.File().rows[0].length() == 0);
-        Fixture.Finish();
-    }
-
-    public void testCroppingTakesAwayTheNothingAroundAMap() {
+    public void testWhatIsSavedHasNoEmptySpaceAroundIt() {
         MapEdit edit = Start("!name R\n!tileset cave\n\n!map\n\n\n" +
                 "   ###\n   #@#\n\n    ###\n");
 
-        edit.Begin();
-        edit.Crop();
         String[] rows = edit.File().rows;
         Check("four rows", rows.length == 4);
         Check("moved to the corner", rows[0].equals("###") &&
                 rows[1].equals("#@#"));
         Check("a blank row inside is kept", rows[2].equals(""));
         Check("as is indentation beyond the least", rows[3].equals(" ###"));
+        Check("the layout still has the space", edit.Layout().rows.length
+                == 6 && edit.At(3, 2) == '#');
+        Fixture.Finish();
+    }
+
+    public void testSettlingKeepsAMarginWithoutChangingWhatIsSaved() {
+        MapEdit edit = Start(ROOM);
+        String before = edit.File().Write();
+
+        edit.Settle(10);
+        Check("ten clear at the left and top", edit.Left() == 10 &&
+                edit.Top() == 10 && edit.At(11, 11) == '@');
+        Check("slid by ten", edit.SlidX() == 10 && edit.SlidY() == 10);
+        Check("saved the same", edit.File().Write().equals(before));
+        Check("so nothing has changed or moved", !edit.Changed() &&
+                edit.MovedX() == 0 && edit.MovedY() == 0);
+
+        edit.Settle(4);
+        Check("it slides back as readily", edit.Left() == 4 &&
+                edit.SlidX() == 4 && edit.At(5, 5) == '@');
+        Fixture.Finish();
+    }
+
+    public void testTheMapCanBePaintedOutwardInEveryDirection() {
+        MapEdit edit = Start(ROOM);
+        edit.Settle(10);
+
+        edit.Begin();
+        edit.Paint(8, 11, '#');         /* two columns left of the room */
+        edit.Paint(11, 7, '#');         /* three rows above it */
+        edit.Settle(10);
+        edit.End();
+
+        Check("the margin is back", edit.Left() == 10 && edit.Top() == 10);
+        Check("by sliding two right and three down",
+                edit.SlidX() == 12 && edit.SlidY() == 13);
+        Check("what was painted went with it", edit.At(10, 14) == '#' &&
+                edit.At(13, 10) == '#');
+        String[] rows = edit.File().rows;
+        Check("saved from its new corner; got " + rows[0] + "|" + rows[4],
+                rows.length == 7 && rows[0].equals("   #") &&
+                rows[3].equals("  #####") && rows[4].equals("# #@..#"));
+        Check("the old tiles are saved two right and three down",
+                edit.MovedX() == 2 && edit.MovedY() == 3);
+
+        edit.MarkSaved();
+        Check("until that is saved", edit.MovedX() == 0 &&
+                edit.MovedY() == 0);
+
+        edit.Undo();
+        Check("undo slides the map back with the stroke",
+                edit.SlidX() == 10 && edit.At(11, 11) == '@');
+        Check("and that is two left and three up of the save",
+                edit.MovedX() == -2 && edit.MovedY() == -3);
+        Fixture.Finish();
+    }
+
+    public void testErasingAnEdgeDrawsTheMarginIn() {
+        MapEdit edit = Start(ROOM);
+        edit.Settle(10);
+
+        edit.Begin();
+        edit.Fill(10, 10, 10, 13, ' ');     /* the room's left wall */
+        edit.Settle(10);
+        edit.End();
+        Check("the map starts a column later, so slides one left",
+                edit.Left() == 10 && edit.SlidX() == 9);
+        Check("and the old tiles are saved one to the left",
+                edit.MovedX() == -1);
         Fixture.Finish();
     }
 

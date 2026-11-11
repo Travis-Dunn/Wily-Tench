@@ -11,9 +11,13 @@ package com.alchemysoftware.wilytench;
  * until the next Begin() is undone together by one Undo(): a whole
  * drag of the pencil, not each tile of it. End() finishes one.
  *
- * The grid grows to the right and downward as tiles beyond its edge
- * are painted. It cannot grow up or to the left by painting, because
- * that would move every tile; Shift() does it, on request.
+ * The map sits in a field of empty space, so that it can be painted
+ * outward in every direction. Settle(), called between strokes, keeps
+ * a margin of that space at the left and top by sliding the whole map,
+ * and Slid...() says how far it has slid in all, so that a window can
+ * keep the map still on the screen. None of the empty space is saved:
+ * File() is the map with the space around it cropped away, and
+ * Layout() is the map where it sits, for drawing.
  */
 final class MapEdit {
     private static final int SYMBOLS = 128;
@@ -27,6 +31,8 @@ final class MapEdit {
         String name;
         String[] rows;
         MapFile.Define[] defines;
+        /* How far Settle() has slid the map in all, right and down. */
+        int slidX, slidY;
     }
 
     private final Tiles.Set set;
@@ -37,6 +43,8 @@ final class MapEdit {
     private final State[] redo = new State[UNDO_DEPTH];
     private int undos, redos;
     private State saved;
+    /* SlidX() less Left(), and the same downward, as of that save. */
+    private int savedSlidX, savedSlidY;
 
     /**
      * @param file the map to edit; not altered
@@ -53,11 +61,24 @@ final class MapEdit {
         now.name = file.name;
         now.rows = file.rows.clone();
         now.defines = file.defines.clone();
-        saved = now;
+        MarkSaved();
     }
 
-    /** @return the map as it stands, as a file */
+    /**
+     * @return the map as it would be saved: with the empty space
+     *         around it cropped away
+     */
     MapFile File() {
+        MapFile file = Layout();
+        file.rows = MapFile.Crop(file.rows);
+        return file;
+    }
+
+    /**
+     * @return the map where it sits among the empty space, tile for
+     *         tile as At() gives it; for drawing
+     */
+    MapFile Layout() {
         MapFile file = new MapFile();
         file.name = now.name;
         file.tileset = tileset;
@@ -65,6 +86,43 @@ final class MapEdit {
         file.defines = now.defines.clone();
         return file;
     }
+
+    /** @return the column of the map's leftmost tile; 0 if it has none */
+    int Left() {
+        int left = Integer.MAX_VALUE;
+        for (int y = 0; y < now.rows.length; y++) {
+            String row = now.rows[y];
+            int indent = 0;
+            if (row.length() == 0) continue;
+            while (row.charAt(indent) == Tiles.NOTHING) indent++;
+            left = Math.min(left, indent);
+        }
+        return left == Integer.MAX_VALUE ? 0 : left;
+    }
+
+    /** @return the row of the map's topmost tile; 0 if it has none */
+    int Top() {
+        for (int y = 0; y < now.rows.length; y++)
+            if (now.rows[y].length() > 0) return y;
+        return 0;
+    }
+
+    /** @return how far the map has been slid right in all */
+    int SlidX() { return now.slidX; }
+
+    /** @return how far the map has been slid down in all */
+    int SlidY() { return now.slidY; }
+
+    /**
+     * @return how many columns to the right the tiles the map had when
+     *         it was last saved, or opened, would now be saved at. Not
+     *         zero once the map has grown or shrunk at its left, which
+     *         matters to games saved on it
+     */
+    int MovedX() { return now.slidX - Left() - savedSlidX; }
+
+    /** @return the same, in rows downward */
+    int MovedY() { return now.slidY - Top() - savedSlidY; }
 
     Tiles.Set Set() { return set; }
 
@@ -140,6 +198,8 @@ final class MapEdit {
         next.name = now.name;
         next.rows = now.rows.clone();
         next.defines = now.defines.clone();
+        next.slidX = now.slidX;
+        next.slidY = now.slidY;
         now = next;
     }
 
@@ -176,6 +236,34 @@ final class MapEdit {
     }
 
     /**
+     * Puts a symbol on every tile of the straight line between two
+     * tiles, both included. For a pencil, whose pointer is reported
+     * only now and then and may have crossed several tiles between.
+     *
+     * @return whether anything changed
+     */
+    boolean Line(int x0, int y0, int x1, int y1, char c) {
+        int dx = Math.abs(x1 - x0), dy = Math.abs(y1 - y0);
+        int stepX = x0 < x1 ? 1 : -1, stepY = y0 < y1 ? 1 : -1;
+        int err = dx - dy, x = x0, y = y0;
+        boolean changed = false;
+
+        while (true) {
+            changed |= Paint(x, y, c);
+            if ((x == x1 && y == y1) || OnlyOne(c)) return changed;
+            int twice = 2 * err;
+            if (twice > -dy) {
+                err -= dy;
+                x += stepX;
+            }
+            if (twice < dx) {
+                err += dx;
+                y += stepY;
+            }
+        }
+    }
+
+    /**
      * Puts a symbol on every tile of a rectangle, given by any two
      * opposite corners. A symbol that may be on the map only once goes
      * on the first corner alone.
@@ -191,49 +279,29 @@ final class MapEdit {
     }
 
     /**
-     * Moves the whole map right and down, making room at the left and
-     * top. Every tile's column and row changes, which matters to
-     * saved games; see docs/content.md.
+     * Slides the whole map so that it has exactly a margin of empty
+     * space at its left and top, whichever way that is. Part of the
+     * stroke in progress, if there is one. A map with no tiles is left
+     * alone.
      *
-     * @param dx columns of nothing to add at the left; not negative
-     * @param dy rows of nothing to add at the top; not negative
+     * @param margin columns and rows of empty space to leave
      */
-    void Shift(int dx, int dy) {
+    void Settle(int margin) {
+        if (Width() == 0) return;
+
+        int dx = margin - Left(), dy = margin - Top();
         String[] rows = new String[now.rows.length + dy];
         StringBuffer pad = new StringBuffer();
 
         for (int i = 0; i < dx; i++) pad.append(Tiles.NOTHING);
         for (int y = 0; y < rows.length; y++) {
-            rows[y] = y < dy || now.rows[y - dy].length() == 0 ? "" :
-                    pad + now.rows[y - dy];
+            String row = y < dy ? "" : now.rows[y - dy];
+            rows[y] = row.length() == 0 ? "" :
+                    dx >= 0 ? pad + row : row.substring(-dx);
         }
         now.rows = rows;
-    }
-
-    /**
-     * Takes away the nothing around the map: empty rows at the top and
-     * bottom, and columns at the left that every row leaves empty.
-     */
-    void Crop() {
-        int top = 0, bottom = now.rows.length, left = Integer.MAX_VALUE;
-
-        while (top < bottom && now.rows[top].trim().length() == 0) top++;
-        while (bottom > top && now.rows[bottom - 1].trim().length() == 0)
-            bottom--;
-        for (int y = top; y < bottom; y++) {
-            String row = now.rows[y];
-            int indent = 0;
-            if (row.trim().length() == 0) continue;
-            while (row.charAt(indent) == Tiles.NOTHING) indent++;
-            left = Math.min(left, indent);
-        }
-
-        String[] rows = new String[bottom - top];
-        for (int y = top; y < bottom; y++) {
-            String row = TrimEnd(now.rows[y]);
-            rows[y - top] = row.length() > left ? row.substring(left) : "";
-        }
-        now.rows = rows;
+        now.slidX += dx;
+        now.slidY += dy;
     }
 
     void SetName(String name) { now.name = name; }
@@ -331,7 +399,11 @@ final class MapEdit {
     }
 
     /** Notes that the map as it stands is what is on disk. */
-    void MarkSaved() { saved = now; }
+    void MarkSaved() {
+        saved = now;
+        savedSlidX = now.slidX - Left();
+        savedSlidY = now.slidY - Top();
+    }
 
     /**
      * @return the floor symbol most of the four tiles beside a tile
@@ -363,11 +435,12 @@ final class MapEdit {
         return Tiles.NOTHING;
     }
 
+    /* A state as it would be saved. */
     private MapFile FileOf(State state) {
         MapFile file = new MapFile();
         file.name = state.name;
         file.tileset = tileset;
-        file.rows = state.rows;
+        file.rows = MapFile.Crop(state.rows);
         file.defines = state.defines;
         return file;
     }

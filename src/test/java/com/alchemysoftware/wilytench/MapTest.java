@@ -32,14 +32,17 @@ public class MapTest {
                 MapFile.Parse(plain, "m.txt").Write().equals(plain));
     }
 
-    public void testLeadingSpaceAndBlankRowsInTheMapAreKept() {
-        MapFile file = MapFile.Parse(HEAD + "!map\n\n  ###\n  #@#\n\n",
-                "m.txt");
+    public void testEmptySpaceAroundAMapIsReadButNotWritten() {
+        MapFile file = MapFile.Parse(HEAD + "!map\n\n  ###\n  #@#\n" +
+                "\n   ##\n\n", "m.txt");
 
-        Check("three rows", file.rows.length == 3);
+        Check("read as it is: five rows", file.rows.length == 5);
         Check("the blank one first", file.rows[0].length() == 0);
-        Check("indentation is part of the map",
-                file.rows[1].equals("  ###"));
+        Check("indentation and all", file.rows[1].equals("  ###"));
+
+        String written = file.Write();
+        Check("written without it; got:\n" + written, written.equals(
+                HEAD + "\n!map\n###\n#@#\n\n ##\n"));
     }
 
     public void testTheGamesOwnMapsAreInThatForm() {

@@ -467,7 +467,8 @@ text, and the editor reads and writes this same file.
 
 The lines beginning with `!` are settings. After `!map` comes the grid,
 one character per tile, to the end of the file. Rows may be different
-lengths, and space to the left of a row is part of the map.
+lengths. A map is kept with no empty space around it: the first row and
+the first column each have something in them.
 
 **Everything that is anywhere is in the grid.** Nothing is placed by
 coordinates, so a map can be checked by looking at it: if a person is in
@@ -510,16 +511,23 @@ draws with the game's own code from the same data files.
   point, or a thing on a chosen floor, and remove one.
 - **The start and points move.** Painting `@` or a point somewhere new
   takes it from where it was.
-- **Size.** The map grows as you paint past its right and bottom edges,
-  marked by the yellow line. To make room at the top or left, or to trim
-  empty space, use the Map menu; those move every tile, which the editor
-  warns about because of saved games.
+- **Moving the view.** Drag with the middle mouse button, or use the
+  scroll bars. View > Zoom in and Zoom out, or Ctrl with + and -.
+- **Size.** The map lies in a wide field of empty space and can be
+  painted outward in any direction; the yellow line marks its extent.
+  The empty space is the editor's alone. A map is saved with none
+  around it, so there is nothing to crop or to make room for by hand.
+- **Fast strokes leave no gaps.** The pencil fills in every tile between
+  where the pointer was and where it is.
 - **Undo.** Ctrl+Z and Ctrl+Y, a whole drag at a time.
 - **The bottom lines.** The first says what is under the pointer and its
   column and row. The second, in red, says what stops the game using the
   map as it stands, such as a symbol defined but not placed.
 - **Saving.** Ctrl+S writes the file in the tidy layout and redraws its
-  picture in `docs/maps/`. A map with a problem can be saved, after a
+  picture in `docs/maps/`. If the map has grown or shrunk at its left or
+  top since it was last saved, every tile's column or row has changed;
+  the bottom line says by how much, because a game saved on the map
+  will then have the player and mined-out rocks out of place. A map with a problem can be saved, after a
   warning, so that work is not lost; the game will not start until it is
   put right.
 - **A new map** (File > New map) starts as a small walled room. The
@@ -571,7 +579,8 @@ Run the **Build Maps** run configuration, or
     mvn test-compile exec:java@maps
 
 It does two things. It rewrites every map file in one fixed layout
-(settings, defines in order, `!map`, rows with no trailing spaces), which
+(settings, defines in order, `!map`, rows with no trailing spaces and no
+empty space around the map), which
 `mvn verify` insists on, so that a file is the same whoever wrote it. And
 it draws each map to `docs/maps/` as a picture, drawn by the game's own
 code, with column and row numbers and each defined symbol marked.
@@ -599,6 +608,6 @@ script names exists; the second shows only when the script runs.
 
 Saved games record the map by its file name, so renaming a map file
 strands anyone saved there at the first map's start. They record the
-player and emptied rocks by column and row, so adding rows above or
-columns to the left of an existing map moves a saved player; one who
-lands in a wall is put at the `@`.
+player and emptied rocks by column and row, so a map that grows or
+shrinks at its top or left moves a saved player; one who lands in a wall
+is put at the `@`.
