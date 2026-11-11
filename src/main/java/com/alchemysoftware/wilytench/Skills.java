@@ -1,8 +1,13 @@
 package com.alchemysoftware.wilytench;
 
 /**
- * The player's skills: how much experience each has earned and the
- * level that comes to.
+ * The skills there are, as listed in data/skills.json, and how much
+ * experience a player has earned in each.
+ *
+ * Each skill has an id, by which scripts and saved games refer to it;
+ * a name to show the player; and an icon. Inside the game a skill is
+ * a small number, good only for the length of one run: its place in
+ * the file. An object of this class is one player's experience.
  *
  * Experience is counted in tenths of a point, so that awards such as
  * 17.5 stay exact. Levels run from 1 to 99 and each takes about a tenth
@@ -11,15 +16,11 @@ package com.alchemysoftware.wilytench;
  * at about thirteen million.
  */
 final class Skills {
-    static final int MINING = 0;
-    static final int COUNT = 1;
-
     static final int MAX_LEVEL = 99;
 
-    private static final String[] NAMES = { "Mining" };
-    /* What each skill is called in saved games and in scripts. Never
-       change one. */
-    private static final String[] SAVE_KEYS = { "mining" };
+    private static final int NO_PICTURE = -1;
+
+    private static final String[] KEYS = { "id", "name", "sheet", "cell" };
 
     private static final int TENTHS = 10;
     private static final int MAX_XP_TENTHS = 2000000000;
@@ -27,18 +28,80 @@ final class Skills {
     /* LEVEL_XP[n] is the whole points needed to reach level n. */
     private static final int[] LEVEL_XP = BuildLevels();
 
-    private final int[] xpTenths = new int[COUNT];
+    private static String[] ids = new String[0];
+    private static String[] names, initials;
+    private static int[] pictures;
 
-    static String Name(int skill) { return NAMES[skill]; }
+    private final int[] xpTenths = new int[ids.length];
 
-    /** @return the skill's permanent name in saved games */
-    static String SaveKey(int skill) { return SAVE_KEYS[skill]; }
+    /**
+     * @param root the contents of data/skills.json; Sprites must
+     *             already be loaded
+     */
+    static void Load(DataNode root) {
+        root.Only(new String[] { "skills" });
 
-    /** @return the skill with that permanent name, or -1 */
-    static int Named(String key) {
-        for (int i = 0; i < COUNT; i++)
-            if (SAVE_KEYS[i].equals(key)) return i;
+        DataNode[] nodes = root.Groups("skills", "skill");
+        int n = nodes.length;
+        String[] newIds = new String[n];
+
+        names = new String[n];
+        initials = new String[n];
+        pictures = new int[n];
+
+        for (int i = 0; i < n; i++) {
+            String id = nodes[i].Str("id");
+            DataNode node = nodes[i].Called("skills.json, skill [" + id +
+                    "]");
+            node.Only(KEYS);
+            for (int j = 0; j < i; j++) {
+                if (newIds[j].equals(id))
+                    throw node.Fail("there are two skills with this id.");
+            }
+
+            newIds[i] = id;
+            names[i] = node.Str("name");
+            if (names[i].length() == 0)
+                throw node.Fail("[name] is empty.");
+            initials[i] = names[i].substring(0, 1);
+            pictures[i] = node.Has("sheet") ? Sprites.Picture(node,
+                    node.Str("sheet"), node.Ints("cell", 2)) : NO_PICTURE;
+        }
+        ids = newIds;
+    }
+
+    static void Shutdown() { ids = new String[0]; }
+
+    /** @return how many skills there are */
+    static int Count() { return ids.length; }
+
+    static String Name(int skill) { return names[skill]; }
+
+    /** @return the skill's id, which is also its name in saved games */
+    static String Id(int skill) { return ids[skill]; }
+
+    /** @return the skill with that id, or -1 */
+    static int Named(String id) {
+        for (int i = 0; i < ids.length; i++)
+            if (ids[i].equals(id)) return i;
         return -1;
+    }
+
+    /**
+     * Draws the skill's 16 pixel icon with its top left at (x, y). A
+     * skill with no picture yet gets the first letter of its name.
+     *
+     * @param letters the font for such a letter
+     */
+    static void DrawIcon(int skill, Font letters, int x, int y) {
+        if (pictures[skill] != NO_PICTURE) {
+            Sprites.Draw(pictures[skill], Sprites.COLOR_MAP_NONE, x, y);
+            return;
+        }
+        String initial = initials[skill];
+        Text.Draw(letters, initial, 0, 1,
+                x + (Sheet.CELL - letters.Width(initial, 0, 1)) / 2,
+                y + (Sheet.CELL - letters.lineH) / 2, Palette.AMBER);
     }
 
     /**
@@ -75,6 +138,13 @@ final class Skills {
         while (level < MAX_LEVEL && xp >= LEVEL_XP[level + 1]) level++;
         return level;
     }
+
+    /**
+     * @return the level the skill is at just now, which is what the
+     *         player sees over Level(). Nothing raises or lowers a
+     *         skill for a while yet, so the two are the same
+     */
+    int CurrentLevel(int skill) { return Level(skill); }
 
     /** @return experience in tenths written out, such as "17.5" */
     static String Format(int tenths) {

@@ -1,24 +1,78 @@
 {
   "items": [
     {
-      "id": "bronze_hammer",
-      "name": "Bronze hammer",
-      "sheet": "items",
-      "cell": [3, 1]
+      "id": "bronze_pickaxe",
+      "was": ["bronze_hammer"],
+      "note": "Was a hammer until the Magma Maze art brought pickaxes.",
+      "name": "Bronze pickaxe",
+      "examine": "Used for mining.",
+      "sheet": "magma_items",
+      "cell": [5, 1]
     },
     {
       "id": "copper_ore",
       "name": "Copper ore",
-      "note": "The art has no picture of ore, so ore borrows the rock's.",
-      "sheet": "cave",
-      "cell": [5, 1]
+      "examine": "This needs refining.",
+      "sheet": "magma_items",
+      "cell": [0, 2]
+    },
+    {
+      "id": "tin_ore",
+      "name": "Tin ore",
+      "examine": "This needs refining.",
+      "sheet": "magma_items",
+      "cell": [2, 2]
     },
     {
       "id": "iron_ore",
+      "note": "The copper ore picture recolored, as iron rocks are the copper rock recolored. The grey ore picture it used to have is tin's.",
       "name": "Iron ore",
-      "sheet": "cave",
-      "cell": [5, 1],
+      "examine": "This needs refining.",
+      "sheet": "magma_items",
+      "cell": [0, 2],
       "color_map": "iron"
+    },
+    {
+      "id": "bronze_bar",
+      "name": "Bronze bar",
+      "examine": "It's a bar of bronze.",
+      "sheet": "magma_items",
+      "cell": [1, 2]
+    },
+    {
+      "id": "bronze_axe",
+      "name": "Bronze axe",
+      "examine": "A two-bladed axe of bronze.",
+      "sheet": "items",
+      "cell": [1, 1]
+    },
+    {
+      "id": "bronze_gauntlets",
+      "name": "Bronze gauntlets",
+      "examine": "They would stop a blade, once.",
+      "sheet": "magma_items",
+      "cell": [1, 0]
+    },
+    {
+      "id": "bronze_sword",
+      "name": "Bronze sword",
+      "examine": "A straight sword of bronze.",
+      "sheet": "items",
+      "cell": [5, 1]
+    },
+    {
+      "id": "bronze_warhammer",
+      "name": "Bronze warhammer",
+      "examine": "Heavy, and meant to be.",
+      "sheet": "items",
+      "cell": [3, 1]
+    },
+    {
+      "id": "bronze_chainbody",
+      "name": "Bronze chainbody",
+      "examine": "A shirt of bronze rings.",
+      "sheet": "items",
+      "cell": [1, 3]
     }
   ]
 }

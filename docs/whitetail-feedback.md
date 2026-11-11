@@ -49,7 +49,7 @@ run on Windows of any age.
 | C8 | `Game.java` has its own frame rate cap |
 | C13 | `Game.java` starts `RunFlag` before the scenes initialize |
 | C14, C21 | `Sheet.java` reads `.wsa` files itself, and `Gfx.DrawFrame()` draws from them |
-| C15 | `AtlasTool.java` converts and pads the art |
+| C15, C25 | `AtlasTool.java` converts the art and packs every sheet into a few atlases; `Sprites.java` reads its index |
 | C16 | `WorldScene.java` carries fractional milliseconds between frames |
 | C18 | `Font.java`, `Text.java`, `Gfx.java`, and `FontTool.java` are the game's own text and drawing code |
 | C19 | `ChatBox.java` uses only the direction of the mouse wheel |
@@ -60,6 +60,8 @@ run on Windows of any age.
 | C27 | `data/game.json` lists every script and map file by name |
 | C28 | `Session.java` reruns a script that called the game's `again()` command |
 | C29 | `Scripts.java` registers `join` and `str` commands for building messages |
+| C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, with the pick kept in `Session` |
+| C38 | `Scripts.java` registers `inv_del_n` because a script cannot count |
 | C31, C32, C33, C34 | `DataNode.java` wraps `comp-json` with checked, typed reading; data files use lists with ids and a `note` convention |
 
 ---
@@ -388,6 +390,20 @@ bindings, typing "m" in chat will also open the map unless the game
 invents its own focus rule. `comp-input-mapper` could carry a "text entry
 is active, suppress plain-key actions" switch.
 
+The mouse has now met the same thing. A left click on one of the side
+panel's tabs must not also be taken as "do the first option for whatever
+is under the pointer", so `SidePanel.Click()` returns whether it used the
+click and `WorldScene.onInput()` stops there. With one panel that is a
+single `if`; each new clickable piece of interface will add another, in
+an order that has to be kept right by hand.
+
+The right-click menu met the same thing from the mouse side. While a menu
+is open it must have every click to itself: a click that dismisses it
+must not also walk the character to the tile underneath. With no way to
+mark a press as taken, the scene does this by order, handling the menu
+first and returning early, and anything added later that reads
+`WasPressed()` has to be slotted into that order by hand.
+
 **C21. The sprite renderer cannot draw outside its one viewport, so
 interface icons need a second renderer.** *(Hit)*  
 Status: open.
@@ -407,6 +423,11 @@ because `Create()` retains the array it is given; but it means
 interface. Either of these would remove the duplication: an immediate
 `SpriteRenderer.DrawFrame(atlas, frame, x, y, colorMap)` that ignores the
 viewport, or public read access to an atlas's and a color map's data.
+
+The interface has since grown tab buttons, skill icons, and tooltips, all
+drawn this way, and a tooltip may lie across the edge of the world view.
+Everything outside the map itself now goes through the game's own `Gfx`
+and none of it through the sprite renderer.
 
 **C22. Components with no `Shutdown()` are awkward to test around.**
 *(Hit)*  
@@ -449,16 +470,24 @@ from a newer release. For the usual "load the one save if there is one"
 case, a `Read()` that returned null for an absent slot, and a `SaveData`
 that carried its own `gameVersion`, would make it one call and one pass.
 
-**C25. Eight atlas banks will run out.** *(Predicted)*  
-Status: open.
-The game installs one atlas per sprite sheet and is at four of the eight
-banks after two maps: cave, heroes, items, dungeon. More art is on its
-way. Banks cannot be replaced during a renderer lifecycle, so they cannot
-be swapped as the player changes map either. The way out is in the game's
-hands, not Whitetail's: have `AtlasTool` pack several sheets into one
-large atlas, which the format allows up to 65,536 frames. It is noted here
-because the limit of eight reads as generous in the readme and turns out
-to be the first one a game with ordinary purchased art will meet.
+**C25. Eight atlas banks are far too few for one atlas per sheet.**
+*(Hit)*  
+Status: open. Worked around in the game.
+The purchased art is 36 sheets. The sprite renderer holds eight atlases,
+which cannot be replaced during its lifetime, so one atlas per sheet was
+never going to last; the game hit four after two maps. `AtlasTool` now
+packs every sheet, whole, into as few 2048 by 2048 atlases as it can (two,
+at present) and writes an index saying where each went, and `Sprites`
+turns "sheet and cell" into "atlas and frame" from that index. Content
+still refers to art by its own sheet, so nothing else had to change.
+
+That is a few hundred lines of tool and loader standing between ordinary
+purchased art and the renderer. It is noted here because the limit of
+eight reads as generous in the readme and turns out to be the first wall
+a game with real art meets; and because, together with C15, it suggests
+the missing piece is less "more banks" than a supported way to build an
+atlas from several images. The format coped well: a 2048 square atlas is
+16,384 frames, comfortably inside the 65,536 limit.
 
 **C26. A command handler has no way to reach the game it is acting
 on.** *(Hit)*  
@@ -477,6 +506,12 @@ The mining script made this sharper. A script shared by every ore rock
 needs to know *which* rock it is running for, and `state.script.subject`
 only says `_ore_rock`. The game keeps "the loc being used" beside the
 script in `Session`, and the `loc_...` commands read it from there.
+
+Using an item on a loc added a third thing kept that way: which item. A
+trigger cannot be fired with arguments, so the furnace's script learns
+the item from a `used_item()` command reading another `Session` field.
+`FireTrigger(type, subject, vars, args)` with the arguments readable in
+the script as locals would cover both this and the loc.
 
 **C27. Every script file has to be listed by hand.** *(Hit)*  
 Status: open.
@@ -578,6 +613,84 @@ typed getters that fail with a description instead of returning a
 meaningless default, is something every consumer will write. Numbers
 being only `double` puts the whole-number check on the consumer too.
 
+**C35. `comp-math` has nothing for a 2D game.** *(Read)*  
+Status: open. Minor.
+Easing the walk and smoothing the camera needed a smoothstep and an
+exponential approach, a few lines each. I looked in `comp-math` first: it
+is 3D only (quaternions and projection matrices) and depends on LWJGL's
+vector classes, so a software-rendered 2D game would be adding an LWJGL
+dependency to get nothing it can use. A handful of dependency-free
+scalar helpers (clamp, lerp, smoothstep, frame-rate-independent damping,
+floor division and modulo for negative numbers) would be used by every
+game on the library; this one has written three of those five so far.
+
+**C36. A setting that must be one of a few words has to be checked by
+the game.** *(Hit)*  
+Status: open. Minor.
+`walkStyle` may be `steady` or `pulse`. `ConfigEntry` offers int, float,
+bool, and a string bounded only by length, so the file accepts any text
+and the game checks it afterwards, logs its own warning, and falls back
+(`Settings.WalkStyle()`). The config system already does exactly this for
+out-of-range numbers, with a good log line naming the offending text. A
+`TYPE_CHOICE` taking a list of allowed strings would give choices the
+same treatment.
+
+A cosmetic thing seen in passing: when the config system appends a newly
+registered key to an existing `config.ini`, it leaves a blank line before
+it, so a file that has grown over several releases ends up unevenly
+spaced.
+
+**C35. Conditions cannot be combined, and there is no `else if`.**
+*(Hit)*  
+Status: open. Partly by design.
+A condition is one comparison. "The item is neither copper ore nor tin
+ore" is two nested `if`s, and "the player has both ores" is two blocks,
+each with its own copy of what to do otherwise; the smelting script
+checks the pair before the delay and again after it, so four near-equal
+blocks (`smithing.whtl`). Smithing proper will choose among many
+recipes, and without `else if` each further case nests one level deeper,
+against a nesting cap of 64. `and` and `or` in conditions, and
+`else if`, would shorten real scripts more than anything else has so far.
+
+**C36. Two trigger blocks cannot share code.** *(Hit)*  
+Status: open.
+The furnace has two ways in: an ore used on it (`[oplocu,furnace]`) and
+a plain click (`[oploc,furnace]`). It would be natural for both to smelt.
+There are no procedures and one block cannot run another, so that would
+take two copies of the script; instead the plain click only explains.
+The same will come up for every loc that takes items, and for any two
+locs that behave nearly alike but not enough to share a category. A
+block that can be called from another, even with no arguments, would do.
+
+**C37. A command that waits cannot answer.** *(Hit)*  
+Status: open.
+The anvil's menu is the tutorial's dialogue case exactly: a command
+shows the choices and calls `suspend()`, and the host calls `Resume()`
+on the click. But a handler must push its return value before it
+returns, which is before the player has chosen, so the waiting command
+has to be `void` and a second command fetches the answer:
+
+    make_open($list)
+    ... make_item() ...
+
+The tutorial shows the same pair (`dlg_option` then `get_option`), so
+this is known. It still means the host keeps the answer somewhere of its
+own between the two (C26 again), and a script that forgets the first
+command reads a stale answer. `Resume(state, value)`, supplying the
+suspended command's return value, would let it be one line:
+`def_string $item = make_choose($list)`.
+
+**C38. Scripts cannot do arithmetic.** *(Hit)*  
+Status: open. Partly by design.
+An expression is a literal, a variable, or a command call; there is no
+`+` or `-`. A recipe that uses three bars cannot remove them with three
+calls chosen at run time (no loops) or count down (no subtraction), so
+the game registers `inv_del_n(item, n)`. "Make five of these" cannot be
+written in a script at all without the host counting for it. The game
+could register `add(a, b)` and `sub(a, b)` commands, as it did `join`
+(C29), but a script language without sums will surprise everyone who
+writes content.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
@@ -620,6 +733,18 @@ Worth recording, so they are not "fixed" by accident.
   registered, a forty-line script, and it compiled and passed the
   existing mining tests unchanged on the first run. Statements may span
   lines freely, which the long `mes(join(...))` calls needed.
+- A second kind of trigger, `oplocu`, cost nothing on Whitetail's side:
+  trigger types are just names, `HasTrigger()` answered whether a loc
+  takes items, and the smelting script compiled and ran first time.
+  String locals and string comparison did what the readme says.
+- `suspend()` and `Resume()` worked first time and exactly as the
+  tutorial describes. A script that stops at a menu for as long as the
+  player likes needed no change to how the game ticks scripts, because
+  a suspended state is simply left alone. Cancelling one is just
+  dropping the state.
 - `comp-json` parsed every data file first time, and its parse errors,
   with line, column, and a caret under the spot, are passed straight
   through to whoever edited the file. They need no rewording.
+- `ImageBuilder.FromPNG()` decoded all 36 purchased sheets, from five
+  different packs, without a single rejection, and two 4 MB atlases load
+  and install with no visible delay inside a 64 MB heap.

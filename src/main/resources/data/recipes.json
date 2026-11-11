@@ -1,0 +1,18 @@
+{
+  "lists": [
+    {
+      "id": "anvil_bronze_bar",
+      "note": "What a bronze bar can be hammered into at an anvil. The anvil's script looks for the list called anvil_ and the id of the item used on it.",
+      "title": "What would you like to make?",
+      "skill": "smithing",
+      "material": "bronze_bar",
+      "recipes": [
+        { "makes": "bronze_axe",       "uses": 1, "level": 1,  "xp": 12.5 },
+        { "makes": "bronze_gauntlets", "uses": 1, "level": 3,  "xp": 12.5 },
+        { "makes": "bronze_sword",     "uses": 1, "level": 4,  "xp": 12.5 },
+        { "makes": "bronze_warhammer", "uses": 3, "level": 9,  "xp": 37.5 },
+        { "makes": "bronze_chainbody", "uses": 3, "level": 11, "xp": 37.5 }
+      ]
+    }
+  ]
+}

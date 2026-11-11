@@ -8,8 +8,12 @@ import com.alchemysoftware.whitetail.error.ErrorHandler;
  *
  *   game.json      which maps and scripts make up the game, and what
  *                  a new player starts with
+ *   palette.json   the colors
  *   sprites.json   the sprite sheets and color maps
  *   items.json     the things that can be carried
+ *   skills.json    the skills
+ *   interface.json the pictures on the interface's buttons
+ *   recipes.json   what can be made from what
  *   locs.json      the things on a map that can be used
  *   tiles.json     what each character in a map file stands for
  *
@@ -40,6 +44,10 @@ final class Content {
             ErrorHandler.LogFatalAndStop(ERR_STR_PREFIX + e.getMessage() +
                     "\n");
             return false;
+        } catch (RuntimeException e) {
+            /* A fault in the loader itself, not in the data. */
+            ErrorHandler.LogFatalExcpAndStop(ERR_STR_EXCP, e);
+            return false;
         }
     }
 
@@ -50,8 +58,12 @@ final class Content {
      * @throws DataError describing the first mistake found
      */
     static void LoadOrThrow() {
+        Palette.Load(DataNode.Load("palette.json"));
         Sprites.Load(DataNode.Load("sprites.json"));
         Item.Load(DataNode.Load("items.json"));
+        Skills.Load(DataNode.Load("skills.json"));
+        SidePanel.Load(DataNode.Load("interface.json"));
+        Recipes.Load(DataNode.Load("recipes.json"));
         Loc.Load(DataNode.Load("locs.json"));
         Tiles.Load(DataNode.Load("tiles.json"));
 
@@ -80,8 +92,12 @@ final class Content {
     static void Shutdown() {
         Tiles.Shutdown();
         Loc.Shutdown();
+        Recipes.Shutdown();
+        SidePanel.Shutdown();
+        Skills.Shutdown();
         Item.Shutdown();
         Sprites.Shutdown();
+        Palette.Shutdown();
         maps = scripts = null;
         startingItems = null;
     }
@@ -95,6 +111,9 @@ final class Content {
     /** @return the items a new player begins with */
     static int[] StartingItems() { return startingItems; }
 
+    private static final String ERR_STR_EXCP = "The game failed to " +
+            "start because an exception was encountered while reading " +
+            "its data files.\n";
     private static final String ERR_STR_PREFIX = "The game failed to " +
             "start because of a mistake in one of its data files. ";
 }

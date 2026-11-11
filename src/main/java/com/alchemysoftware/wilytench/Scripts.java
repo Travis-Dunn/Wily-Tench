@@ -24,6 +24,9 @@ import com.alchemysoftware.whitetail.script.ValueType;
  *               is the loc's own name ("ladder") or, when no script
  *               has that name, an underscore and its category
  *               ("_ore_rock"). See Loc.
+ *   [oplocu,X]  the player used an item on a loc, having walked up
+ *               beside it. X is found the same way. used_item() says
+ *               which item.
  *
  * Commands scripts may call. "The loc" is the one being used.
  *
@@ -59,11 +62,32 @@ import com.alchemysoftware.whitetail.script.ValueType;
  *   inv_has(item)          -> 1 if the player carries the item, else 0
  *   inv_free()             -> whole: empty inventory slots
  *   inv_add(item)          gives the player the item, if there is room
+ *   inv_del(item)          takes one of the item from the player, if
+ *                          one is carried
+ *   inv_del_n(item, n)     takes n of the item, or as many as are
+ *                          carried
+ *   inv_count(item)        -> whole: how many of the item are carried
+ *   used_item()            -> text: the item being used on the loc, or
+ *                          "" in a script that is not about an item
  *   item_name(item)        -> text: the item's name, in lower case
  *   travel(map)            moves the player to the start of a map,
  *                          named by its file, such as "dungeon.txt"
  *
- * Items and skills are named in scripts by the keys in Item and Skills.
+ *   Making things. A "list" is one of those in recipes.json.
+ *   make_has(list)         -> 1 if there is a list with that id, else 0
+ *   make_open(list)        shows the list as a menu and waits there
+ *                          until the player picks a recipe. If the
+ *                          menu is closed instead, the script ends
+ *   make_item()            -> text: the item the picked recipe makes
+ *   make_int(key)          -> whole: the picked recipe's "uses",
+ *                          "level", or "xp" (in tenths)
+ *   make_string(key)       -> text: the picked recipe's list's
+ *                          "material" or "skill"
+ *                          The pick is remembered through again(), so
+ *                          a rerun can make the same thing unasked.
+ *
+ * Items and skills are named in scripts by their ids in items.json
+ * and skills.json.
  * A script that names something that does not exist is a mistake in
  * the game's content and stops the game with an error saying where.
  *
@@ -72,6 +96,8 @@ import com.alchemysoftware.whitetail.script.ValueType;
 final class Scripts {
     /** The trigger type for using a loc. */
     static final String TRIGGER_USE = "oploc";
+    /** The trigger type for using an item on a loc. */
+    static final String TRIGGER_USE_ITEM = "oplocu";
 
     private static final String FOLDER = "scripts";
     private static final String CATEGORY_MARK = "_";
@@ -118,28 +144,38 @@ final class Scripts {
     static PlayerVars NewVars() { return ScriptManager.NewPlayerVars(); }
 
     /**
-     * @return the X of the [oploc,X] script that using a loc runs, or
-     *         null if there is no script for it
+     * @param trigger TRIGGER_USE or TRIGGER_USE_ITEM
+     * @return the X of the [trigger,X] script that doing that to a loc
+     *         runs, or null if there is no script for it
      */
-    static String UseSubject(Loc loc) {
+    static String Subject(String trigger, Loc loc) {
         if (loc == null) return null;
-        if (ScriptManager.HasTrigger(TRIGGER_USE, loc.id)) return loc.id;
+        if (ScriptManager.HasTrigger(trigger, loc.id)) return loc.id;
         if (loc.category == null) return null;
 
         String subject = CATEGORY_MARK + loc.category;
-        return ScriptManager.HasTrigger(TRIGGER_USE, subject) ?
-                subject : null;
+        return ScriptManager.HasTrigger(trigger, subject) ? subject : null;
     }
 
     /**
-     * Starts the script for using a loc.
+     * Starts a loc's script.
      *
-     * @param subject what UseSubject() answered for the loc
+     * @param subject what Subject() answered for the trigger and loc
      * @return the running script, or null if it has already finished
      */
-    static ScriptState Use(String subject, PlayerVars vars) {
-        return Unfinished(
-                ScriptManager.FireTrigger(TRIGGER_USE, subject, vars));
+    static ScriptState Fire(String trigger, String subject,
+                            PlayerVars vars) {
+        return Unfinished(ScriptManager.FireTrigger(trigger, subject, vars));
+    }
+
+    /**
+     * Carries on a script that a command had made wait.
+     *
+     * @return the script, or null once it has finished
+     */
+    static ScriptState Resume(ScriptState state) {
+        ScriptManager.Resume(state);
+        return Unfinished(state);
     }
 
     /**
@@ -275,6 +311,94 @@ final class Scripts {
                 if (item != Item.NONE) session.inventory.Add(item);
             }
         });
+        Add("inv_del", new ValueType[] { STRING }, VOID,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int item = ItemArg(s, 0);
+                if (item != Item.NONE) session.inventory.RemoveOne(item);
+            }
+        });
+        Add("inv_del_n", new ValueType[] { STRING, INT }, VOID,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int item = ItemArg(s, 0);
+                for (int i = 0; item != Item.NONE && i < s.argInt(1); i++)
+                    session.inventory.RemoveOne(item);
+            }
+        });
+        Add("inv_count", new ValueType[] { STRING }, INT,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int item = ItemArg(s, 0);
+                s.pushInt(item == Item.NONE ? 0 :
+                        session.inventory.Count(item));
+            }
+        });
+        Add("make_has", new ValueType[] { STRING }, INT,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                s.pushInt(Recipes.Named(s.argString(0)) ==
+                        Recipes.NONE ? 0 : 1);
+            }
+        });
+        Add("make_open", new ValueType[] { STRING }, VOID,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int list = Recipes.Named(s.argString(0));
+
+                if (list == Recipes.NONE) {
+                    Fail(s, "list of recipes", s.argString(0));
+                    return;
+                }
+                session.ScriptOpenMake(list);
+                s.suspend();
+            }
+        });
+        Add("make_item", new ValueType[0], STRING, new CommandHandler() {
+            public void execute(ScriptState s) {
+                int list = Made(s, "item");
+                s.pushString(list == Recipes.NONE ? "" : Item.Id(
+                        Recipes.Product(list, session.MadeRecipe())));
+            }
+        });
+        Add("make_int", new ValueType[] { STRING }, INT,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                String key = s.argString(0);
+                int list = Made(s, key), recipe = session.MadeRecipe();
+                int v = 0;
+
+                if (list == Recipes.NONE) v = 0;
+                else if (key.equals("uses")) v = Recipes.Uses(list, recipe);
+                else if (key.equals("level"))
+                    v = Recipes.Level(list, recipe);
+                else if (key.equals("xp"))
+                    v = Recipes.XpTenths(list, recipe);
+                else Fail(s, "whole-number value of a recipe", key);
+                s.pushInt(v);
+            }
+        });
+        Add("make_string", new ValueType[] { STRING }, STRING,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                String key = s.argString(0), v = "";
+                int list = Made(s, key);
+
+                if (list == Recipes.NONE) v = "";
+                else if (key.equals("material"))
+                    v = Item.Id(Recipes.Material(list));
+                else if (key.equals("skill"))
+                    v = Skills.Id(Recipes.Skill(list));
+                else Fail(s, "text value of a list of recipes", key);
+                s.pushString(v);
+            }
+        });
+        Add("used_item", new ValueType[0], STRING, new CommandHandler() {
+            public void execute(ScriptState s) {
+                int item = session.UsedItem();
+                s.pushString(item == Item.NONE ? "" : Item.Id(item));
+            }
+        });
         Add("item_name", new ValueType[] { STRING }, STRING,
                 new CommandHandler() {
             public void execute(ScriptState s) {
@@ -309,6 +433,15 @@ final class Scripts {
         int item = Item.Named(s.argString(arg));
         if (item == Item.NONE) Fail(s, "item", s.argString(arg));
         return item;
+    }
+
+    /* The list the picked recipe is in, or NONE after reporting that
+       nothing has been picked. */
+    private static int Made(ScriptState s, String key) {
+        int list = session.MadeList();
+        if (list == Recipes.NONE)
+            Fail(s, "value of a recipe not yet picked with make_open", key);
+        return list;
     }
 
     private static void Fail(ScriptState s, String kind, String name) {

@@ -3,18 +3,17 @@ package com.alchemysoftware.wilytench;
 /**
  * Finds the shortest walk between two tiles of a map.
  *
- * Steps go to any of the eight neighboring tiles. A diagonal step is
- * allowed only when both tiles it squeezes between are open, so nothing
- * cuts a corner. When the goal cannot be reached, because it is solid
- * or walled off, the walk ends on the reachable tile closest to it.
+ * Steps go north, south, east, or west; there are no diagonal steps.
+ * When the goal cannot be reached, because it is solid or walled off,
+ * the walk ends on the reachable tile closest to it.
  *
  * All working memory is allocated once, in the constructor.
  */
 final class Pathfinder {
-    /* West, east, south, north, then the diagonals. Trying the straight
-       steps first makes a route prefer them when two are equally short. */
-    private static final int[] DX = { -1, 1, 0, 0, -1, 1, -1, 1 };
-    private static final int[] DY = { 0, 0, 1, -1, 1, 1, -1, -1 };
+    /* West, east, south, north: the order they are tried in, which
+       decides between routes that are equally short. */
+    private static final int[] DX = { -1, 1, 0, 0 };
+    private static final int[] DY = { 0, 0, 1, -1 };
 
     private static final int UNSEEN = -1;
 
@@ -49,9 +48,6 @@ final class Pathfinder {
                 int nx = x + DX[i], ny = y + DY[i];
 
                 if (world.Solid(nx, ny)) continue;
-                if (DX[i] != 0 && DY[i] != 0 &&
-                        (world.Solid(nx, y) || world.Solid(x, ny)))
-                    continue;
 
                 int next = ny * w + nx;
                 if (cameFrom[next] != UNSEEN) continue;

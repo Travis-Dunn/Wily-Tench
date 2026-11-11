@@ -1,0 +1,7 @@
+!name Forge Room
+!tileset cave
+#######
+#@F...#
+#....A#
+#.T.r.#
+#######

@@ -1,5 +1,5 @@
 {
   "maps": ["cave.txt", "dungeon.txt"],
-  "scripts": ["travel.whtl", "mining.whtl"],
-  "starting_items": ["bronze_hammer"]
+  "scripts": ["travel.whtl", "mining.whtl", "smithing.whtl"],
+  "starting_items": ["bronze_pickaxe"]
 }

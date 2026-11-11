@@ -78,6 +78,7 @@ final class Game {
         RunFlag.Start();
 
         if (!Settings.Init(dataDir)) return false;
+        Mover.SetStyle(Settings.WalkStyle());
         if (!Natives.Install(dataDir)) return false;
 
         /* Art and maps are read from inside the game's own jar. */

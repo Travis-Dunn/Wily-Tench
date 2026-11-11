@@ -8,18 +8,26 @@ package com.alchemysoftware.wilytench;
  * Inside the game an item is a small number, good only for the length
  * of one run: its place in the file.
  *
- * Because saved games hold ids, an id must never be changed once
- * players may have the item.
+ * Saved games hold ids, so an id cannot simply be changed once
+ * players may have the item. To rename one, give the item its new id
+ * and list the old one under "was"; anything that still uses the old
+ * id, such as an existing saved game, finds the item by it.
  */
 final class Item {
     static final int NONE = -1;
 
     private static final String[] KEYS = {
-        "id", "name", "sheet", "cell", "color_map"
+        "id", "was", "name", "examine", "sheet", "cell", "color_map"
     };
 
+    /* What examining says of an item with nothing written for it. */
+    private static final String PLAIN = "Nothing remarkable.";
+
     private static String[] ids = new String[0];
-    private static String[] names, lowerNames;
+    /* Former ids, and the item each now belongs to. */
+    private static String[] oldIds = new String[0];
+    private static int[] oldIdItems = new int[0];
+    private static String[] names, lowerNames, examines;
     private static int[] pictures, colorMaps;
 
     private Item() {}
@@ -37,6 +45,7 @@ final class Item {
 
         names = new String[n];
         lowerNames = new String[n];
+        examines = new String[n];
         pictures = new int[n];
         colorMaps = new int[n];
 
@@ -52,16 +61,49 @@ final class Item {
             newIds[i] = id;
             names[i] = node.Str("name");
             lowerNames[i] = names[i].toLowerCase();
+            examines[i] = node.OptStr("examine", PLAIN);
             pictures[i] = Sprites.Picture(node, node.Str("sheet"),
                     node.Ints("cell", 2));
             colorMaps[i] = node.Has("color_map") ?
                     Sprites.ColorMapNamed(node, node.Str("color_map")) :
                     Sprites.COLOR_MAP_NONE;
         }
+
+        int olds = 0, at = 0;
+        for (int i = 0; i < n; i++)
+            if (nodes[i].Has("was")) olds += nodes[i].Strs("was").length;
+        String[] newOldIds = new String[olds];
+        int[] newOldIdItems = new int[olds];
+
+        for (int i = 0; i < n; i++) {
+            String[] was = nodes[i].Has("was") ?
+                    nodes[i].Strs("was") : new String[0];
+
+            for (int j = 0; j < was.length; j++) {
+                boolean taken = false;
+                for (int k = 0; k < n; k++) taken |= newIds[k].equals(was[j]);
+                for (int k = 0; k < at; k++)
+                    taken |= newOldIds[k].equals(was[j]);
+                if (taken) {
+                    throw nodes[i].Called("items.json, item [" + newIds[i] +
+                            "]").Fail("[was] lists the id [" + was[j] +
+                            "], which belongs to another item or is " +
+                            "listed twice.");
+                }
+                newOldIds[at] = was[j];
+                newOldIdItems[at++] = i;
+            }
+        }
+
         ids = newIds;
+        oldIds = newOldIds;
+        oldIdItems = newOldIdItems;
     }
 
-    static void Shutdown() { ids = new String[0]; }
+    static void Shutdown() {
+        ids = new String[0];
+        oldIds = new String[0];
+    }
 
     /** @return how many kinds of item there are */
     static int Count() { return ids.length; }
@@ -69,9 +111,15 @@ final class Item {
     /** @return whether a number is an item's */
     static boolean Valid(int item) { return item >= 0 && item < ids.length; }
 
-    /** @return the item with that id, or NONE if there is none */
+    /**
+     * @return the item with that id, or that once had it, or NONE if
+     *         there is none
+     */
     static int Named(String id) {
-        for (int i = 0; i < ids.length; i++) if (ids[i].equals(id)) return i;
+        int i;
+        for (i = 0; i < ids.length; i++) if (ids[i].equals(id)) return i;
+        for (i = 0; i < oldIds.length; i++)
+            if (oldIds[i].equals(id)) return oldIdItems[i];
         return NONE;
     }
 
@@ -83,6 +131,9 @@ final class Item {
 
     /** @return the name as it reads mid-sentence: "copper ore" */
     static String LowerName(int item) { return lowerNames[item]; }
+
+    /** @return what looking closely at the item tells the player */
+    static String Examine(int item) { return examines[item]; }
 
     /** Draws the item's 16 pixel icon with its top left at (x, y). */
     static void DrawIcon(int item, int x, int y) {

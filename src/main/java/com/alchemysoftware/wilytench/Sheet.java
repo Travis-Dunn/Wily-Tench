@@ -8,15 +8,16 @@ import com.alchemysoftware.whitetail.error.ErrorHandler;
 import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
 
 /**
- * A sheet of 16 pixel pictures, read from a Whitetail .wsa atlas file.
+ * An atlas: a large grid of 16 pixel pictures, read from one of the
+ * Whitetail .wsa files that AtlasTool writes. Sprites knows which part
+ * of which atlas each of the game's sheets occupies.
  *
  * The game reads these files itself, rather than through Whitetail's
  * SpriteAssetBuilder, because it needs two things a Whitetail
- * SpriteAtlas keeps to itself: the sheet's width, to turn a column and
- * row into a frame number, and the pixels, to draw icons in the
- * interface, where the sprite renderer cannot reach. The same pixel
- * array is then handed to SpriteAtlas.Create(), so nothing is held
- * twice.
+ * SpriteAtlas keeps to itself: the width, to turn a column and row
+ * into a frame number, and the pixels, to draw icons in the interface,
+ * where the sprite renderer cannot reach. The same pixel array is then
+ * handed to SpriteAtlas.Create(), so nothing is held twice.
  */
 final class Sheet {
     /** Width and height in pixels of every frame. */

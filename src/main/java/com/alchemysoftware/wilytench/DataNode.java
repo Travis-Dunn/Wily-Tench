@@ -48,7 +48,16 @@ final class DataNode {
      * @return the file's outermost group
      */
     static DataNode Load(String filename) {
-        InputStream in = ResourceStreamResolver.Get(FOLDER, filename);
+        return LoadFrom(FOLDER, filename);
+    }
+
+    /**
+     * Reads a JSON file from any resource folder.
+     *
+     * @return the file's outermost group
+     */
+    static DataNode LoadFrom(String folder, String filename) {
+        InputStream in = ResourceStreamResolver.Get(folder, filename);
         if (in == null)
             throw new DataError(filename + " could not be opened.");
 
@@ -232,6 +241,11 @@ final class DataNode {
      */
     int[] Ints(String key, int count) {
         return WholeList(List(key), count, "[" + key + "]");
+    }
+
+    /** @return as Ints(), or null if there is no list called key */
+    int[] OptInts(String key, int count) {
+        return Has(key) ? Ints(key, count) : null;
     }
 
     /**

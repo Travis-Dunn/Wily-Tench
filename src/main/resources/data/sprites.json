@@ -2,30 +2,148 @@
   "sheets": [
     {
       "id": "cave",
-      "file": "cave.wsa",
-      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Cave.png",
-      "region": [0, 0, 160, 304]
-    },
-    {
-      "id": "heroes",
-      "file": "heroes.wsa",
-      "note": "The first hero's eleven rows. The other three columns of the sheet are the same poses in other clothes.",
-      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Heroes.png",
-      "region": [0, 0, 64, 176]
-    },
-    {
-      "id": "items",
-      "file": "items.wsa",
-      "note": "Everything above the sparkle and shine animations.",
-      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Items.png",
-      "region": [0, 0, 176, 160]
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Cave.png"
     },
     {
       "id": "dungeon",
-      "file": "dungeon.wsa",
-      "note": "Walls, doors, floors, spikes, stairs, shelves, chests, and tables. Below that the sheet is small ornaments.",
-      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Dungeon.png",
-      "region": [0, 0, 192, 208]
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Dungeon.png"
+    },
+    {
+      "id": "heroes",
+      "note": "The player's character is the first four columns; the other columns are the same poses in other clothes.",
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Heroes.png"
+    },
+    {
+      "id": "items",
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Items.png"
+    },
+    {
+      "id": "monsters",
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Monsters.png"
+    },
+    {
+      "id": "water",
+      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Water.png"
+    },
+    {
+      "id": "arid_heroes",
+      "source": "DD-arid underground/Demonic-Dungeon-Arid-Underground-16x16/No-Background/Heroes.png"
+    },
+    {
+      "id": "arid_items",
+      "source": "DD-arid underground/Demonic-Dungeon-Arid-Underground-16x16/No-Background/Items.png"
+    },
+    {
+      "id": "arid_monsters",
+      "source": "DD-arid underground/Demonic-Dungeon-Arid-Underground-16x16/No-Background/Monsters.png"
+    },
+    {
+      "id": "arid_temple_and_cave",
+      "source": "DD-arid underground/Demonic-Dungeon-Arid-Underground-16x16/No-Background/Temple-and-Cave.png"
+    },
+    {
+      "id": "frozen_cavern",
+      "source": "DD-frozen cavern/Demonic-Dungeon-Frozen-Cavern-16x16/No-Background/Cavern.png"
+    },
+    {
+      "id": "frozen_heroes",
+      "source": "DD-frozen cavern/Demonic-Dungeon-Frozen-Cavern-16x16/No-Background/Heroes.png"
+    },
+    {
+      "id": "frozen_items",
+      "source": "DD-frozen cavern/Demonic-Dungeon-Frozen-Cavern-16x16/No-Background/Items.png"
+    },
+    {
+      "id": "frozen_monsters",
+      "source": "DD-frozen cavern/Demonic-Dungeon-Frozen-Cavern-16x16/No-Background/Monsters.png"
+    },
+    {
+      "id": "haunted_heroes",
+      "source": "DD-haunted temple/Demonic-Dungeon-Haunted-Temple-16x16/No-Background/Heroes-Animated.png"
+    },
+    {
+      "id": "haunted_items",
+      "source": "DD-haunted temple/Demonic-Dungeon-Haunted-Temple-16x16/No-Background/Items.png"
+    },
+    {
+      "id": "haunted_monsters",
+      "source": "DD-haunted temple/Demonic-Dungeon-Haunted-Temple-16x16/No-Background/Monsters-Animated.png"
+    },
+    {
+      "id": "haunted_temple",
+      "source": "DD-haunted temple/Demonic-Dungeon-Haunted-Temple-16x16/No-Background/Temple.png"
+    },
+    {
+      "id": "interior_background",
+      "source": "DD-interior/Demonic-Dungeon-Building-Interior-16x16/No-Background/Background.png"
+    },
+    {
+      "id": "interior_building_exterior",
+      "source": "DD-interior/Demonic-Dungeon-Building-Interior-16x16/No-Background/Building-Exterior.png"
+    },
+    {
+      "id": "interior_building_interior",
+      "source": "DD-interior/Demonic-Dungeon-Building-Interior-16x16/No-Background/Building-Interior.png"
+    },
+    {
+      "id": "interior_people",
+      "source": "DD-interior/Demonic-Dungeon-Building-Interior-16x16/No-Background/People.png"
+    },
+    {
+      "id": "interior_pets",
+      "source": "DD-interior/Demonic-Dungeon-Building-Interior-16x16/No-Background/Pets.png"
+    },
+    {
+      "id": "magma_cave_magma",
+      "source": "DD-magma maze/Demonic-Dungeon-Magma-Maze-16x16/No-Background/Cave-Magma.png"
+    },
+    {
+      "id": "magma_cave_obsidian",
+      "source": "DD-magma maze/Demonic-Dungeon-Magma-Maze-16x16/No-Background/Cave-Obsidian.png"
+    },
+    {
+      "id": "magma_extras",
+      "source": "DD-magma maze/Demonic-Dungeon-Magma-Maze-16x16/No-Background/Extras.png"
+    },
+    {
+      "id": "magma_floor",
+      "source": "DD-magma maze/Demonic-Dungeon-Magma-Maze-16x16/No-Background/Floor.png"
+    },
+    {
+      "id": "magma_heroes",
+      "source": "DD-magma maze/Demonic-Dungeon-Magma-Maze-16x16/No-Background/Heroes-Animated.png"
+    },
+    {
+      "id": "magma_items",
+      "source": "DD-magma maze/Demonic-Dungeon-Magma-Maze-16x16/No-Background/Items.png"
+    },
+    {
+      "id": "magma_monsters",
+      "source": "DD-magma maze/Demonic-Dungeon-Magma-Maze-16x16/No-Background/Monsters-Animated.png"
+    },
+    {
+      "id": "ui_banners",
+      "source": "DD-UI/Demonic-Dungeon-User-Interface-16x16/Banners.png"
+    },
+    {
+      "id": "ui_bars_sliders_scrollbars",
+      "source": "DD-UI/Demonic-Dungeon-User-Interface-16x16/Bars-Sliders-Scrollbars.png"
+    },
+    {
+      "id": "ui_cursors",
+      "source": "DD-UI/Demonic-Dungeon-User-Interface-16x16/Cursors.png"
+    },
+    {
+      "id": "ui_frames",
+      "source": "DD-UI/Demonic-Dungeon-User-Interface-16x16/Frames.png"
+    },
+    {
+      "id": "ui_icons",
+      "source": "DD-UI/Demonic-Dungeon-User-Interface-16x16/Icons.png"
+    },
+    {
+      "id": "ui_inputs",
+      "source": "DD-UI/Demonic-Dungeon-User-Interface-16x16/Inputs.png"
     }
   ],
 

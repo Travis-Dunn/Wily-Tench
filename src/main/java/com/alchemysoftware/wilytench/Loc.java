@@ -29,11 +29,12 @@ final class Loc {
     private static final String KINDS = "whole, tenths, text, item";
 
     private static final String[] CATEGORY_KEYS = {
-        "id", "verb", "empty_name", "params"
+        "id", "verb", "empty_name", "empty_examine", "params"
     };
     private static final String[] LOC_KEYS = {
-        "id", "name", "verb", "category", "params"
+        "id", "name", "verb", "examine", "category", "params"
     };
+    private static final String PLAIN = "Nothing remarkable.";
 
     private static Loc[] all = new Loc[0];
 
@@ -50,12 +51,19 @@ final class Loc {
      * thing that cannot be emptied.
      */
     final String emptyName;
+    /** What looking closely at it tells the player. */
+    final String examine;
+    /** The same while it is emptied, if it can be. */
+    final String emptyExamine;
 
     private final String[] keys;
     private final Object[] values;
 
     private Loc(String id, String name, String verb, String category,
-                String emptyName, String[] keys, Object[] values) {
+                String emptyName, String examine, String emptyExamine,
+                String[] keys, Object[] values) {
+        this.examine = examine;
+        this.emptyExamine = emptyExamine;
         this.id = id;
         this.name = name;
         this.verb = verb;
@@ -138,7 +146,9 @@ final class Loc {
 
             locs[i] = new Loc(id, node.Str("name"), verb, category,
                     spec == null ? null : spec.OptStr("empty_name", null),
-                    keys, values);
+                    node.OptStr("examine", PLAIN),
+                    spec == null ? PLAIN :
+                    spec.OptStr("empty_examine", PLAIN), keys, values);
         }
         all = locs;
     }

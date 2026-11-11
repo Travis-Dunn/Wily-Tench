@@ -13,7 +13,7 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  * not end in "Test", so Surefire leaves it alone.
  *
  * Start() builds a Session with no window: the sprite renderer draws
- * into a plain array nobody looks at. Its two maps are in
+ * into a plain array nobody looks at. Its first two maps are in
  * src/test/resources/maps:
  *
  *     test.txt           test2.txt
@@ -30,12 +30,23 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  * and its scripts are src/test/resources/scripts/test.whtl: the ladder
  * leads down to the second map after two ticks, and the stairs lead
  * straight back.
+ *
+ * A third map, which nothing leads to, is for smelting:
+ *
+ *     test3.txt
+ *     #######            @ start (1,1)
+ *     #@F...#            F furnace (2,1)
+ *     #....A#            A anvil (5,2)
+ *     #.T.r.#            T tin (2,3)
+ *     #######            r copper (4,3)
  */
 final class Fixture {
-    static final String[] MAPS = { "test.txt", "test2.txt" };
-    /* The second is the game's real mining script. */
-    static final String[] SCRIPTS = { "test.whtl", "mining.whtl" };
-    static final int FIRST = 0, SECOND = 1;
+    static final String[] MAPS = { "test.txt", "test2.txt", "test3.txt" };
+    /* The others are the game's real scripts. */
+    static final String[] SCRIPTS = {
+        "test.whtl", "mining.whtl", "smithing.whtl"
+    };
+    static final int FIRST = 0, SECOND = 1, FORGE = 2;
 
     private static final int BUF_W = 320, BUF_H = 240;
 
@@ -79,8 +90,13 @@ final class Fixture {
         if (started) Finish();
         RunFlag.Start();
 
-        Check("sprites", SpriteRenderer.Init(new byte[BUF_W * BUF_H], BUF_W,
-                BUF_H, 0, 0, BUF_W, BUF_H, 64) && Content.Load());
+        Check("sprite renderer", SpriteRenderer.Init(
+                new byte[BUF_W * BUF_H], BUF_W, BUF_H, 0, 0, BUF_W, BUF_H,
+                64));
+        /* From here on a failure must not leave the renderer running,
+           or every later test fails for the wrong reason. */
+        started = true;
+        Check("data files", Content.Load());
 
         Font font = Font.Load("small.fnt");
         Check("font", font != null);
@@ -89,15 +105,16 @@ final class Fixture {
                 new LoadedDice());
         Fixture.roll = roll;
         Check("session", session != null);
-        started = true;
     }
 
     static void Finish() {
-        Check("no fatal error", RunFlag.IsRunning());
+        boolean clean = RunFlag.IsRunning();
+
         Session.Close();
         SpriteRenderer.Shutdown();
         Content.Shutdown();
         started = false;
+        Check("no fatal error", clean);
     }
 
     /** Changes what every roll of the dice comes up from now on. */
@@ -130,6 +147,15 @@ final class Fixture {
                 item != com.alchemysoftware.wilytench.Item.NONE);
         return item;
     }
+
+    /** @return the skill with that id, which must exist */
+    static int Skill(String id) {
+        int skill = Skills.Named(id);
+        Check("skill " + id + " exists", skill >= 0);
+        return skill;
+    }
+
+    static int Mining() { return Skill("mining"); }
 
     static void DeleteSaves() {
         String[] names = dir.list();

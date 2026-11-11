@@ -45,6 +45,27 @@ final class Inventory {
         return item;
     }
 
+    /**
+     * Takes away one of an item, from the first slot holding one.
+     *
+     * @return false, changing nothing, if none is carried
+     */
+    boolean RemoveOne(int item) {
+        for (int i = 0; i < SLOTS; i++) {
+            if (slots[i] != item) continue;
+            Remove(i);
+            return true;
+        }
+        return false;
+    }
+
+    /** @return how many of an item are carried */
+    int Count(int item) {
+        int n = 0;
+        for (int i = 0; i < SLOTS; i++) if (slots[i] == item) n++;
+        return n;
+    }
+
     /** @return the item in a slot, or Item.NONE */
     int At(int slot) { return slots[slot]; }
 

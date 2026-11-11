@@ -35,7 +35,7 @@ public class TravelTest {
         Fixture.Start(WIN);
         Session s = Fixture.session;
 
-        s.inventory.Add(Fixture.Item("bronze_hammer"));
+        s.inventory.Add(Fixture.Item("bronze_pickaxe"));
         s.Use(3, 1);
         s.Travel(Fixture.SECOND);
         Run(10);
@@ -61,7 +61,7 @@ public class TravelTest {
         Session s = Fixture.session;
         World first = s.worlds[Fixture.FIRST];
 
-        s.inventory.Add(Fixture.Item("bronze_hammer"));
+        s.inventory.Add(Fixture.Item("bronze_pickaxe"));
         s.Use(3, 1);
         while (!first.RockEmpty(3, 1)) Run(1);
 

@@ -3,8 +3,8 @@
     {
       "id": "cave",
       "walls": [
-        { "symbol": "#", "name": "Cave wall", "sheet": "cave", "block": [0, 0] },
-        { "symbol": "%", "name": "Cave wall", "sheet": "cave", "block": [0, 3] }
+        { "symbol": "#", "name": "Cave wall", "examine": "Solid rock.", "sheet": "cave", "block": [0, 0] },
+        { "symbol": "%", "name": "Cave wall", "examine": "Solid rock.", "sheet": "cave", "block": [0, 3] }
       ],
       "floors": [
         {
@@ -22,8 +22,8 @@
     {
       "id": "dungeon",
       "walls": [
-        { "symbol": "#", "name": "Dungeon wall", "sheet": "dungeon", "block": [0, 0] },
-        { "symbol": "%", "name": "Dungeon wall", "sheet": "dungeon", "block": [0, 3] }
+        { "symbol": "#", "name": "Dungeon wall", "examine": "Old stonework, well made.", "sheet": "dungeon", "block": [0, 0] },
+        { "symbol": "%", "name": "Dungeon wall", "examine": "Old stonework, well made.", "sheet": "dungeon", "block": [0, 3] }
       ],
       "floors": [
         { "symbol": ".", "sheet": "dungeon", "cells": [[11, 1]] },
@@ -52,51 +52,72 @@
       "color_map": "iron"
     },
     {
+      "symbol": "T",
+      "loc": "tin_rocks",
+      "sheet": "magma_extras",
+      "cells": [[0, 7], [2, 7]],
+      "empty_cells": [[1, 7], [3, 7]]
+    },
+    {
+      "symbol": "F",
+      "loc": "furnace",
+      "sheet": "magma_extras",
+      "cells": [[0, 27]],
+      "animated": true
+    },
+    {
+      "symbol": "A",
+      "note": "A stand-in picture: the art has no anvil.",
+      "loc": "anvil",
+      "sheet": "frozen_cavern",
+      "cells": [[0, 23]]
+    },
+    {
       "symbol": "s",
-      "name": "Stalagmites",
+      "name": "Stalagmites", "examine": "They have been growing for a very long time.",
       "sheet": "cave",
       "cells": [[0, 6], [1, 6], [2, 6], [3, 6], [4, 6]]
     },
     {
       "symbol": "S",
-      "name": "Stalagmites",
+      "name": "Stalagmites", "examine": "They have been growing for a very long time.",
       "sheet": "cave",
       "cells": [[0, 8], [1, 8], [2, 8], [3, 8], [4, 8]]
     },
     {
       "symbol": "c",
-      "name": "Crystal",
+      "name": "Crystal", "examine": "It catches what little light there is.",
       "sheet": "cave",
       "cells": [[0, 16], [1, 16], [2, 16], [3, 16], [4, 16]]
     },
     {
       "symbol": "m",
-      "name": "Mushrooms",
+      "name": "Mushrooms", "examine": "They look like they might be poisonous.",
       "sheet": "cave",
       "cells": [[0, 17], [1, 17], [2, 17]]
     },
     {
       "symbol": "t",
-      "name": "Torch",
+      "name": "Torch", "examine": "Somebody keeps these lit.",
       "sheet": "cave",
       "cells": [[0, 14]],
       "animated": true
     },
-    { "symbol": "b", "name": "Barrel", "sheet": "cave", "cells": [[1, 13]] },
-    { "symbol": "p", "name": "Pot", "sheet": "cave", "cells": [[0, 13]] },
+    { "symbol": "b", "name": "Barrel", "examine": "It is empty.", "sheet": "cave", "cells": [[1, 13]] },
+    { "symbol": "p", "name": "Pot", "examine": "A plain clay pot.", "sheet": "cave", "cells": [[0, 13]] },
     {
       "symbol": "w",
-      "name": "Cobweb",
+      "name": "Cobweb", "examine": "The spider is not at home.",
       "sheet": "cave",
       "cells": [[0, 18]],
       "walkable": true
     },
     {
       "symbol": "k",
-      "name": "Bookshelf",
+      "name": "Bookshelf", "examine": "The books are too damp to read.",
       "sheet": "dungeon",
       "cells": [[1, 8], [2, 8], [3, 8], [4, 8], [5, 8]]
     },
-    { "symbol": "h", "name": "Chest", "sheet": "dungeon", "cells": [[0, 9]] }
+    { "symbol": "h", "name": "Chest", "examine": "It is locked.", "sheet": "dungeon", "cells": [[0, 9]] }
   ]
 }

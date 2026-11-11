@@ -5,6 +5,7 @@
       "note": "An ordinary mining rock. mining.whtl is the script for all of them.",
       "verb": "Mine",
       "empty_name": "Rocks",
+      "empty_examine": "There is no ore left in it for the moment.",
       "params": {
         "ore": "item",
         "level": "whole",
@@ -17,11 +18,22 @@
   ],
 
   "locs": [
-    { "id": "ladder", "name": "Ladder", "verb": "Climb down" },
-    { "id": "stairs", "name": "Stairs", "verb": "Climb" },
+    {
+      "id": "ladder",
+      "name": "Ladder",
+      "verb": "Climb down",
+      "examine": "It goes down into the dark."
+    },
+    {
+      "id": "stairs",
+      "name": "Stairs",
+      "verb": "Climb",
+      "examine": "They lead back up to the cave."
+    },
     {
       "id": "copper_rocks",
       "name": "Copper rocks",
+      "examine": "A rocky outcrop with a coppery glint to it.",
       "category": "ore_rock",
       "params": {
         "ore": "copper_ore",
@@ -33,8 +45,37 @@
       }
     },
     {
+      "id": "tin_rocks",
+      "name": "Tin rocks",
+      "examine": "A rocky outcrop flecked with dull grey.",
+      "category": "ore_rock",
+      "params": {
+        "ore": "tin_ore",
+        "level": 1,
+        "xp": 17.5,
+        "chance_at_1": 100,
+        "chance_at_99": 400,
+        "respawn": 4
+      }
+    },
+    {
+      "id": "furnace",
+      "note": "smithing.whtl holds its scripts. Ore is smelted by using it on the furnace.",
+      "name": "Furnace",
+      "verb": "Smelt",
+      "examine": "A stone hearth, hot enough to melt ore."
+    },
+    {
+      "id": "anvil",
+      "note": "smithing.whtl holds its scripts. A bar used on it opens the list of recipes called anvil_ and the bar's id, in recipes.json.",
+      "name": "Anvil",
+      "verb": "Smith",
+      "examine": "A block of iron for hammering metal on."
+    },
+    {
       "id": "iron_rocks",
       "name": "Iron rocks",
+      "examine": "A rocky outcrop streaked with dark red.",
       "category": "ore_rock",
       "params": {
         "ore": "iron_ore",
