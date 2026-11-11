@@ -79,9 +79,9 @@ You can walk around two small maps, a cave and a dungeon, and mine the
 rocks in them.
 
 - **Walking.** Left click a tile and the character walks there by the
-  shortest route, one tile per tick, or as close as it can get. Each step
-  starts slowly, quickens, and slows again, and the view follows a little
-  behind and catches up. The name of whatever is under the mouse is shown at the top
+  shortest route, one tile per tick, or as close as it can get. Movement
+  is north, south, east, or west only. A walk eases in and out, and the
+  view follows a little behind and catches up. The name of whatever is under the mouse is shown at the top
   left.
 - **Mining.** Left click an ore rock. The character walks up to it and
   swings; every third tick a swing lands and the dice are rolled against
@@ -162,6 +162,10 @@ The game keeps a folder per user:
   - `fullscreen` - `true` or `false`.
   - `vsync` - `true` or `false`.
   - `maxFps` - frame rate cap, used when vsync is off or ignored.
+  - `walkStyle` - `steady` or `pulse`. With `steady`, a walk eases away
+    from a standstill, holds an even speed, and eases to a stop. With
+    `pulse`, every tile is eased into and out of, so a long walk surges
+    once per tile.
 - `session.log` describes the most recent run, including which graphics
   driver was found and what size the picture ended up. Look here first when
   something is wrong.
@@ -213,9 +217,9 @@ which is what makes that practical.
 | `World` | One map: what is on each tile, whether it is solid, and which rocks are mined out |
 | `Session` | A game in progress: all the maps, the player, skills, inventory, script variables, and tick count. The rules, with no window |
 | `TileView` | Draws the visible part of the map |
-| `Pathfinder`, `Mover` | Finding a route and walking it, one tile per tick, with a step to the motion. Anything that walks has a `Mover` |
+| `Pathfinder`, `Mover` | Finding a four-way route and walking it, one tile per tick, eased according to the `walkStyle` setting. Anything that walks has a `Mover` |
 | `Player` | The player's character: a `Mover`, its sprite, and what it is heading for |
-| `Camera` | Which part of the map is in view; trails the player a little |
+| `Camera` | Which part of the map is in view; trails the player by a steady whole number of pixels |
 | `Scripts` | The bridge to the script system: the commands scripts can call and the triggers the game fires |
 | `WorldScene` | The window onto a `Session`: input, drawing, and saving after each tick |
 | `Gfx` | Rectangles and outlines drawn straight into the picture |

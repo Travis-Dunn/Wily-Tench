@@ -210,10 +210,16 @@ final class WorldScene extends Scene {
 
         /* The camera aims to put the character's middle at the middle
            of the view; on a new map, or a new game, it starts there. */
-        int aimX = player.PixelX(tickFraction) + TILE / 2 - viewW / 2;
-        int aimY = player.PixelY(tickFraction) + TILE / 2 - viewH / 2;
-        if (arrived) camera.Snap(aimX, aimY);
-        else camera.Follow(aimX, aimY, delta);
+        int offsetX = TILE / 2 - viewW / 2, offsetY = TILE / 2 - viewH / 2;
+        int aimX = player.PixelX(tickFraction) + offsetX;
+        int aimY = player.PixelY(tickFraction) + offsetY;
+        if (arrived) {
+            camera.Snap(aimX, aimY);
+        } else {
+            camera.Follow(player.ExactX(tickFraction) + offsetX,
+                    player.ExactY(tickFraction) + offsetY, aimX, aimY,
+                    delta);
+        }
 
         viewX = camera.X();
         viewY = camera.Y();

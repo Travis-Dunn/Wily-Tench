@@ -6,13 +6,32 @@ package com.alchemysoftware.wilytench;
  *
  * Where a mover is, as far as the game's rules are concerned, is
  * always a whole tile, and it changes only on a game tick: one tile per
- * tick along the planned route. Between ticks its picture travels from
- * the previous tile to the current one. It does not do so at a steady
- * speed: it starts slowly, is quickest half-way, and slows into the
- * new tile, so that a walk has a step to it instead of a glide.
+ * tick along the planned route, north, south, east, or west. Between
+ * ticks its picture travels from the previous tile to the current one.
+ *
+ * How it paces that journey is the walk style, one setting for
+ * everything that walks:
+ *
+ * - STYLE_STEADY: a walk eases away from a standstill on its first
+ *   tile, holds a steady speed through the tiles between, and eases to
+ *   a stop on its last. A walk of one tile does both.
+ *
+ * - STYLE_PULSE: every tile is eased into and out of, so a long walk
+ *   surges once per tile.
  */
 final class Mover {
+    static final int STYLE_STEADY = 0;
+    static final int STYLE_PULSE = 1;
+
     private static final int TILE = Sprites.TILE;
+
+    /* The shapes a step can have. */
+    private static final int PACE_EVEN = 0;
+    private static final int PACE_START = 1;
+    private static final int PACE_STOP = 2;
+    private static final int PACE_START_AND_STOP = 3;
+
+    private static int style = STYLE_STEADY;
 
     private World world;
     private Pathfinder pathfinder;
@@ -22,10 +41,22 @@ final class Mover {
     private int routeLen, routePos;
     private boolean facingLeft;
 
+    /* The shape of the step in progress, and whether it ended at rest,
+       which decides whether the next one starts from rest. */
+    private int pace = PACE_EVEN;
+    private boolean atRest = true;
+
     /** Creates a mover standing on a tile of a map. */
     Mover(World world, int tileX, int tileY) {
         EnterWorld(world, tileX, tileY);
     }
+
+    /**
+     * Chooses how every mover paces its steps.
+     *
+     * @param style STYLE_STEADY or STYLE_PULSE
+     */
+    static void SetStyle(int style) { Mover.style = style; }
 
     /**
      * Plans a walk to a tile, or as near to it as can be reached,
@@ -48,6 +79,8 @@ final class Mover {
         x = prevX = tileX;
         y = prevY = tileY;
         routeLen = routePos = 0;
+        pace = PACE_EVEN;
+        atRest = true;
     }
 
     /** Puts the mover on a tile of another map at once, standing still. */
@@ -62,12 +95,24 @@ final class Mover {
     void Tick() {
         prevX = x;
         prevY = y;
-        if (routePos == routeLen) return;
+        if (routePos == routeLen) {
+            atRest = true;
+            return;
+        }
 
         int next = route[routePos++];
         x = next % world.w;
         y = next / world.w;
         if (x != prevX) facingLeft = x < prevX;
+
+        /* A step starts from rest if the last one ended at rest, and
+           ends at rest if it is the last of the route. Should the route
+           be extended meanwhile, the next step starts from rest too. */
+        boolean stops = routePos == routeLen;
+        if (style == STYLE_PULSE) pace = PACE_START_AND_STOP;
+        else if (atRest) pace = stops ? PACE_START_AND_STOP : PACE_START;
+        else pace = stops ? PACE_STOP : PACE_EVEN;
+        atRest = stops || style == STYLE_PULSE;
     }
 
     /** Turns to face a tile, if it is to one side. */
@@ -95,28 +140,61 @@ final class Mover {
     /**
      * @param tickFraction how far through the current tick the frame
      *                     falls, from 0 to 1
-     * @return the map pixel of the left edge of the mover's picture
+     * @return where the left edge of the mover's picture is, in map
+     *         pixels and fractions of one
      */
-    int PixelX(double tickFraction) {
-        return prevX * TILE +
-                (int) Math.round((x - prevX) * TILE * Ease(tickFraction));
+    double ExactX(double tickFraction) {
+        return prevX * TILE + (x - prevX) * TILE * Progress(tickFraction);
     }
 
-    /** @return the map pixel of the top edge of the mover's picture */
+    /** @return where the top edge of the mover's picture is, likewise */
+    double ExactY(double tickFraction) {
+        return prevY * TILE + (y - prevY) * TILE * Progress(tickFraction);
+    }
+
+    /** @return the map pixel the picture's left edge is drawn at */
+    int PixelX(double tickFraction) {
+        return (int) Math.round(ExactX(tickFraction));
+    }
+
+    /** @return the map pixel the picture's top edge is drawn at */
     int PixelY(double tickFraction) {
-        return prevY * TILE +
-                (int) Math.round((y - prevY) * TILE * Ease(tickFraction));
+        return (int) Math.round(ExactY(tickFraction));
+    }
+
+    /*
+     * How much of the step in progress is covered, 0 to 1, by a time
+     * through the tick, 0 to 1.
+     */
+    private double Progress(double t) {
+        if (t <= 0.0) return 0.0;
+        if (t >= 1.0) return 1.0;
+
+        switch (pace) {
+            case PACE_START:          return EaseIn(t);
+            case PACE_STOP:           return 1.0 - EaseIn(1.0 - t);
+            case PACE_START_AND_STOP: return Ease(t);
+            default:                  return t;
+        }
     }
 
     /**
-     * The shape of a step. Turns time through a tick, 0 to 1, into
-     * distance covered, 0 to 1: slow, then fast, then slow, and the
-     * same backwards as forwards. At its quickest, half-way, the mover
-     * travels at one and a half times its average speed.
+     * A step from rest to rest: slow, then fast, then slow, the same
+     * backwards as forwards. Half-way it is at one and a half times
+     * its average speed.
      */
     static double Ease(double t) {
-        if (t <= 0.0) return 0.0;
-        if (t >= 1.0) return 1.0;
         return t * t * (3.0 - 2.0 * t);
+    }
+
+    /**
+     * A step from rest that ends moving at exactly the steady speed of
+     * one tile per tick, so that it runs on into an even step without
+     * a jolt. Having started from nothing it must briefly go a third
+     * faster than steady to cover its tile in time. Run backwards, it
+     * is a step from steady speed to rest.
+     */
+    static double EaseIn(double t) {
+        return t * t * (2.0 - t);
     }
 }

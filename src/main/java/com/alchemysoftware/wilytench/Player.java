@@ -169,6 +169,12 @@ final class Player {
     /** @return the map pixel of the sprite's left edge */
     int PixelX(double tickFraction) { return mover.PixelX(tickFraction); }
 
+    /** @return the same before rounding to a pixel */
+    double ExactX(double tickFraction) { return mover.ExactX(tickFraction); }
+
+    /** @return the top edge before rounding to a pixel */
+    double ExactY(double tickFraction) { return mover.ExactY(tickFraction); }
+
     /** @return the map pixel of the sprite's top edge */
     int PixelY(double tickFraction) { return mover.PixelY(tickFraction); }
 

@@ -597,6 +597,17 @@ scalar helpers (clamp, lerp, smoothstep, frame-rate-independent damping,
 floor division and modulo for negative numbers) would be used by every
 game on the library; this one has written three of those five so far.
 
+**C36. A setting that must be one of a few words has to be checked by
+the game.** *(Hit)*  
+Status: open. Minor.
+`walkStyle` may be `steady` or `pulse`. `ConfigEntry` offers int, float,
+bool, and a string bounded only by length, so the file accepts any text
+and the game checks it afterwards, logs its own warning, and falls back
+(`Settings.WalkStyle()`). The config system already does exactly this for
+out-of-range numbers, with a good log line naming the offending text. A
+`TYPE_CHOICE` taking a list of allowed strings would give choices the
+same treatment.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
