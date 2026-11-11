@@ -73,6 +73,7 @@ final class SidePanel {
     private int pointerX = -1, pointerY = -1;
     private int hoverTab = NO_TAB, hoverSlot = NO_SLOT;
     private int hoverSkill = NO_SKILL;
+    private int selectedSlot = NO_SLOT;
 
     /* Rebuilt only when the numbers behind them change, so that
        drawing the panel every frame creates no strings. */
@@ -188,6 +189,14 @@ final class SidePanel {
         hoverSkill = NO_SKILL;
         return true;
     }
+
+    /**
+     * Marks an inventory slot as holding the item the player has
+     * chosen to use on something.
+     *
+     * @param slot the slot, or NO_SLOT for none
+     */
+    void Select(int slot) { selectedSlot = slot; }
 
     /** @return the tab the box is showing */
     int Tab() { return tab; }
@@ -315,8 +324,12 @@ final class SidePanel {
             int item = inventory.At(slot);
             if (item == Item.NONE) continue;
 
-            if (slot == hoverSlot)
+            if (slot == selectedSlot) {
+                Gfx.Outline(sx + 1, sy + 1, SLOT - 2, SLOT - 2,
+                        Palette.AMBER);
+            } else if (slot == hoverSlot) {
                 Gfx.Outline(sx + 1, sy + 1, SLOT - 2, SLOT - 2, Palette.ASH);
+            }
             Item.DrawIcon(item, sx + (SLOT - Sheet.CELL) / 2,
                     sy + (SLOT - Sheet.CELL) / 2);
         }

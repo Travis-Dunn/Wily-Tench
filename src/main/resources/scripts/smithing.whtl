@@ -1,0 +1,60 @@
+// Smithing: so far, smelting bronze at a furnace.
+//
+// Bronze is one copper ore and one tin ore. The player uses either ore
+// on the furnace, which runs [oplocu,furnace]; used_item() says which
+// item it was.
+//
+// One run of that script makes one bar. It then asks, with again(), to
+// be run once more, and so on until an ore runs out or the player turns
+// to something else.
+
+[oplocu,furnace]
+def_string $item = used_item()
+interruptible()
+
+if ($item ! "copper_ore") {
+    if ($item ! "tin_ore") {
+        mes("Nothing interesting happens.")
+        return
+    }
+}
+
+// Said on the player's own click, not when the ore runs out between
+// bars.
+if (inv_has("copper_ore") = 0) {
+    if (repeating() = 0) {
+        mes("You need copper ore as well as tin ore to make bronze.")
+    }
+    return
+}
+if (inv_has("tin_ore") = 0) {
+    if (repeating() = 0) {
+        mes("You need tin ore as well as copper ore to make bronze.")
+    }
+    return
+}
+
+if (repeating() = 0) {
+    mes("You put the copper and tin into the furnace.")
+}
+anim("work")
+delay(3)
+
+// The ore may have been dropped while it was meant to be melting.
+if (inv_has("copper_ore") = 0) {
+    return
+}
+if (inv_has("tin_ore") = 0) {
+    return
+}
+
+inv_del("copper_ore")
+inv_del("tin_ore")
+inv_add("bronze_bar")
+mes("You take a bar of bronze out of the furnace.")
+stat_xp("smithing", 62)
+again()
+
+// Clicking the furnace with nothing in hand.
+[oploc,furnace]
+mes("The furnace is hot. Use an ore on it to smelt it.")

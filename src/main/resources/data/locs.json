@@ -45,6 +45,27 @@
       }
     },
     {
+      "id": "tin_rocks",
+      "name": "Tin rocks",
+      "examine": "A rocky outcrop flecked with dull grey.",
+      "category": "ore_rock",
+      "params": {
+        "ore": "tin_ore",
+        "level": 1,
+        "xp": 17.5,
+        "chance_at_1": 100,
+        "chance_at_99": 400,
+        "respawn": 4
+      }
+    },
+    {
+      "id": "furnace",
+      "note": "smithing.whtl holds its scripts. Ore is smelted by using it on the furnace.",
+      "name": "Furnace",
+      "verb": "Smelt",
+      "examine": "A stone hearth, hot enough to melt ore."
+    },
+    {
       "id": "iron_rocks",
       "name": "Iron rocks",
       "examine": "A rocky outcrop streaked with dark red.",

@@ -11,8 +11,10 @@ import com.alchemysoftware.whitetail.script.ScriptState;
  * This is the game's rules with no window attached; WorldScene shows it
  * and feeds it the player's wishes, and the tests drive it directly.
  *
- * The player gives two kinds of order: WalkTo() a tile, and Use() a
- * loc, which walks up beside it and then runs its script. Advance()
+ * The player gives three kinds of order: WalkTo() a tile; Use() a
+ * loc, which walks up beside it and then runs its script; and
+ * UseItemOn() a loc, which does the same but runs the script the loc
+ * has for having things used on it. Advance()
  * moves everything on by one game tick, in a fixed order: the map the
  * player is on, then the player's movement, then the script in
  * progress, or the start of one if the player has just arrived at
@@ -23,9 +25,9 @@ import com.alchemysoftware.whitetail.script.ScriptState;
  * Held(): new orders are ignored until it ends. An order given while
  * merely busy cancels the script.
  *
- * The methods named Script... and ...UsedLoc... are for the commands
- * in Scripts, and speak of the script in progress and the loc it is
- * about.
+ * The methods named Script... and ...Used... are for the commands
+ * in Scripts, and speak of the script in progress, the loc it is
+ * about, and the item being used on that loc, if one is.
  */
 final class Session {
     final World[] worlds;
@@ -38,9 +40,15 @@ final class Session {
 
     private int tick, map;
 
-    /* The script in progress, the loc it is about, and where that is. */
+    /* The item to use on the loc being walked to, or Item.NONE to
+       use the loc by itself. */
+    private int targetItem = Item.NONE;
+
+    /* The script in progress, the trigger that began it, the loc it
+       is about, where that is, and the item used on it if any. */
     private ScriptState script;
-    private String scriptSubject;
+    private String scriptTrigger, scriptSubject;
+    private int usedItem = Item.NONE;
     private Loc usedLoc;
     private World usedWorld;
     private int usedX, usedY;
@@ -116,7 +124,8 @@ final class Session {
      *         which is to say whether a script exists for it
      */
     boolean Usable(int tileX, int tileY) {
-        return Scripts.UseSubject(Here().LocAt(tileX, tileY)) != null;
+        return Scripts.Subject(Scripts.TRIGGER_USE,
+                Here().LocAt(tileX, tileY)) != null;
     }
 
     /**
@@ -138,7 +147,39 @@ final class Session {
     void Use(int tileX, int tileY) {
         if (Held()) return;
         EndScript();
+        targetItem = Item.NONE;
         player.WalkToTarget(tileX, tileY);
+    }
+
+    /**
+     * Orders the player to walk up to the loc on a tile and use the
+     * item in an inventory slot on it, cancelling whatever the player
+     * was doing. If the loc has no script for that, or nothing stands
+     * there, says that nothing happens and goes nowhere. Ignored while
+     * Held().
+     */
+    void UseItemOn(int slot, int tileX, int tileY) {
+        int item = inventory.At(slot);
+        if (Held() || item == Item.NONE) return;
+        EndScript();
+
+        if (Scripts.Subject(Scripts.TRIGGER_USE_ITEM,
+                Here().LocAt(tileX, tileY)) == null) {
+            chat.Add(MSG_NOTHING_HAPPENS, Palette.BONE);
+            return;
+        }
+        targetItem = item;
+        player.WalkToTarget(tileX, tileY);
+    }
+
+    /**
+     * Uses the item in one inventory slot on the item in another.
+     * Nothing can be combined that way yet.
+     */
+    void UseItemOnItem(int slot, int otherSlot) {
+        if (inventory.At(slot) != Item.NONE &&
+                inventory.At(otherSlot) != Item.NONE)
+            chat.Add(MSG_NOTHING_HAPPENS, Palette.BONE);
     }
 
     /**
@@ -154,15 +195,6 @@ final class Session {
     void ExamineItem(int slot) {
         int item = inventory.At(slot);
         if (item != Item.NONE) chat.Add(Item.Examine(item), Palette.ASH);
-    }
-
-    /**
-     * Uses the item in an inventory slot on its own. Nothing can be
-     * used that way yet.
-     */
-    void UseItem(int slot) {
-        if (inventory.At(slot) != Item.NONE)
-            chat.Add(MSG_NOTHING_HAPPENS, Palette.BONE);
     }
 
     /**
@@ -232,21 +264,30 @@ final class Session {
     /** @return the loc the script in progress is about */
     Loc UsedLoc() { return usedLoc; }
 
+    /** @return the item being used on that loc, or Item.NONE */
+    int UsedItem() { return usedItem; }
+
     boolean UsedLocEmpty() { return usedWorld.RockEmpty(usedX, usedY); }
 
     void EmptyUsedLoc(int ticks) {
         usedWorld.EmptyRock(usedX, usedY, tick + ticks);
     }
 
-    /* Once the player has finished walking to a target, uses it, if it
-       has a script and is within reach. */
+    /* Once the player has finished walking to a target, uses it, or
+       uses on it the item the order named, if it has a script for
+       that and is within reach. An item that has left the inventory
+       on the way is not used. */
     private void UseTarget() {
         if (!player.HasTarget() || player.Walking()) return;
 
         int x = player.TargetX(), y = player.TargetY();
         Loc loc = Here().LocAt(x, y);
-        String subject = Scripts.UseSubject(loc);
+        String trigger = targetItem == Item.NONE ?
+                Scripts.TRIGGER_USE : Scripts.TRIGGER_USE_ITEM;
+        String subject = Scripts.Subject(trigger, loc);
         boolean beside = player.BesideTarget();
+        if (targetItem != Item.NONE && !inventory.Has(targetItem))
+            subject = null;
 
         player.FaceTarget();
         player.ClearTarget();
@@ -257,7 +298,9 @@ final class Session {
             return;
         }
 
+        scriptTrigger = trigger;
         scriptSubject = subject;
+        usedItem = targetItem;
         usedLoc = loc;
         usedWorld = Here();
         usedX = x;
@@ -267,7 +310,7 @@ final class Session {
 
     /* Starts the script, and tidies up if it is over already. */
     private void Run() {
-        script = Scripts.Use(scriptSubject, vars);
+        script = Scripts.Fire(scriptTrigger, scriptSubject, vars);
         if (script == null) AfterRun();
     }
 
@@ -278,7 +321,7 @@ final class Session {
         if (againAsked) {
             againAsked = false;
             repeating = true;
-            script = Scripts.Use(scriptSubject, vars);
+            script = Scripts.Fire(scriptTrigger, scriptSubject, vars);
             if (script != null) return;
         }
         EndScript();

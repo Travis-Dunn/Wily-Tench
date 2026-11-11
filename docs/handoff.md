@@ -18,7 +18,8 @@ file does not repeat them.
 ## Where things stand
 
 The game is a small playable loop: walk around two maps joined by a
-ladder, mine copper and iron for experience, carry ore in an inventory,
+ladder, mine copper, tin, and iron for experience, smelt copper and tin
+into bronze bars at a furnace, carry it all in an inventory,
 with a chat box, a right-click menu, a tabbed side panel for inventory
 and skills, and a save written every tick.
 `readme.md` "Current state" has the full list.
@@ -28,12 +29,13 @@ and skills, and a save written every tick.
 merged: all the art and atlas packing, the palette file, movement easing
 and the camera, four-way pathfinding, and the right-click menu. The
 branch `claude/relaxed-ride-n5sh5i` was started from its tip, not from
-`master`, and adds the tabbed side panel and the skill list in data. Check
+`master`, and adds the tabbed side panel, the skill list in data, using
+an item on a loc, tin, and smelting. Check
 `git log origin/master..HEAD` before starting. Travis opens and merges
 the pull requests himself; once one is merged, restart the branch from
 `master` rather than stacking on it.
 
-**Tests.** `mvn verify` runs 68 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 79 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -102,7 +104,21 @@ been run on Windows of any age.
   frames; say so rather than claim it is fixed.
 - The apostrophe in the small font sits wide: "can't" has a gap.
 - Dropped items vanish; there are no items on the ground.
-- "Use" on an inventory item does nothing yet.
+- Using one item on another does nothing yet; only item on loc has a
+  trigger (`oplocu`).
+- **The "->" in "Use Copper ore -> Furnace" shows a gap** between the
+  dash and the angle bracket in the small font, like the apostrophe.
+- **A plain click on the furnace only explains.** Smelting needs an ore
+  used on it, as Travis asked. The script language cannot share code
+  between two trigger blocks (feedback C36), so making the plain click
+  smelt too would mean a second copy of the script.
+- **Iron ore's icon changed.** The grey ore picture is now tin's; iron
+  ore is the copper ore picture through the `iron` color map. Not looked
+  at closely in the running game.
+- Copper and iron rocks still use the cave sheet's rock with a plain
+  grey rock for "mined out". Tin uses the Magma Maze rocks, which have
+  proper mined-out pictures in copper, grey, and gold; the others could
+  move to those.
 - A script paused in a `delay` is not saved.
 - Travel lands on a map's `@`, not beside the ladder arrived by.
 - Player animations and the menu's option lists are still in Java, not
@@ -111,8 +127,9 @@ been run on Windows of any age.
   Smithing a hammer from the item art; the tabs show coins and a star.
   Travis will draw real ones; they are not in the asset pack. A skill
   with no picture in `skills.json` is drawn as its first letter.
-- **Smithing is listed but cannot be trained.** It was added so the
-  skills tab has its rectangle ready. Nothing awards experience in it.
+- **Smithing stops at bars.** Smelting bronze is all there is: no
+  anvil, nothing to make from a bar, no other metals. Bronze has no
+  level requirement and never fails.
 - **A skill's current level is always its earned level.**
   `Skills.CurrentLevel()` exists so the panel can show "current/earned",
   but nothing raises or lowers a level yet, and scripts' `stat_level`
@@ -147,11 +164,9 @@ exists.
 2. Items on the ground: drop, pick up, despawn, saved per map. It fits
    the tick-stamped map state already there.
 3. Option lists from data, with "Use item on thing".
-4. Smithing itself, which Travis has named as the second skill: a
-   furnace and smelting, then an anvil. The skill and its place in the
-   interface exist; it needs locs, bar items (the Magma Maze item art has
-   ore and bars), a script, and probably "Use item on thing" from step
-   3.
+4. The rest of Smithing: an anvil and things to make from bars, which
+   will want a way to choose what to make; iron smelting. The Magma Maze
+   item art has a grey and a gold bar besides the one used for bronze.
 5. The first NPC or monster, which forces the character sprite out of
    `Player`.
 

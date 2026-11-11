@@ -505,6 +505,12 @@ needs to know *which* rock it is running for, and `state.script.subject`
 only says `_ore_rock`. The game keeps "the loc being used" beside the
 script in `Session`, and the `loc_...` commands read it from there.
 
+Using an item on a loc added a third thing kept that way: which item. A
+trigger cannot be fired with arguments, so the furnace's script learns
+the item from a `used_item()` command reading another `Session` field.
+`FireTrigger(type, subject, vars, args)` with the arguments readable in
+the script as locals would cover both this and the loc.
+
 **C27. Every script file has to be listed by hand.** *(Hit)*  
 Status: open.
 `LoadScripts()` wants every path in one call, and
@@ -632,6 +638,28 @@ registered key to an existing `config.ini`, it leaves a blank line before
 it, so a file that has grown over several releases ends up unevenly
 spaced.
 
+**C35. Conditions cannot be combined, and there is no `else if`.**
+*(Hit)*  
+Status: open. Partly by design.
+A condition is one comparison. "The item is neither copper ore nor tin
+ore" is two nested `if`s, and "the player has both ores" is two blocks,
+each with its own copy of what to do otherwise; the smelting script
+checks the pair before the delay and again after it, so four near-equal
+blocks (`smithing.whtl`). Smithing proper will choose among many
+recipes, and without `else if` each further case nests one level deeper,
+against a nesting cap of 64. `and` and `or` in conditions, and
+`else if`, would shorten real scripts more than anything else has so far.
+
+**C36. Two trigger blocks cannot share code.** *(Hit)*  
+Status: open.
+The furnace has two ways in: an ore used on it (`[oplocu,furnace]`) and
+a plain click (`[oploc,furnace]`). It would be natural for both to smelt.
+There are no procedures and one block cannot run another, so that would
+take two copies of the script; instead the plain click only explains.
+The same will come up for every loc that takes items, and for any two
+locs that behave nearly alike but not enough to share a category. A
+block that can be called from another, even with no arguments, would do.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
@@ -674,6 +702,10 @@ Worth recording, so they are not "fixed" by accident.
   registered, a forty-line script, and it compiled and passed the
   existing mining tests unchanged on the first run. Statements may span
   lines freely, which the long `mes(join(...))` calls needed.
+- A second kind of trigger, `oplocu`, cost nothing on Whitetail's side:
+  trigger types are just names, `HasTrigger()` answered whether a loc
+  takes items, and the smelting script compiled and ran first time.
+  String locals and string comparison did what the readme says.
 - `comp-json` parsed every data file first time, and its parse errors,
   with line, column, and a caret under the spot, are passed straight
   through to whoever edited the file. They need no rewording.

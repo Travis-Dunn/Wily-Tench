@@ -23,7 +23,7 @@ guide to those files, for a person or an AI.
 first mistake with a message that names the file, the entry, and the
 problem, for example:
 
-> locs.json, loc [tin_rocks], [params]: [ore] names the item [tin_ore],
+> locs.json, loc [silver_rocks], [params]: [ore] names the item [silver_ore],
 > and there is no such item in items.json.
 
 `mvn verify` also loads every map and script and checks that everything
@@ -174,7 +174,18 @@ examining one says while it is empty.
    id, `cells`, and `empty_cells`.
 4. Put that character on a map.
 
-No script changes: `mining.whtl` serves the whole category.
+No script changes: `mining.whtl` serves the whole category. Tin was
+added exactly this way.
+
+### Making a loc take items
+
+Give it an `[oplocu,its_id]` block in a script file, beside or instead of
+its `[oploc,its_id]`. `used_item()` gives the id of the item used, so one
+block handles every item the loc cares about and answers "Nothing
+interesting happens." for the rest. `inv_del` takes an item away and
+`inv_add` gives one. `smithing.whtl`, the furnace's script, is the model.
+Every loc still needs a `verb` and an `[oploc,...]` script for a plain
+click, even if all that does is explain.
 
 ## tiles.json
 
@@ -241,6 +252,11 @@ are fixed by kind:
   there; then Walk here; then Examine, if anything stands there; then
   Cancel.
 - An item in the inventory: Use, Drop, Examine, Cancel.
+
+Use selects the item. While one is selected, every loc and every other
+item offers "Use *item* -> *thing*" ahead of its usual list. On a loc
+that runs the loc's `[oplocu,...]` script, if it has one; on another
+item it does nothing yet.
 
 So the only parts of this that data controls yet are a loc's `verb` and
 the `examine` lines. `Actions.java` builds the lists.
@@ -322,8 +338,8 @@ it was meant to be without touching the artist's file:
 
     {
       "maps": ["cave.txt", "dungeon.txt"],
-      "scripts": ["travel.whtl", "mining.whtl"],
-      "starting_items": ["bronze_hammer"]
+      "scripts": ["travel.whtl", "mining.whtl", "smithing.whtl"],
+      "starting_items": ["bronze_pickaxe"]
     }
 
 Every map and script file must be listed here to be part of the game. A

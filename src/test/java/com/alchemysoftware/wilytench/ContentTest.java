@@ -33,7 +33,8 @@ public class ContentTest {
                     Loc loc = world.LocAt(x, y);
                     Check(world.id + ": the loc at " + x + "," + y +
                             " has a script", loc == null ||
-                            Scripts.UseSubject(loc) != null);
+                            Scripts.Subject(Scripts.TRIGGER_USE, loc)
+                            != null);
                 }
             }
         }
@@ -87,29 +88,29 @@ public class ContentTest {
                 "\"verb\": \"Mine\", \"empty_name\": \"Rocks\", \"params\": " +
                 "{ \"ore\": \"item\", \"xp\": \"tenths\" } } ]";
 
-        RefusedLocs("a missing parameter", category, "\"id\": \"tin_rocks\"," +
-                " \"name\": \"Tin rocks\", \"category\": \"ore_rock\", " +
+        RefusedLocs("a missing parameter", category, "\"id\": \"silver_rocks\"," +
+                " \"name\": \"Silver rocks\", \"category\": \"ore_rock\", " +
                 "\"params\": { \"ore\": \"copper_ore\" }",
-                "loc [tin_rocks], [params]: [xp] is missing");
+                "loc [silver_rocks], [params]: [xp] is missing");
         RefusedLocs("an ore that is not an item", category,
-                "\"id\": \"tin_rocks\", \"name\": \"Tin rocks\", " +
+                "\"id\": \"silver_rocks\", \"name\": \"Silver rocks\", " +
                 "\"category\": \"ore_rock\", \"params\": { \"ore\": " +
-                "\"tin_ore\", \"xp\": 17.5 }",
-                "names the item [tin_ore], and there is no such item");
+                "\"silver_ore\", \"xp\": 17.5 }",
+                "names the item [silver_ore], and there is no such item");
         RefusedLocs("too many decimal places", category,
-                "\"id\": \"tin_rocks\", \"name\": \"Tin rocks\", " +
+                "\"id\": \"silver_rocks\", \"name\": \"Silver rocks\", " +
                 "\"category\": \"ore_rock\", \"params\": { \"ore\": " +
                 "\"copper_ore\", \"xp\": 17.55 }",
                 "may have at most one decimal place");
         RefusedLocs("an unknown category", category,
-                "\"id\": \"tin_rocks\", \"name\": \"Tin rocks\", " +
+                "\"id\": \"silver_rocks\", \"name\": \"Silver rocks\", " +
                 "\"category\": \"gem_rock\"",
                 "there is no category called [gem_rock]");
         RefusedLocs("no verb anywhere", category,
                 "\"id\": \"sign\", \"name\": \"Sign\"",
                 "neither it nor its category has a [verb]");
         RefusedLocs("an id scripts could not name", category,
-                "\"id\": \"Tin Rocks\", \"name\": \"Tin rocks\", " +
+                "\"id\": \"Tin Rocks\", \"name\": \"Silver rocks\", " +
                 "\"verb\": \"Mine\"",
                 "an id may use only lower-case letters");
 

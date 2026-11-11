@@ -27,8 +27,9 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * inventory and the skills; a click on one goes no further.
  *
  * The view follows the character, trailing a little behind. Typing
- * goes to the chat box. Escape closes the menu if one is open, and the
- * game if not.
+ * goes to the chat box. Escape closes the menu if one is open, lets
+ * go of the selected item if there is one, and otherwise closes the
+ * game.
  *
  * After every game tick the game is saved, if the tick changed
  * anything worth saving.
@@ -174,6 +175,8 @@ final class WorldScene extends Scene {
 
         if (InputSys.WasPressed(Button.KEY_ESCAPE)) {
             if (menu.IsOpen()) menu.Close();
+            else if (actions.SelectedSlot() != Actions.NO_SLOT)
+                actions.Deselect();
             else RunFlag.Stop();
         }
 
@@ -284,6 +287,7 @@ final class WorldScene extends Scene {
         Gfx.ClearClip();
 
         chat.Draw();
+        panel.Select(actions.SelectedSlot());
         panel.Draw();
         if (menu.IsOpen()) menu.Draw(pointerX, pointerY);
         else panel.DrawTip();
@@ -339,7 +343,9 @@ final class WorldScene extends Scene {
         if (optionTileX == NOWHERE || menu.Count() == 0) return;
 
         World world = session.Here();
-        boolean usable = menu.Action(0) == Actions.USE_LOC &&
+        int first = menu.Action(0);
+        boolean usable = (first == Actions.USE_LOC ||
+                first == Actions.USE_ITEM_ON_LOC) &&
                 !world.RockEmpty(optionTileX, optionTileY);
 
         Gfx.Outline(viewPortX + optionTileX * TILE - viewX,

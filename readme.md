@@ -75,8 +75,8 @@ picture, look it up in the labeled catalog images in `docs/sprites/`.
 
 ## Current state
 
-You can walk around two small maps, a cave and a dungeon, and mine the
-rocks in them.
+You can walk around two small maps, a cave and a dungeon, mine the
+rocks in them, and smelt copper and tin into bronze.
 
 - **Walking.** Left click a tile and the character walks there by the
   shortest route, one tile per tick, or as close as it can get. Movement
@@ -86,9 +86,18 @@ rocks in them.
 - **Mining.** Left click an ore rock. The character walks up to it and
   swings; every third tick a swing lands and the dice are rolled against
   your Mining level. A win gives one ore and some experience and leaves
-  the rock empty for a few ticks. Copper can be mined from level 1; iron,
-  the dark red rock, needs level 15. You need the hammer you start with
-  and a free inventory slot.
+  the rock empty for a few ticks. Copper and tin, the grey rock, can be
+  mined from level 1; iron, the dark red rock, needs level 15. You need
+  the pickaxe you start with and a free inventory slot.
+- **Smelting.** The room at the east end of the cave has a furnace. Use
+  copper ore or tin ore on it and the character walks over and smelts:
+  every three ticks one of each ore becomes a bronze bar and 6.2
+  Smithing experience, until one ore runs out or you click elsewhere.
+- **Using an item on something.** Choosing Use on an item selects it,
+  marked by an amber outline. Whatever is pointed at next offers, first,
+  to have the item used on it: "Use Copper ore -> Furnace". Doing
+  anything, or pressing Escape, lets go of it. Only ore on the furnace
+  does anything so far.
 - **Options.** Whatever the mouse is over has a list of things to do to
   it. A left click does the first, which the label at the top left of the
   view names; a right click opens the whole list as a menu. Tiles offer
@@ -99,10 +108,9 @@ rocks in them.
   rectangle with its icon and its level, current over earned ("1/1").
   Point at one for a tooltip with the experience earned and the
   experience at which the next level comes. Dropped items vanish, for
-  now, and nothing can be Used yet.
-- **Skills.** Mining, and Smithing, which is listed but cannot be
-  trained yet. Their icons, and the tabs', are stand-ins from the item
-  art until real ones are drawn.
+  now.
+- **Skills.** Mining and Smithing. Their icons, and the tabs', are
+  stand-ins from the item art until real ones are drawn.
 - **Chat box.** The game writes its messages there; anything you type
   appears on the bottom row and Enter says it. The mouse wheel, or Page Up
   and Page Down, scroll back.
@@ -275,9 +283,13 @@ is the full list of commands.
 ### Locs, and when scripts run
 
 A *loc* is a kind of thing on a map that the player can use: the ladder,
-copper rocks, iron rocks. `data/locs.json` lists them. Each has a script name, a
+rocks, the furnace. `data/locs.json` lists them. Each has a script name, a
 display name, optionally a *category*, and named values for scripts to
 read.
+
+Using an item on a loc works the same way but runs `[oplocu,name]`, and
+the script asks `used_item()` which item it was. `smithing.whtl` is the
+example. A loc with no such script answers "Nothing interesting happens."
 
 Clicking a loc walks the character up beside it and runs
 `[oploc,name]`. If there is no script with the loc's own name, the game

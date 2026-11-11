@@ -52,6 +52,20 @@
       "color_map": "iron"
     },
     {
+      "symbol": "T",
+      "loc": "tin_rocks",
+      "sheet": "magma_extras",
+      "cells": [[0, 7], [2, 7]],
+      "empty_cells": [[1, 7], [3, 7]]
+    },
+    {
+      "symbol": "F",
+      "loc": "furnace",
+      "sheet": "magma_extras",
+      "cells": [[0, 27]],
+      "animated": true
+    },
+    {
       "symbol": "s",
       "name": "Stalagmites", "examine": "They have been growing for a very long time.",
       "sheet": "cave",

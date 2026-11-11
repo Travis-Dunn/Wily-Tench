@@ -13,7 +13,7 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  * not end in "Test", so Surefire leaves it alone.
  *
  * Start() builds a Session with no window: the sprite renderer draws
- * into a plain array nobody looks at. Its two maps are in
+ * into a plain array nobody looks at. Its first two maps are in
  * src/test/resources/maps:
  *
  *     test.txt           test2.txt
@@ -30,12 +30,23 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  * and its scripts are src/test/resources/scripts/test.whtl: the ladder
  * leads down to the second map after two ticks, and the stairs lead
  * straight back.
+ *
+ * A third map, which nothing leads to, is for smelting:
+ *
+ *     test3.txt
+ *     ######             @ start (1,1)
+ *     #@F..#             F furnace (2,1)
+ *     #....#             T tin (2,3)
+ *     #.T.r#             r copper (4,3)
+ *     ######
  */
 final class Fixture {
-    static final String[] MAPS = { "test.txt", "test2.txt" };
-    /* The second is the game's real mining script. */
-    static final String[] SCRIPTS = { "test.whtl", "mining.whtl" };
-    static final int FIRST = 0, SECOND = 1;
+    static final String[] MAPS = { "test.txt", "test2.txt", "test3.txt" };
+    /* The others are the game's real scripts. */
+    static final String[] SCRIPTS = {
+        "test.whtl", "mining.whtl", "smithing.whtl"
+    };
+    static final int FIRST = 0, SECOND = 1, FORGE = 2;
 
     private static final int BUF_W = 320, BUF_H = 240;
 

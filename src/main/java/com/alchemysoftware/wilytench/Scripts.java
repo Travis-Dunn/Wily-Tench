@@ -24,6 +24,9 @@ import com.alchemysoftware.whitetail.script.ValueType;
  *               is the loc's own name ("ladder") or, when no script
  *               has that name, an underscore and its category
  *               ("_ore_rock"). See Loc.
+ *   [oplocu,X]  the player used an item on a loc, having walked up
+ *               beside it. X is found the same way. used_item() says
+ *               which item.
  *
  * Commands scripts may call. "The loc" is the one being used.
  *
@@ -59,6 +62,10 @@ import com.alchemysoftware.whitetail.script.ValueType;
  *   inv_has(item)          -> 1 if the player carries the item, else 0
  *   inv_free()             -> whole: empty inventory slots
  *   inv_add(item)          gives the player the item, if there is room
+ *   inv_del(item)          takes one of the item from the player, if
+ *                          one is carried
+ *   used_item()            -> text: the item being used on the loc, or
+ *                          "" in a script that is not about an item
  *   item_name(item)        -> text: the item's name, in lower case
  *   travel(map)            moves the player to the start of a map,
  *                          named by its file, such as "dungeon.txt"
@@ -73,6 +80,8 @@ import com.alchemysoftware.whitetail.script.ValueType;
 final class Scripts {
     /** The trigger type for using a loc. */
     static final String TRIGGER_USE = "oploc";
+    /** The trigger type for using an item on a loc. */
+    static final String TRIGGER_USE_ITEM = "oplocu";
 
     private static final String FOLDER = "scripts";
     private static final String CATEGORY_MARK = "_";
@@ -119,28 +128,28 @@ final class Scripts {
     static PlayerVars NewVars() { return ScriptManager.NewPlayerVars(); }
 
     /**
-     * @return the X of the [oploc,X] script that using a loc runs, or
-     *         null if there is no script for it
+     * @param trigger TRIGGER_USE or TRIGGER_USE_ITEM
+     * @return the X of the [trigger,X] script that doing that to a loc
+     *         runs, or null if there is no script for it
      */
-    static String UseSubject(Loc loc) {
+    static String Subject(String trigger, Loc loc) {
         if (loc == null) return null;
-        if (ScriptManager.HasTrigger(TRIGGER_USE, loc.id)) return loc.id;
+        if (ScriptManager.HasTrigger(trigger, loc.id)) return loc.id;
         if (loc.category == null) return null;
 
         String subject = CATEGORY_MARK + loc.category;
-        return ScriptManager.HasTrigger(TRIGGER_USE, subject) ?
-                subject : null;
+        return ScriptManager.HasTrigger(trigger, subject) ? subject : null;
     }
 
     /**
-     * Starts the script for using a loc.
+     * Starts a loc's script.
      *
-     * @param subject what UseSubject() answered for the loc
+     * @param subject what Subject() answered for the trigger and loc
      * @return the running script, or null if it has already finished
      */
-    static ScriptState Use(String subject, PlayerVars vars) {
-        return Unfinished(
-                ScriptManager.FireTrigger(TRIGGER_USE, subject, vars));
+    static ScriptState Fire(String trigger, String subject,
+                            PlayerVars vars) {
+        return Unfinished(ScriptManager.FireTrigger(trigger, subject, vars));
     }
 
     /**
@@ -274,6 +283,19 @@ final class Scripts {
             public void execute(ScriptState s) {
                 int item = ItemArg(s, 0);
                 if (item != Item.NONE) session.inventory.Add(item);
+            }
+        });
+        Add("inv_del", new ValueType[] { STRING }, VOID,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int item = ItemArg(s, 0);
+                if (item != Item.NONE) session.inventory.RemoveOne(item);
+            }
+        });
+        Add("used_item", new ValueType[0], STRING, new CommandHandler() {
+            public void execute(ScriptState s) {
+                int item = session.UsedItem();
+                s.pushString(item == Item.NONE ? "" : Item.Id(item));
             }
         });
         Add("item_name", new ValueType[] { STRING }, STRING,

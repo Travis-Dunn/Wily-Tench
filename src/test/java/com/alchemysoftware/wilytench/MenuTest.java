@@ -79,8 +79,7 @@ public class MenuTest {
         Check("examine says the item's line",
                 s.chat.Newest().equals("This needs refining."));
         actions.Do(menu, 0);
-        Check("use does nothing yet",
-                s.chat.Newest().equals("Nothing interesting happens."));
+        Check("use selects the item", actions.SelectedSlot() == 1);
         actions.Do(menu, 1);
         Check("drop drops", s.inventory.At(1) == Item.NONE &&
                 s.chat.Newest().equals("You drop the copper ore."));

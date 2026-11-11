@@ -17,11 +17,27 @@
       "cell": [0, 2]
     },
     {
-      "id": "iron_ore",
-      "name": "Iron ore",
+      "id": "tin_ore",
+      "name": "Tin ore",
       "examine": "This needs refining.",
       "sheet": "magma_items",
       "cell": [2, 2]
+    },
+    {
+      "id": "iron_ore",
+      "note": "The copper ore picture recolored, as iron rocks are the copper rock recolored. The grey ore picture it used to have is tin's.",
+      "name": "Iron ore",
+      "examine": "This needs refining.",
+      "sheet": "magma_items",
+      "cell": [0, 2],
+      "color_map": "iron"
+    },
+    {
+      "id": "bronze_bar",
+      "name": "Bronze bar",
+      "examine": "It's a bar of bronze.",
+      "sheet": "magma_items",
+      "cell": [1, 2]
     }
   ]
 }
