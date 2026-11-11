@@ -1,29 +1,25 @@
 package com.alchemysoftware.wilytench;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
-
 import com.alchemysoftware.whitetail.error.ErrorHandler;
-import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
 
 /**
  * One map, or "worldspace": for every tile, what is drawn there and
  * whether it can be walked on. The game's world is several of these,
  * joined by ladders and stairs.
  *
- * Maps are plain text files in the "maps" resource folder, so they can
- * be edited in any text editor. A file starts with settings, one per
- * line, each beginning with an exclamation mark:
+ * Maps are plain text files in the "maps" resource folder; MapFile
+ * describes the format and reads it. This class gives the file's
+ * characters their meaning: a space is nothing at all, and solid; "@"
+ * is where the player arrives; a character the map file defines means
+ * what it says there; every other character means what the map's
+ * tileset in data/tiles.json says.
  *
- *   !name Copper Cave      what the place is called
- *   !tileset cave          which tileset of data/tiles.json it uses
+ * Something standing on the floor, a rock or a person or the player's
+ * start, does not say what floor is under it. That is worked out from
+ * the tiles beside it, unless the map file says otherwise.
  *
- * Everything after the settings is the map, one character per tile.
- * A space is nothing at all, and solid; "@" is where the player
- * arrives; every other character means what the tileset says it
- * means. Rows may be different lengths; the map is as wide as the
- * longest.
+ * A map may name spots on itself, "points", for scripts to send the
+ * player to: PointNamed().
  *
  * The one thing about a map that changes during play is its locs that
  * can be emptied, the ore rocks, which stay empty for a while after
@@ -37,10 +33,11 @@ final class World {
     /** How many frames an animated object cycles through. */
     static final int ANIM_FRAMES = 4;
 
-    private static final String FOLDER = "maps";
-    private static final char SETTING_MARK = '!';
-    private static final String SETTING_NAME = "name";
-    private static final String SETTING_TILESET = "tileset";
+    private static final int SYMBOLS = 128;
+    /* The four tiles beside a tile, as steps in x and y. */
+    private static final int[][] BESIDE = {
+        { 0, -1 }, { 1, 0 }, { 0, 1 }, { -1, 0 }
+    };
 
     /*
      * Where each piece of a wall sits within the wall's block on its
@@ -76,6 +73,10 @@ final class World {
        emptied the game tick at which it is full again, or FULL. */
     private final Loc[] locs;
     private final Npc[] npcs;
+
+    /* The named spots, set by Build() once the map is made. */
+    private String[] pointNames = new String[0];
+    private int[] pointX = new int[0], pointY = new int[0];
     private final int[] emptyUntil;
     private int emptyRocks;
 
@@ -110,45 +111,43 @@ final class World {
      * @return the map, or null after a fatal error has been reported
      */
     static World Load(String filename) {
-        String[] lines = ReadLines(filename);
-        if (lines == null) return null;
-
-        String name = filename;
-        Tiles.Set set = null;
-        int first = 0;
-
-        for (; first < lines.length && lines[first].length() > 0 &&
-                lines[first].charAt(0) == SETTING_MARK; first++) {
-            String setting = lines[first].substring(1).trim();
-            int space = setting.indexOf(' ');
-            String key = space < 0 ? setting : setting.substring(0, space);
-            String value = space < 0 ? "" : setting.substring(space).trim();
-
-            if (key.equals(SETTING_NAME) && value.length() > 0) {
-                name = value;
-            } else if (key.equals(SETTING_TILESET) &&
-                    (set = Tiles.Named(value)) != null) {
-                continue;
-            } else {
-                ErrorHandler.LogFatalAndStop(
-                        ErrStrSetting(filename, lines[first], first));
-                return null;
-            }
-        }
-        if (set == null) {
-            ErrorHandler.LogFatalAndStop(ErrStrNoTileset(filename));
+        try {
+            return Build(filename,
+                    MapFile.Parse(MapFile.Read(filename), filename));
+        } catch (DataError e) {
+            ErrorHandler.LogFatalAndStop(CLASS + " failed to load a map " +
+                    "because of a mistake in it. " + e.getMessage() + "\n");
             return null;
         }
+    }
 
-        String[] rows = new String[lines.length - first];
-        System.arraycopy(lines, first, rows, 0, rows.length);
+    /**
+     * Makes a map of a map file that has been read.
+     *
+     * @param filename the file's name, which becomes the map's id
+     * @throws DataError describing the first mistake found
+     */
+    static World Build(String filename, MapFile file) {
+        Tiles.Set set = Tiles.Named(file.tileset);
+        if (set == null) {
+            throw new DataError(filename + ": there is no tileset called [" +
+                    file.tileset + "] in tiles.json. The tilesets are: " +
+                    Tiles.Names() + ".");
+        }
 
+        /* What the map's own symbols mean. */
+        Tiles.Thing[] local = new Tiles.Thing[SYMBOLS];
+        String[] pointOf = new String[SYMBOLS];
+        Tiles.Floor[] under = new Tiles.Floor[SYMBOLS];
+        int[] seen = new int[SYMBOLS];
+
+        for (int i = 0; i < file.defines.length; i++)
+            Define(filename, file.defines[i], set, local, pointOf, under);
+
+        String[] rows = file.rows;
         int w = 0, h = rows.length, x, y;
         for (y = 0; y < h; y++) w = Math.max(w, rows[y].length());
-        if (w == 0) {
-            ErrorHandler.LogFatalAndStop(ErrStrEmpty(filename));
-            return null;
-        }
+        if (w == 0) throw new DataError(filename + ": the map has no tiles.");
 
         int[] floor = new int[w * h], object = new int[w * h];
         int[] emptyObject = new int[w * h];
@@ -157,20 +156,25 @@ final class World {
         String[] names = new String[w * h], examines = new String[w * h];
         Loc[] locs = new Loc[w * h];
         Npc[] npcs = new Npc[w * h];
-        int startX = -1, startY = -1;
+        String[] pointNames = new String[file.defines.length];
+        int[] pointX = new int[file.defines.length];
+        int[] pointY = new int[file.defines.length];
+        int points = 0, startX = -1, startY = -1;
 
         for (y = 0; y < h; y++) {
             for (x = 0; x < w; x++) {
                 int i = y * w + x, mix = Mix(x, y);
                 char c = At(rows, x, y);
-                Tiles.Wall wall = c < set.walls.length ? set.walls[c] : null;
-                Tiles.Floor ground =
-                        c < set.floors.length ? set.floors[c] : null;
-                Tiles.Thing thing =
-                        c < set.things.length ? set.things[c] : null;
+                if (c >= SYMBOLS) throw Unknown(filename, c, x, y, set);
+
+                Tiles.Wall wall = set.walls[c];
+                Tiles.Floor ground = set.floors[c];
+                Tiles.Thing thing = local[c] != null ? local[c] :
+                        set.things[c];
 
                 floor[i] = object[i] = emptyObject[i] = NO_PICTURE;
                 solid[i] = true;
+                seen[c]++;
 
                 if (c == Tiles.NOTHING) {
                     continue;
@@ -185,15 +189,28 @@ final class World {
                 } else if (ground != null) {
                     floor[i] = Tiles.FloorPicture(ground, mix);
                     solid[i] = false;
-                } else if (c == Tiles.START) {
-                    floor[i] = Tiles.FloorPicture(set.baseFloor, mix);
+                } else if (c == Tiles.START || pointOf[c] != null) {
+                    floor[i] = Tiles.FloorPicture(
+                            Under(rows, x, y, set, under[c]), mix);
                     solid[i] = false;
-                    startX = x;
-                    startY = y;
+                    if (c == Tiles.START) {
+                        startX = x;
+                        startY = y;
+                    } else if (seen[c] > 1) {
+                        throw new DataError(filename + ": the point [" +
+                                pointOf[c] + "], the symbol [" + c +
+                                "], is on the map more than once. A " +
+                                "point is one place.");
+                    } else {
+                        pointNames[points] = pointOf[c];
+                        pointX[points] = x;
+                        pointY[points++] = y;
+                    }
                 } else if (thing != null) {
                     int variant = Tiles.Variant(thing, mix);
 
-                    floor[i] = Tiles.FloorPicture(set.baseFloor, mix);
+                    floor[i] = Tiles.FloorPicture(
+                            Under(rows, x, y, set, under[c]), mix);
                     object[i] = thing.pictures[variant];
                     if (thing.emptyPictures != null)
                         emptyObject[i] = thing.emptyPictures[variant];
@@ -207,20 +224,34 @@ final class World {
                     locs[i] = thing.loc;
                     npcs[i] = thing.npc;
                 } else {
-                    ErrorHandler.LogFatalAndStop(
-                            ErrStrSymbol(filename, c, x, first + y, set.id));
-                    return null;
+                    throw Unknown(filename, c, x, y, set);
                 }
             }
         }
 
-        if (startX < 0) {
-            ErrorHandler.LogFatalAndStop(ErrStrNoStart(filename));
-            return null;
+        if (seen[Tiles.START] != 1) {
+            throw new DataError(filename + ": a map needs exactly one " +
+                    "player start, the symbol [@], and this has " +
+                    seen[Tiles.START] + ".");
         }
-        return new World(filename, name, w, h, startX, startY, floor,
-                object, emptyObject, colorMap, solid, animated, names,
-                examines, locs, npcs);
+        for (int i = 0; i < file.defines.length; i++) {
+            MapFile.Define d = file.defines[i];
+            if (seen[d.symbol] == 0) {
+                throw new DataError(filename + ": the symbol [" + d.symbol +
+                        "] is defined but is nowhere on the map.");
+            }
+        }
+
+        World world = new World(filename, file.name, w, h, startX, startY,
+                floor, object, emptyObject, colorMap, solid, animated,
+                names, examines, locs, npcs);
+        world.pointNames = new String[points];
+        world.pointX = new int[points];
+        world.pointY = new int[points];
+        System.arraycopy(pointNames, 0, world.pointNames, 0, points);
+        System.arraycopy(pointX, 0, world.pointX, 0, points);
+        System.arraycopy(pointY, 0, world.pointY, 0, points);
+        return world;
     }
 
     /**
@@ -261,6 +292,22 @@ final class World {
         int i = y * w + x;
         return emptyUntil[i] > now ? locs[i].emptyExamine : examines[i];
     }
+
+    /** @return how many named spots the map has */
+    int Points() { return pointNames.length; }
+
+    /** @return which of the map's points has a name, or -1 */
+    int PointNamed(String name) {
+        for (int i = 0; i < pointNames.length; i++)
+            if (pointNames[i].equals(name)) return i;
+        return -1;
+    }
+
+    String PointName(int point) { return pointNames[point]; }
+
+    int PointX(int point) { return pointX[point]; }
+
+    int PointY(int point) { return pointY[point]; }
 
     /** @return the person on the tile, or null if there is none */
     Npc NpcAt(int x, int y) {
@@ -365,68 +412,100 @@ final class World {
         return (n ^ n >>> 15) & 0x7FFFFFFF;
     }
 
-    private static String[] ReadLines(String filename) {
-        InputStream in = ResourceStreamResolver.Get(FOLDER, filename);
-        if (in == null) return null;
+    /*
+     * Gives one of a map's own symbols its meaning, filling in the
+     * tables Build() reads: the thing it stands for, or the point it
+     * names, and the floor it was told to stand on, if it was.
+     */
+    private static void Define(String filename, MapFile.Define d,
+                               Tiles.Set set, Tiles.Thing[] local,
+                               String[] pointOf, Tiles.Floor[] under) {
+        String where = filename + ", the define of [" + d.symbol + "]: ";
 
-        String text;
-        try {
-            try {
-                ByteArrayOutputStream bytes = new ByteArrayOutputStream();
-                byte[] chunk = new byte[4096];
-                int n;
-                while ((n = in.read(chunk)) != -1) bytes.write(chunk, 0, n);
-                text = bytes.toString("US-ASCII");
-            } finally {
-                in.close();
+        if (set.walls[d.symbol] != null || set.floors[d.symbol] != null ||
+                set.things[d.symbol] != null) {
+            throw new DataError(where + "the tileset [" + set.id +
+                    "] already uses that symbol. Pick one that " +
+                    "tiles.json does not.");
+        }
+        if (d.on != MapFile.NO_FLOOR) {
+            if (d.on >= SYMBOLS || (under[d.symbol] = set.floors[d.on])
+                    == null) {
+                throw new DataError(where + "[on " + d.on + "] names no " +
+                        "floor of the tileset [" + set.id + "].");
             }
-        } catch (IOException e) {
-            ErrorHandler.LogFatalExcpAndStop(ErrStrRead(filename), e);
-            return null;
         }
 
-        String[] lines = text.replace("\r", "").split("\n", -1);
-        int n = lines.length;
-        while (n > 0 && lines[n - 1].trim().length() == 0) n--;
+        if (d.kind.equals(MapFile.KIND_NPC)) {
+            Npc npc = Npc.Named(d.value);
+            if (npc == null) {
+                throw new DataError(where + "there is no npc called [" +
+                        d.value + "] in npcs.json.");
+            }
+            Tiles.Thing thing = new Tiles.Thing();
+            thing.name = npc.name;
+            thing.pictures = new int[] { npc.picture };
+            thing.colorMap = Sprites.COLOR_MAP_NONE;
+            thing.npc = npc;
+            local[d.symbol] = thing;
+        } else if (d.kind.equals(MapFile.KIND_LIKE)) {
+            char of = d.value.charAt(0);
+            if (of >= SYMBOLS || set.things[of] == null) {
+                throw new DataError(where + "[like " + of + "] copies a " +
+                        "thing, and [" + of + "] is not a thing in the " +
+                        "tileset [" + set.id + "].");
+            }
+            local[d.symbol] = set.things[of];
+        } else {
+            for (int c = 0; c < SYMBOLS; c++) {
+                if (d.value.equals(pointOf[c])) {
+                    throw new DataError(where + "there are two points " +
+                            "called [" + d.value + "].");
+                }
+            }
+            pointOf[d.symbol] = d.value;
+        }
+    }
 
-        String[] trimmed = new String[n];
-        System.arraycopy(lines, 0, trimmed, 0, n);
-        return trimmed;
+    /*
+     * The floor under something that stands on the floor. If the map
+     * said, that. Otherwise whichever floor most of the four tiles
+     * beside it are, the tileset's earlier floor winning a tie; and
+     * the tileset's first floor if none of them is floor at all.
+     */
+    private static Tiles.Floor Under(String[] rows, int x, int y,
+                                     Tiles.Set set, Tiles.Floor told) {
+        if (told != null) return told;
+
+        Tiles.Floor best = null;
+        int bestVotes = 0;
+
+        for (int a = 0; a < BESIDE.length; a++) {
+            char ca = At(rows, x + BESIDE[a][0], y + BESIDE[a][1]);
+            Tiles.Floor candidate = ca < SYMBOLS ? set.floors[ca] : null;
+            int votes = 0;
+            if (candidate == null) continue;
+
+            for (int b = 0; b < BESIDE.length; b++) {
+                char cb = At(rows, x + BESIDE[b][0], y + BESIDE[b][1]);
+                if (cb < SYMBOLS && set.floors[cb] == candidate) votes++;
+            }
+            if (votes > bestVotes || (votes == bestVotes &&
+                    candidate.order < best.order)) {
+                best = candidate;
+                bestVotes = votes;
+            }
+        }
+        return best != null ? best : set.baseFloor;
+    }
+
+    private static DataError Unknown(String filename, char c, int x, int y,
+                                     Tiles.Set set) {
+        return new DataError(filename + ": the symbol [" + c + "] at " +
+                "column " + (x + 1) + " of row " + (y + 1) + " of the map " +
+                "means nothing. It is not in the tileset [" + set.id +
+                "] in tiles.json, and the map does not define it.");
     }
 
     private static final String CLASS = "World";
-    private static String ErrStrRead(String filename) {
-        return CLASS + " failed to load the map [" + filename +
-                "] because an exception was encountered.\n";
-    }
-    private static String ErrStrEmpty(String filename) {
-        return CLASS + " failed to load the map [" + filename +
-                "] because it has no tiles.\n";
-    }
-    private static String ErrStrNoStart(String filename) {
-        return CLASS + " failed to load the map [" + filename +
-                "] because it has no player start, the symbol [@].\n";
-    }
-    private static String ErrStrSetting(String filename, String line,
-                                        int lineIndex) {
-        return CLASS + " failed to load the map [" + filename +
-                "] because the setting [" + line + "] on line [" +
-                (lineIndex + 1) + "] is not one it knows; settings are " +
-                "[!name] followed by some text and [!tileset] followed " +
-                "by one of the tilesets in tiles.json, which are [" +
-                Tiles.Names() + "].\n";
-    }
-    private static String ErrStrNoTileset(String filename) {
-        return CLASS + " failed to load the map [" + filename +
-                "] because it has no [!tileset] line saying which of " +
-                "the tilesets in tiles.json it uses; they are [" +
-                Tiles.Names() + "].\n";
-    }
-    private static String ErrStrSymbol(String filename, char c, int x,
-                                       int lineIndex, String tileset) {
-        return CLASS + " failed to load the map [" + filename +
-                "] because the symbol [" + c + "] at column [" + (x + 1) +
-                "] of line [" + (lineIndex + 1) + "] means nothing in " +
-                "the tileset [" + tileset + "]; see tiles.json.\n";
-    }
 }

@@ -5,9 +5,9 @@ package com.alchemysoftware.wilytench;
  * id, by which map tiles and scripts refer to it, a name, and what
  * examining it says.
  *
- * For now a person stands on one tile of a map, put there by a
- * character of the map file as a rock is, and does nothing but be
- * talked to: talking runs the script [opnpc,id]. Walking about, and
+ * For now a person stands on one tile of a map, put there by a symbol
+ * the map file defines ("!define H npc harl"), and does nothing but
+ * be talked to: talking runs the script [opnpc,id]. Walking about, and
  * everything else a person might do, is still to come, and when it
  * does they will stop being part of the map.
  */
@@ -15,7 +15,9 @@ final class Npc {
     /** What talking to anyone is called in the hover label. */
     static final String VERB = "Talk-to";
 
-    private static final String[] KEYS = { "id", "name", "examine" };
+    private static final String[] KEYS = {
+        "id", "name", "examine", "sheet", "cell"
+    };
     private static final String PLAIN = "Nothing remarkable.";
 
     private static Npc[] all = new Npc[0];
@@ -26,14 +28,20 @@ final class Npc {
     final String name;
     /** What looking closely at it tells the player. */
     final String examine;
+    /** What it looks like, standing. */
+    final int picture;
 
-    private Npc(String id, String name, String examine) {
+    private Npc(String id, String name, String examine, int picture) {
         this.id = id;
         this.name = name;
         this.examine = examine;
+        this.picture = picture;
     }
 
-    /** @param root the contents of data/npcs.json */
+    /**
+     * @param root the contents of data/npcs.json; Sprites must already
+     *             be loaded
+     */
     static void Load(DataNode root) {
         root.Only(new String[] { "npcs" });
 
@@ -50,7 +58,8 @@ final class Npc {
                     throw node.Fail("there are two npcs with this id.");
             }
             loaded[i] = new Npc(id, node.Str("name"),
-                    node.OptStr("examine", PLAIN));
+                    node.OptStr("examine", PLAIN), Sprites.Picture(node,
+                    node.Str("sheet"), node.Ints("cell", 2)));
         }
         all = loaded;
     }

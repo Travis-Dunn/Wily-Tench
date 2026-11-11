@@ -1,5 +1,9 @@
 !name Forge Room
 !tileset cave
+
+!define H npc harl
+
+!map
 #######
 #@F..H#
 #....A#

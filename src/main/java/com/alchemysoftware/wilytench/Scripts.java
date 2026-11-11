@@ -74,6 +74,8 @@ import com.alchemysoftware.whitetail.script.ValueType;
  *   item_name(item)        -> text: the item's name, in lower case
  *   travel(map)            moves the player to the start of a map,
  *                          named by its file, such as "dungeon.txt"
+ *   travel_to(map, point)  moves the player to a point the map file
+ *                          defines, such as "from_cave"
  *
  *   Talking with someone. These show in place of the chat box, and
  *   each waits there until the player clicks. If the player does
@@ -453,6 +455,24 @@ final class Scripts {
             public void execute(ScriptState s) {
                 int item = ItemArg(s, 0);
                 s.pushString(item == Item.NONE ? "" : Item.LowerName(item));
+            }
+        });
+        Add("travel_to", new ValueType[] { STRING, STRING }, VOID,
+                new CommandHandler() {
+            public void execute(ScriptState s) {
+                int map = session.MapNamed(s.argString(0));
+                int point = map < 0 ? -1 :
+                        session.worlds[map].PointNamed(s.argString(1));
+
+                if (map < 0) {
+                    Fail(s, "map", s.argString(0));
+                } else if (point < 0) {
+                    Fail(s, "point on the map [" + s.argString(0) + "]",
+                            s.argString(1));
+                } else {
+                    session.TravelTo(map, session.worlds[map].PointX(point),
+                            session.worlds[map].PointY(point));
+                }
             }
         });
         Add("travel", new ValueType[] { STRING }, VOID, new CommandHandler() {

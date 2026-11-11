@@ -135,7 +135,8 @@ into weapons and armor.
 
 - **Two maps.** The world is made of separate maps joined by ladders and
   stairs. Click the ladder in the cave and the character walks over and
-  climbs down to the dungeon; the stairs there lead back. Each map keeps
+  climbs down to the dungeon, arriving beside the stairs; they lead
+  back. Each map keeps
   its own state, so a rock mined in the cave refills on schedule while you
   are in the dungeon.
 - **Scripts.** What mining a rock or climbing a ladder does is not Java
@@ -266,6 +267,7 @@ which is what makes that practical.
 | `Content`, `DataNode`, `DataError` | Loading the data files, strictly, with explanations of mistakes |
 | `Sprites` | The sprite sheets and color maps, from `sprites.json`, and where the atlas tool packed each sheet |
 | `Tiles` | What each map character means, from `tiles.json` |
+| `MapFile` | A map file as written: reads it, and writes it back in one fixed layout |
 | `World` | One map: what is on each tile, whether it is solid, and which rocks are mined out |
 | `Session` | A game in progress: all the maps, the player, skills, inventory, script variables, and tick count. The rules, with no window |
 | `TileView` | Draws the visible part of the map |
@@ -293,7 +295,9 @@ which is what makes that practical.
 | `SaveGame` | Keeps the saved game on disk, writing on its own thread |
 
 Maps are text files in `src/main/resources/maps`; `docs/content.md`
-describes them.
+describes them. After changing one, run the map tool (**Build Maps**, or
+`mvn test-compile exec:java@maps`), which tidies the file and draws the
+map into `docs/maps/`; an AI must then look at that picture.
 
 ## Scripts
 

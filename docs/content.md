@@ -272,14 +272,14 @@ to; what they say is the script `[opnpc,id]`. See "Talk" in the readme.
 | `id` | How tiles and scripts refer to them. `[opnpc,harl]` is his script |
 | `name` | What the player sees, and what heads their side of a talk |
 | `examine` | Optional. What the Examine option says |
+| `sheet`, `cell` | What they look like |
 
 ### Adding someone to talk to
 
 1. Add them to `npcs.json`.
-2. Give them a character in `tiles.json`, as a thing with `"npc"` set to
-   their id, a `sheet`, and `cells`. A thing cannot have both `"npc"` and
-   `"loc"`.
-3. Put that character on a map.
+2. In the map file, define a symbol for them, `!define H npc harl`, and
+   put it on the grid. See "Maps".
+3. Run the map tool and look at the picture.
 4. Write their `[opnpc,id]` block in a script file, and list the file in
    `game.json` if it is new.
 
@@ -296,7 +296,8 @@ tileset exist only there; things in the list at the bottom of the file can
 be put on any map.
 
 Two characters are built in and cannot be redefined: a space is nothing at
-all, and `@` is where the player arrives. `!` cannot be used either.
+all, and `@` is where the player arrives. `!` cannot be used either. A
+map file may define further characters for itself; see "Maps".
 
 A wall:
 
@@ -336,7 +337,6 @@ A thing:
 | `name` | What the player sees it called. Needed unless it has a `loc`, which has a name of its own |
 | `examine` | Optional. What the Examine option says about it. Not allowed with a `loc`, which has its own. Walls may have one too |
 | `loc` | Optional. Makes it usable, as that loc |
-| `npc` | Optional. Makes it a person, as that npc. Not with `loc` |
 | `sheet`, `cells` | What it looks like |
 | `empty_cells` | What it looks like when emptied: one cell for each of `cells`. Required if its loc can be emptied |
 | `color_map` | Optional. A recoloring from `sprites.json` |
@@ -448,22 +448,113 @@ new game begins at the `@` of the first map.
 
 ## Maps
 
-A map is a text file in `maps/`:
+A map is a text file in `maps/`, and that file is the only form the map
+ever has. People edit it as text, AIs write it as text, and the map
+editor, when there is one, will read and write this same file.
 
     !name Copper Cave
     !tileset cave
 
+    !define 1 point from_dungeon
+    !define H npc harl
+
+    !map
        ################
-       #.L............#
+       #.L1...........#
        #..c........m..#
-       #......@.......#
+       #......@....H..#
        ################
 
-The lines beginning with `!` are settings: the place's name, and which
-tileset of `tiles.json` it uses. Everything after them is the map, one
-character per tile. Rows may be different lengths. Every map needs exactly
-one `@`.
+The lines beginning with `!` are settings. After `!map` comes the grid,
+one character per tile, to the end of the file. Rows may be different
+lengths, and space to the left of a row is part of the map.
+
+**Everything that is anywhere is in the grid.** Nothing is placed by
+coordinates, so a map can be checked by looking at it: if a person is in
+the wrong room, the grid shows them there.
+
+| Setting | Meaning |
+| ------- | ------- |
+| `!name` | What the place is called |
+| `!tileset` | Which tileset of `tiles.json` gives its characters their meaning |
+| `!define` | Gives a character a meaning for this map only. See below |
+| `!map` | On a line by itself. Everything after it is the grid |
+
+A character in the grid is, in this order: a space (nothing at all, and
+solid); `@` (where a new game begins, and where `travel` arrives; every
+map needs exactly one); a symbol this map defines; or a wall, floor, or
+thing of the tileset.
 
 Walls are one tile thick and join up with their neighbors, so draw rooms
-as outlines. Saved games record the map by its file name, so renaming a
-map file strands anyone saved there at the first map's start.
+as outlines.
+
+### Symbols a map defines for itself
+
+`tiles.json` says what a rock or a barrel looks like everywhere. A
+`!define` is for what belongs to one map or needs saying per map. The
+symbol must be one the tileset does not already use; digits are a good
+choice. Each kind of thing has one home: a rock is always a `tiles.json`
+symbol, a person is always a define.
+
+| Define | Meaning |
+| ------ | ------- |
+| `!define H npc harl` | A person from `npcs.json`. May be on the map more than once |
+| `!define 1 point from_cave` | A named spot. Open floor to the player; scripts send the player there with `travel_to("cave.txt", "from_cave")`. On the map exactly once |
+| `!define 2 like r` | A copy of the tileset's thing `r`. Only useful with `on` |
+
+More kinds will come as the game grows: monster spawns with a range to
+wander in, fishing spots, and so on. Each will be a define with its
+settings on its line.
+
+### What floor is under a thing
+
+A rock, a person, a point, or the `@` takes up its tile's one character,
+so the map does not say what floor it stands on. The game works it out:
+whichever floor most of the four tiles beside it are. On a tie, the floor
+listed earlier in the tileset; if none of the four is floor, the
+tileset's first floor.
+
+That is right nearly always. Where it is not, say so with `on` and a
+floor's symbol at the end of any define:
+
+    !define 2 like r on ,
+    !define H npc harl on .
+
+### After changing a map: tidy it and look at it
+
+Run the **Build Maps** run configuration, or
+
+    mvn test-compile exec:java@maps
+
+It does two things. It rewrites every map file in one fixed layout
+(settings, defines in order, `!map`, rows with no trailing spaces), which
+`mvn verify` insists on, so that a file is the same whoever wrote it. And
+it draws each map to `docs/maps/` as a picture, drawn by the game's own
+code, with column and row numbers and each defined symbol marked.
+
+**If you are an AI: always do this, and always open the picture, before
+calling a map change done.** Counting characters in a grid goes wrong by
+one more easily than it seems. Check in the picture that each thing you
+placed is in the room you meant, on the floor you meant, that doors line
+up with corridors, and that nothing blocks the way to anything. The
+pictures are committed, so a reviewer sees the change too.
+
+### What the build checks
+
+`mvn verify`, and the game at startup, refuse a map with: an unknown
+setting or kind of define; a symbol that means nothing; a define the
+tileset already uses, or that is nowhere on the map; an npc, thing, or
+floor that does not exist; a point on the map twice or two points of one
+name; no `@` or more than one; a tab; or a layout that is not the tidy
+one. Each is explained in words that name the file.
+
+It does not yet check that every place can be reached, or that a point a
+script names exists; the second shows only when the script runs.
+
+### Saved games and maps
+
+Saved games record the map by its file name, so renaming a map file
+strands anyone saved there at the first map's start. They record the
+player and emptied rocks by column and row, so adding rows above or
+columns to the left of an existing map moves a saved player; one who
+lands in a wall is put at the `@`.

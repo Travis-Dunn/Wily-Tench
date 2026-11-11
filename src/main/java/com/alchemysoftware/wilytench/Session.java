@@ -319,6 +319,17 @@ final class Session {
     }
 
     /**
+     * Moves the player to a tile of a map at once, as Travel() does to
+     * its start. Scripts do this through their travel_to command, for
+     * arriving beside the ladder that was climbed.
+     */
+    void TravelTo(int mapIndex, int tileX, int tileY) {
+        Arrive(mapIndex, tileX, tileY);
+        Here().Tick(tick);
+        chat.Add("You arrive in the " + Here().name + ".", Palette.BONE);
+    }
+
+    /**
      * Awards experience, and says so in the chat box if it brings a
      * new level.
      */

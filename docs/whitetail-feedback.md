@@ -530,6 +530,14 @@ but not for adding one. A classpath `List()` is hard in general; a
 manifest convention, such as `LoadScriptsListedIn("scripts", "index.txt")`,
 would be enough.
 
+The map tool met the other side of this. A development tool has to find
+every map, rewrite some, and read them back as they now stand, and the
+resolver in classpath mode can do none of the three, so `MapTool` reads
+and writes the source folder with `java.io` and hands the text to the
+same parser the game uses. That is fine for a tool, but it means the
+tool and the game do not open files the same way, and the map editor
+will be the same.
+
 **C28. With no loops, anything repeated needs the host's help.**
 *(Hit)*  
 Status: open. Partly by design.
@@ -827,6 +835,11 @@ Worth recording, so they are not "fixed" by accident.
   trigger types are just names, `HasTrigger()` answered whether a loc
   takes items, and the smelting script compiled and ran first time.
   String locals and string comparison did what the readme says.
+- `SpriteRenderer` with a one-tile dummy buffer was enough to load the
+  whole game's data outside the game, and the game's own drawing then
+  rendered full maps into a plain array for the map tool to save as
+  pictures. Software drawing into memory you own makes tools like this
+  nearly free.
 - Dialogue needed nothing new from the script system. `suspend()` and
   `Resume()`, already used for the make menu, carried a whole
   conversation: nine commands' worth of talk, a choice, and a quest, with

@@ -310,6 +310,17 @@
                     </execution>
 
                     <execution>
+                        <id>maps</id>
+
+                        <configuration>
+                            <mainClass>
+                                com.alchemysoftware.wilytench.MapTool
+                            </mainClass>
+                            <classpathScope>test</classpathScope>
+                        </configuration>
+                    </execution>
+
+                    <execution>
                         <id>atlases</id>
 
                         <configuration>

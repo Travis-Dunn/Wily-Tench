@@ -6,9 +6,9 @@
 [oploc,ladder]
 mes("You climb down the ladder.")
 delay(1)
-travel("dungeon.txt")
+travel_to("dungeon.txt", "from_cave")
 
 [oploc,stairs]
 mes("You climb the stairs.")
 delay(1)
-travel("cave.txt")
+travel_to("cave.txt", "from_dungeon")

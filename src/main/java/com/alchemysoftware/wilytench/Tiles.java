@@ -29,6 +29,8 @@ final class Tiles {
         int[] pictures;
         /* Out of a hundred tiles, how many show no picture at all. */
         int barePercent;
+        /* Its place in the tileset's list of floors, from zero. */
+        int order;
     }
 
     /** Something standing on the floor. */
@@ -40,6 +42,7 @@ final class Tiles {
         int colorMap;
         boolean animated, walkable;
         Loc loc;
+        /* Set only for a person a map file has placed; see World. */
         Npc npc;
     }
 
@@ -69,8 +72,7 @@ final class Tiles {
         "symbol", "sheet", "cells", "bare_percent"
     };
     private static final String[] THING_KEYS = {
-        "symbol", "name", "examine", "loc", "npc", "sheet", "cells",
-        "empty_cells",
+        "symbol", "name", "examine", "loc", "sheet", "cells", "empty_cells",
         "color_map", "animated", "walkable"
     };
 
@@ -193,6 +195,7 @@ final class Tiles {
 
             Floor floor = new Floor();
             floor.pictures = Pictures(node, "cells");
+            floor.order = i;
             floor.barePercent = node.OptInt("bare_percent", 0);
             if (floor.barePercent < 0 || floor.barePercent > PERCENT) {
                 throw node.Fail("[bare_percent] must be from 0 to " +
@@ -225,28 +228,13 @@ final class Tiles {
                             "] in locs.json.");
                 }
             }
-            if (node.Has("npc")) {
-                String id = node.Str("npc");
-                if (thing.loc != null)
-                    throw node.Fail("it cannot be both a loc and an npc.");
-                if ((thing.npc = Npc.Named(id)) == null) {
-                    throw node.Fail("there is no npc called [" + id +
-                            "] in npcs.json.");
-                }
-            }
-            if (thing.loc == null && thing.npc == null &&
-                    !node.Has("name"))
-                throw node.Fail("it needs a [name], a [loc], or an [npc].");
+            if (thing.loc == null && !node.Has("name"))
+                throw node.Fail("it needs a [name] or a [loc].");
             thing.name = node.OptStr("name",
-                    thing.loc != null ? thing.loc.name :
-                    thing.npc != null ? thing.npc.name : null);
+                    thing.loc == null ? null : thing.loc.name);
             if (thing.loc != null && node.Has("examine")) {
                 throw node.Fail("it has a [loc], so what examining it " +
                         "says is the loc's [examine], in locs.json.");
-            }
-            if (thing.npc != null && node.Has("examine")) {
-                throw node.Fail("it has an [npc], so what examining it " +
-                        "says is the npc's [examine], in npcs.json.");
             }
             thing.examine = node.OptStr("examine", PLAIN);
 

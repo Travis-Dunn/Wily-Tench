@@ -38,7 +38,7 @@ an item on a loc, tin, smelting, and the anvil with its menu. Check
 the pull requests himself; once one is merged, restart the branch from
 `master` rather than stacking on it.
 
-**Tests.** `mvn verify` runs 108 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 116 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -141,6 +141,48 @@ been run on Windows of any age.
   C36. Check the last ID in the file before adding an entry; the
   sections are long and the newest entry is not always at the bottom.
 
+## Map editing: the plan Travis agreed
+
+Travis asked for a way of making maps that is low friction for a person
+and that AIs can use too, without two representations drifting apart. The
+plan has three steps; the first is done.
+
+1. **Done: the file format, the checks, and the pictures.** The map file
+   is the only form a map has (`MapFile.java`, and "Maps" in
+   `docs/content.md`). One grid holds everything; a map defines its own
+   symbols for people, named points, and the like. Travis raised the
+   danger of things placed by coordinates landing one tile off, so
+   nothing is placed by coordinates at all. `MapTool` tidies the files
+   and draws each map to `docs/maps/`.
+2. **Next: the editor.** A separate desktop tool in Swing, beside
+   `MapTool` under `src/test`, not shipped with the game. Travis chose
+   this over an editor scene inside the game. It must read and write the
+   same file through `MapFile`, take its palette of things from
+   `tiles.json` and `npcs.json`, and draw with the game's own code
+   (`World.Build`, `Sprites.Draw`, as `MapTool` does), so that it shows
+   what the game shows. Paint walls, floors, and things; place and move
+   defined symbols and edit their settings; undo; save.
+3. **Then: "play from here"**, launching the game with the character at
+   a chosen tile.
+
+Things the format is meant to grow into, none built: monster spawns with
+a wander range, fishing spots, and areas of terrain that scripts change.
+Each is a new kind of `!define`. A kind's settings belong on its define
+line; when there are several kinds, declare what settings each takes in
+data, as loc categories do. An area bigger than a tile has no home yet;
+a second grid marking areas is the likely answer.
+
+Known limits of step 1:
+
+- **A map has about ninety symbols to share** between its tileset and
+  its defines. The editor will spend defines freely, one for each
+  thing-and-floor pair the inference gets wrong. A big varied map could
+  run out.
+- **Nothing checks that every place can be reached**, or that a point
+  named in a script exists.
+- **Saved positions are columns and rows**, so reshaping a map can move
+  a saved player or leave a rock's emptied state on the wrong tile.
+
 ## Known rough edges
 
 - **Movement still looks slightly "gritty"** to Travis, after one round
@@ -168,7 +210,6 @@ been run on Windows of any age.
   proper mined-out pictures in copper, grey, and gold; the others could
   move to those.
 - A script paused in a `delay` is not saved.
-- Travel lands on a map's `@`, not beside the ladder arrived by.
 - Player animations and the menu's option lists are still in Java, not
   data. The skill list moved to `data/skills.json`.
 - **Skill and tab icons are stand-ins.** Mining shows a pickaxe and
@@ -186,8 +227,8 @@ been run on Windows of any age.
 - **The make menu makes until the bars run out.** There is no "make 1 /
   5 / 10". Clicking elsewhere stops it. Counting down a number would
   need arithmetic the script language lacks (feedback C38).
-- **People are part of the map.** Harl is a thing on a tile, like a
-  rock, with an `npc` where a rock has a `loc`. He cannot move, and the
+- **People are part of the map.** Harl is a symbol his map file defines
+  (`!define H npc harl`), standing on a tile like a rock. He cannot move, and the
   character sprite is still inside `Player`. Real NPCs that walk will
   replace this; `Npc.java` and the `[opnpc,...]` trigger should survive
   it, the tile placement will not.
