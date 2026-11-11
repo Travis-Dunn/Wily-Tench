@@ -44,7 +44,7 @@ public class SaveTest {
         Check("xp", save.Changed());
         save.Capture();
 
-        s.inventory.Add(Item.COPPER_ORE);
+        s.inventory.Add(Fixture.Item("copper_ore"));
         Check("inventory", save.Changed());
         save.Capture();
 
@@ -124,18 +124,17 @@ public class SaveTest {
     public void testNonsenseInAFileIsMadeSafe() {
         Start();
         SaveData data = SaveData.Create();
-        byte[] slots = new byte[Inventory.SLOTS * 2];
         byte[] rocks = {
             0, 1, 0, 1, 0, 0, 3, 0,     /* (1,1): bare floor */
             0, 99, 0, 99, 0, 0, 3, 0,   /* off the map */
             0, 3, 0, 1, 0, 0, 3         /* cut short */
         };
 
-        /* Slot 0 holds item number 999; slot 1 a real one. */
-        slots[0] = (byte) (1000 >> 8);
-        slots[1] = (byte) 1000;
-        slots[3] = (byte) (Item.IRON_ORE + 1);
-        data.setBytes("inventory", slots);
+        /* Slot 0 holds an item there is no such thing as; slot 1 a
+           real one; then far more slots than there are. */
+        StringBuffer slots = new StringBuffer("philosophers_stone,iron_ore");
+        for (int i = 0; i < 100; i++) slots.append(",copper_ore");
+        data.setString("inventory", slots.toString());
         data.setBytes("rocks.test.txt", rocks);
         data.setString("map", Fixture.MAPS[Fixture.FIRST]);
         data.setInt("x", 0);    /* inside a wall */
@@ -147,13 +146,36 @@ public class SaveTest {
 
         save.Restore(data);
         Check("unknown item dropped", s.inventory.At(0) == Item.NONE);
-        Check("known item kept", s.inventory.At(1) == Item.IRON_ORE);
-        Check("one item", s.inventory.Used() == 1);
+        Check("known item kept", s.inventory.At(1) == Fixture.Item("iron_ore"));
+        Check("no more slots than there are",
+                s.inventory.Used() == Inventory.SLOTS - 1);
         Check("not in the wall", s.player.X() == s.Here().startX);
         Check("xp not negative", s.skills.XpTenths(Skills.MINING) == 0);
         Check("tick not negative", s.Tick() == 0);
         Check("no phantom rocks", s.Here().EmptyRocks() == 0);
         Check("mistyped variable ignored", s.vars.getInt("climbed") == 0);
+        Fixture.Finish();
+    }
+
+    public void testSavesFromBeforeItemsHadIdsStillLoad() {
+        Start();
+        SaveData data = SaveData.Create();
+        byte[] slots = new byte[Inventory.SLOTS * 2];
+
+        /* Two bytes a slot: the old item number plus one. Hammer was
+           0, copper ore 1, iron ore 2. */
+        slots[1] = 1;
+        slots[3] = 3;
+        slots[7] = 2;
+        slots[9] = 40;      /* never an item */
+        data.setBytes("inventory", slots);
+
+        save.Restore(data);
+        Check("hammer", s.inventory.At(0) == Fixture.Item("bronze_hammer"));
+        Check("iron ore", s.inventory.At(1) == Fixture.Item("iron_ore"));
+        Check("gap kept", s.inventory.At(2) == Item.NONE);
+        Check("copper ore", s.inventory.At(3) == Fixture.Item("copper_ore"));
+        Check("nonsense dropped", s.inventory.Used() == 3);
         Fixture.Finish();
     }
 
@@ -174,10 +196,10 @@ public class SaveTest {
 
     public void testEmptyFileChangesNothing() {
         Start();
-        s.inventory.Add(Item.BRONZE_HAMMER);
+        s.inventory.Add(Fixture.Item("bronze_hammer"));
         save.Restore(SaveData.Create());
 
-        Check("hammer kept", s.inventory.At(0) == Item.BRONZE_HAMMER);
+        Check("hammer kept", s.inventory.At(0) == Fixture.Item("bronze_hammer"));
         Check("at start", s.player.X() == s.Here().startX);
         Fixture.Finish();
     }
@@ -245,9 +267,9 @@ public class SaveTest {
         s.vars.setInt("climbed", 1);
         s.vars.setString("last_place", "somewhere odd");
         s.skills.AddXp(Skills.MINING, 12345);
-        s.inventory.Add(Item.BRONZE_HAMMER);
-        s.inventory.Add(Item.COPPER_ORE);
-        s.inventory.Add(Item.IRON_ORE);
+        s.inventory.Add(Fixture.Item("bronze_hammer"));
+        s.inventory.Add(Fixture.Item("copper_ore"));
+        s.inventory.Add(Fixture.Item("iron_ore"));
         s.inventory.Remove(1);
         s.worlds[Fixture.FIRST].EmptyRock(4, 1, ROCK_UNTIL);
         return save.Capture();
@@ -258,9 +280,9 @@ public class SaveTest {
         Check("position", s.player.X() == 1 && s.player.Y() == 2);
         Check("tick", s.Tick() == SCRAMBLED_TICKS);
         Check("xp", s.skills.XpTenths(Skills.MINING) == 12345);
-        Check("slot 0", s.inventory.At(0) == Item.BRONZE_HAMMER);
+        Check("slot 0", s.inventory.At(0) == Fixture.Item("bronze_hammer"));
         Check("slot 1 empty", s.inventory.At(1) == Item.NONE);
-        Check("slot 2", s.inventory.At(2) == Item.IRON_ORE);
+        Check("slot 2", s.inventory.At(2) == Fixture.Item("iron_ore"));
         Check("two items", s.inventory.Used() == 2);
         Check("script whole number", s.vars.getInt("climbed") == 1);
         Check("script text", s.vars.getString("last_place")

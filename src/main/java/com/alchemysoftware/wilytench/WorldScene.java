@@ -28,12 +28,6 @@ import com.alchemysoftware.whitetail.timer.Timer;
 final class WorldScene extends Scene {
     private static final int TILE = Sprites.TILE;
 
-    /* The first is where a new game begins. */
-    private static final String[] MAPS = { "cave.txt", "dungeon.txt" };
-    private static final String[] SCRIPTS = {
-        "travel.whtl", "mining.whtl"
-    };
-
     /* Sprites beyond the map view: the player, with room to spare for
        the creatures and effects to come. */
     private static final int SPARE_SPRITES = 256;
@@ -111,14 +105,16 @@ final class WorldScene extends Scene {
                 SPARE_SPRITES)) return;
         spritesInit = true;
 
-        /* The maps name their tiles by sprite, so sprites come first. */
-        if (!Sprites.Install()) return;
+        /* Maps are made of what the data files define, so those
+           come first. */
+        if (!Content.Load()) return;
 
         int panelX = viewPortX + viewW;
         chat = new ChatBox(smallFont, viewPortX, viewPortY + viewH, viewW,
                 h - viewPortY - viewH);
 
-        session = Session.Create(MAPS, SCRIPTS, chat, new Random());
+        session = Session.Create(Content.Maps(), Content.ScriptFiles(),
+                chat, new Random());
         if (session == null) return;
         tiles = TileView.Create(session.Here(), viewW, viewH);
         if (tiles == null) {
@@ -131,8 +127,13 @@ final class WorldScene extends Scene {
         save = new SaveState(session);
         int loadOutcome = SaveGame.Load();
         if (loadOutcome == SaveGame.LOAD_TOO_NEW) return;
-        if (SaveGame.Loaded() != null) save.Restore(SaveGame.Loaded());
-        else session.inventory.Add(Item.BRONZE_HAMMER);
+        if (SaveGame.Loaded() != null) {
+            save.Restore(SaveGame.Loaded());
+        } else {
+            int[] items = Content.StartingItems();
+            for (int i = 0; i < items.length; i++)
+                session.inventory.Add(items[i]);
+        }
 
         chat.Add(SaveGame.Loaded() != null ? MSG_WELCOME_BACK : MSG_WELCOME,
                 Palette.BONE);
@@ -233,7 +234,7 @@ final class WorldScene extends Scene {
         if (spritesInit) SpriteRenderer.Shutdown();
         spritesInit = false;
         Session.Close();
-        Sprites.Shutdown();
+        Content.Shutdown();
         Gfx.Shutdown();
         session = null;
         save = null;

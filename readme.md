@@ -37,6 +37,10 @@ the project lasts:
 The file itself spells out the format. Treat it as part of the definition
 of done for every change.
 
+When the job is adding or changing content (an item, a rock, a map, a
+script), [`docs/content.md`](docs/content.md) is the guide, and `mvn
+verify` checks the result.
+
 Some other standing facts:
 
 - **Do not create art, music, or sound.** Use what is in the repository;
@@ -55,6 +59,19 @@ Some other standing facts:
   `docs/style.md` of that repository: static methods in PascalCase, no
   overloads, 80 columns, block comments, messages gathered at the bottom
   of the file.
+
+## Adding content
+
+What the game contains is kept apart from how it works. Items, the things
+on a map that can be used, what map characters mean, the maps themselves,
+and the scripts that say what happens are all text files under
+`src/main/resources`, and adding to them needs no Java.
+
+**[`docs/content.md`](docs/content.md) explains every file**, with an
+example of each kind of entry and step-by-step recipes. The files are
+checked strictly when the game starts and by `mvn verify`, and a mistake
+is reported in plain words naming the file and the entry. To choose a
+picture, look it up in the labeled catalog images in `docs/sprites/`.
 
 ## Current state
 
@@ -122,7 +139,8 @@ must be installed, which it is by default on Mint.
 
 `mvn verify` also runs the tests in `src/test`, which play the game's
 rules through tick by tick with no window: walk to a rock, mine it, check
-the ore, the experience, the messages, swing by swing; use a ladder and
+the ore, the experience, the messages, swing by swing; load the real data
+files, maps, and scripts, and confirm that broken data is explained; use a ladder and
 follow its script tick by tick; travel between maps; save a game and load it back. They drive a `Session` directly, which is why the
 game's rules live there and not in the scene. They use no test framework, in the
 same way Whitetail's do: a public class named `*Test`, whose public `test*`
@@ -169,8 +187,8 @@ script that was paused when the game closed is not saved.
 - **Changing what is saved.** Adding a value needs no ceremony: loading
   leaves anything missing from a file as it is. Changing what an existing
   value *means* requires raising `SaveGame.VERSION` and converting old
-  files on load. Item numbers and skill save names are part of the format
-  and must never be changed or reused.
+  files on load. Item ids and skill save names are part of the format and
+  must never be changed.
 - **Cost.** One save is a few hundred bytes and, where measured, about a
   millisecond, on a thread of its own so that a slow disk cannot make the
   game stutter. Standing still with every rock full writes nothing.
@@ -188,7 +206,9 @@ which is what makes that practical.
 | `Main`, `Game` | Startup, the frame loop, shutdown |
 | `DataDir`, `Settings`, `Natives` | The per-user folder, `config.ini`, LWJGL's native libraries |
 | `Screen`, `Palette` | The window, the picture's size, and its colors |
-| `Sprites` | Names for the atlases, layers, and frames |
+| `Content`, `DataNode`, `DataError` | Loading the data files, strictly, with explanations of mistakes |
+| `Sprites` | The sprite sheets and color maps, from `sprites.json` |
+| `Tiles` | What each map character means, from `tiles.json` |
 | `World` | One map: what is on each tile, whether it is solid, and which rocks are mined out |
 | `Session` | A game in progress: all the maps, the player, skills, inventory, script variables, and tick count. The rules, with no window |
 | `TileView` | Draws the visible part of the map |
@@ -199,17 +219,15 @@ which is what makes that practical.
 | `Font`, `Text` | Bitmap fonts, and drawing writing with them |
 | `ChatBox` | The message history and typing line under the view |
 | `SidePanel` | Skills and inventory, to the right of the view |
-| `Item`, `Inventory` | The kinds of thing that can be carried, and the 28 slots they are carried in |
+| `Item`, `Inventory` | The kinds of thing that can be carried, from `items.json`, and the 28 slots they are carried in |
 | `Skills` | Experience and levels |
-| `Loc` | The kinds of thing on a map that can be used, such as each ore rock, and the values scripts read from them |
+| `Loc` | The kinds of thing on a map that can be used, from `locs.json`, and the values scripts read from them |
 | `Sheet` | Reads a sprite sheet file, for both the sprite renderer and interface icons |
 | `SaveState` | Turns a `Session` into a saved game and back |
 | `SaveGame` | Keeps the saved game on disk, writing on its own thread |
 
-Maps are text files in `src/main/resources/maps`: a couple of settings
-(the place's name, and whether it uses the cave or the dungeon art), then
-one character per tile. The key is at the top of `World.java`. To add a
-map, write its file and add the file's name to `MAPS` in `WorldScene`.
+Maps are text files in `src/main/resources/maps`; `docs/content.md`
+describes them.
 
 ## Scripts
 
@@ -235,7 +253,7 @@ is the full list of commands.
 ### Locs, and when scripts run
 
 A *loc* is a kind of thing on a map that the player can use: the ladder,
-copper rocks, iron rocks. `Loc.java` lists them. Each has a script name, a
+copper rocks, iron rocks. `data/locs.json` lists them. Each has a script name, a
 display name, optionally a *category*, and named values for scripts to
 read.
 
@@ -250,11 +268,10 @@ it is running for what to give:
     loc_empty_for(loc_int("respawn"))
     stat_xp("mining", loc_int("xp"))
 
-**To add another ordinary rock** (mithril, say): add its item to
-`Item.java`, add one `OreRock(...)` line to `Loc.java` with its ore,
-level, experience, odds, and respawn time, and give it a map symbol in
-`World.java`. The script does not change. A rock that should behave
-differently gets its own `[oploc,its_name]` block, which takes precedence.
+**To add another ordinary rock** (mithril, say) takes a few lines in
+three data files and no script; `docs/content.md` has the recipe. A rock
+that should behave differently gets its own `[oploc,its_name]` block, which
+takes precedence.
 
 ### Things worth knowing when writing one
 
@@ -266,25 +283,27 @@ differently gets its own `[oploc,its_name]` block, which takes precedence.
   called `interruptible()`, clicks are ignored until it ends; the ladder
   works that way. Mining is interruptible: clicking elsewhere cancels it.
 - `delay(n)` is part of the language and pauses for `n` game ticks.
-- Scripts name items and skills by the keys in `Item.java` and
-  `Skills.java`, such as `"copper_ore"` and `"mining"`.
+- Scripts name items by their ids in `items.json`, such as
+  `"copper_ore"`, and skills by the keys in `Skills.java`, such as
+  `"mining"`.
 - A mistake in a script's grammar or types is reported when the game
   starts, with the file, line, and a pointer to the spot. Naming an item,
   skill, map, or loc value that does not exist is reported when the line
   runs.
 
-To add a script file, write it and add its name to `SCRIPTS` in
-`WorldScene`. To give scripts a new ability, register a command in
+To add a script file, write it and add its name to `scripts` in
+`data/game.json`. To give scripts a new ability, register a command in
 `Scripts.java` and add it to the list at the top of that file.
 
 ## Art
 
 `DD-core` and `DD-UI` hold the purchased Demonic Dungeon art by VEXED,
 untouched. The game does not read those PNGs. `AtlasTool` (under
-`src/test`) converts the parts in use into Whitetail's `.wsa` atlas format
-in `src/main/resources/sprites`, and those files are committed. Rerun it
-only when you need more of the art, with the **Build Atlases** run
-configuration or:
+`src/test`) converts the parts listed in `data/sprites.json` into
+Whitetail's `.wsa` atlas format in `src/main/resources/sprites`, and draws
+a labeled catalog of each sheet into `docs/sprites/`. Both are committed.
+Rerun it only when a sheet is added or changed, with the **Build Atlases**
+run configuration or:
 
     mvn test-compile exec:java@atlases
 

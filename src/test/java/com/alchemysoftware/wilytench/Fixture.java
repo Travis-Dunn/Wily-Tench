@@ -80,7 +80,7 @@ final class Fixture {
         RunFlag.Start();
 
         Check("sprites", SpriteRenderer.Init(new byte[BUF_W * BUF_H], BUF_W,
-                BUF_H, 0, 0, BUF_W, BUF_H, 64) && Sprites.Install());
+                BUF_H, 0, 0, BUF_W, BUF_H, 64) && Content.Load());
 
         Font font = Font.Load("small.fnt");
         Check("font", font != null);
@@ -96,7 +96,7 @@ final class Fixture {
         Check("no fatal error", RunFlag.IsRunning());
         Session.Close();
         SpriteRenderer.Shutdown();
-        Sprites.Shutdown();
+        Content.Shutdown();
         started = false;
     }
 
@@ -121,6 +121,14 @@ final class Fixture {
         for (int i = 0; i < Inventory.SLOTS; i++)
             if (session.inventory.At(i) == item) n++;
         return n;
+    }
+
+    /** @return the item with that id, which must exist */
+    static int Item(String id) {
+        int item = com.alchemysoftware.wilytench.Item.Named(id);
+        Check("item " + id + " exists",
+                item != com.alchemysoftware.wilytench.Item.NONE);
+        return item;
     }
 
     static void DeleteSaves() {

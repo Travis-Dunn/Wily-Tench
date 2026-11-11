@@ -79,7 +79,7 @@ final class Player {
         if (anim == null) return null;
 
         int sprite = SpriteRenderer.CreateSprite(world.startX * TILE,
-                world.startY * TILE, Sprites.ATLAS_HEROES, idle[0],
+                world.startY * TILE, Sprites.HeroAtlas(), idle[0],
                 Sprites.LAYER_ACTOR, Sprites.COLOR_MAP_NONE, false, false,
                 true);
         if (sprite == SpriteRenderer.INVALID_HANDLE) return null;

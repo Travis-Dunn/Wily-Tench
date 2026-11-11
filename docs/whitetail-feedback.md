@@ -57,9 +57,10 @@ run on Windows of any age.
 | C23 | `SaveGame.java` does its writing on a thread of its own |
 | C24 | `SaveGame.Load()` calls `Describe()` and then `Read()` |
 | C26 | `Scripts.java` keeps the game in progress in a static field for command handlers to reach |
-| C27 | `WorldScene.java` lists every script and map file by name |
+| C27 | `data/game.json` lists every script and map file by name |
 | C28 | `Session.java` reruns a script that called the game's `again()` command |
 | C29 | `Scripts.java` registers `join` and `str` commands for building messages |
+| C31, C32, C33, C34 | `DataNode.java` wraps `comp-json` with checked, typed reading; data files use lists with ids and a `note` convention |
 
 ---
 
@@ -482,8 +483,8 @@ Status: open.
 `LoadScripts()` wants every path in one call, and
 `ResourceStreamResolver.List()` does not work in classpath mode, so a game
 shipping its scripts inside its jar cannot discover them. The game keeps a
-hand-written array of script files (and another of maps) that must be
-edited whenever one is added. The tutorial's promise that a designer can
+hand-written list of script files (and another of maps), now in
+`data/game.json`, that must be edited whenever one is added. The tutorial's promise that a designer can
 "drop a modified guard.whtl next to the game" holds for changing a script
 but not for adding one. A classpath `List()` is hard in general; a
 manifest convention, such as `LoadScriptsListedIn("scripts", "index.txt")`,
@@ -531,6 +532,52 @@ quickly becomes habit; it is also the line most likely to be mistyped as
 `if (loc_empty())`, which the compiler rejects with a message about a
 missing operator rather than a hint that `= 1` is wanted.
 
+**C31. Strict JSON is a hard format to edit by hand.** *(Hit)*  
+Status: open. By design, but worth weighing.
+The game's content now lives in JSON files read through `comp-json`,
+which enforces RFC 8259 exactly: no comments and no trailing commas. For
+files meant to be edited by people those two are the commonest wishes and
+the commonest mistakes. The game works around the first with a
+convention, a `"note"` value that any group may carry and the loader
+skips. Nothing can be done about the second from outside. An opt-in
+lenient mode accepting `//` comments and trailing commas would make the
+component much friendlier for configuration and content, without
+changing its strict default.
+
+**C32. Duplicate keys silently keep the last value.** *(Read)*  
+Status: open.
+The readme documents this. For hand-edited data it means a
+copy-and-paste mistake, two entries with the same name in one group,
+loses one of them with no word said. Because of it the game's data files
+never key a collection by name: every collection is a list of groups each
+with an `"id"`, so that the game can detect duplicates itself. Reporting
+a duplicate key as a parse error, or at least offering to, would let
+files use the more natural `{ "copper_ore": { ... } }` shape safely.
+
+**C33. A parsed value does not know where it came from.** *(Hit)*  
+Status: open.
+Parse errors carry line, column, and a caret, which is excellent. But
+most mistakes in a content file are not syntax errors: a missing value, a
+number where text belongs, a reference to an item that does not exist.
+Those are found after parsing, by the game, and `JsonValue` has no
+position, so the game's messages can say "locs.json, loc [tin_rocks],
+[params]: [xp] is missing" but not which line. A `line` and `column` on
+each `JsonValue` would let every consumer give errors as good as the
+parser's own.
+
+**C34. Reading values out safely takes a layer of the game's own.**
+*(Hit)*  
+Status: open.
+`JsonValue` is a tag and five public fields, and `JsonObject.entries` and
+`JsonArray.elements` are raw `Map` and `List`. Every read is therefore
+"get, check for null, check the tag, read the right field, and for a
+whole number check that the double is one". The game wrapped all of that
+in `DataNode.java`, about three hundred lines, before it could read its
+first file. Much of that is this game's error wording, but the core,
+typed getters that fail with a description instead of returning a
+meaningless default, is something every consumer will write. Numbers
+being only `double` puts the whole-number check on the consumer too.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
@@ -573,3 +620,6 @@ Worth recording, so they are not "fixed" by accident.
   registered, a forty-line script, and it compiled and passed the
   existing mining tests unchanged on the first run. Statements may span
   lines freely, which the long `mes(join(...))` calls needed.
+- `comp-json` parsed every data file first time, and its parse errors,
+  with line, column, and a caret under the spot, are passed straight
+  through to whoever edited the file. They need no rewording.

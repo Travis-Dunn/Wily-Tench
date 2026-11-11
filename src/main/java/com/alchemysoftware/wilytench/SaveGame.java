@@ -29,7 +29,7 @@ import com.alchemysoftware.whitetail.save.SaveStore;
  */
 final class SaveGame {
     /** Raise when the meaning of the saved values changes. */
-    static final int VERSION = 1;
+    static final int VERSION = 2;
 
     /* Outcomes of Load(). */
     static final int LOAD_NEW_GAME = 0;

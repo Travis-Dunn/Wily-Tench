@@ -1,61 +1,91 @@
 package com.alchemysoftware.wilytench;
 
 /**
- * The kinds of thing that can be carried. An item is just a number;
- * this class knows each one's name and what its icon looks like.
+ * The kinds of thing that can be carried, as listed in
+ * data/items.json. Each has an id, by which data files, scripts, and
+ * saved games refer to it; a name to show the player; and an icon.
  *
- * Saved games record these numbers, so a number, once given to an
- * item, must never be changed or reused. Add new items at the end.
+ * Inside the game an item is a small number, good only for the length
+ * of one run: its place in the file.
  *
- * The art has no pictures of ore, so ore borrows the picture of the
- * rock it came from, and no pickaxe, so rocks are mined with a hammer.
+ * Because saved games hold ids, an id must never be changed once
+ * players may have the item.
  */
 final class Item {
     static final int NONE = -1;
 
-    static final int BRONZE_HAMMER = 0;
-    static final int COPPER_ORE = 1;
-    static final int IRON_ORE = 2;
-    static final int COUNT = 3;
-
-    private static final String[] NAMES = {
-        "Bronze hammer", "Copper ore", "Iron ore"
-    };
-    /* What scripts call each item. */
     private static final String[] KEYS = {
-        "bronze_hammer", "copper_ore", "iron_ore"
+        "id", "name", "sheet", "cell", "color_map"
     };
-    private static final int[] ATLASES = {
-        Sprites.ATLAS_ITEMS, Sprites.ATLAS_CAVE, Sprites.ATLAS_CAVE
-    };
-    /* { column, row } on that atlas's sheet. */
-    private static final int[][] CELLS = { { 3, 1 }, { 5, 1 }, { 5, 1 } };
-    private static final int[] COLOR_MAPS = {
-        Sprites.COLOR_MAP_NONE, Sprites.COLOR_MAP_NONE,
-        Sprites.COLOR_MAP_IRON
-    };
+
+    private static String[] ids = new String[0];
+    private static String[] names, lowerNames;
+    private static int[] pictures, colorMaps;
 
     private Item() {}
 
-    /** @return whether a number is an item's */
-    static boolean Valid(int item) { return item >= 0 && item < COUNT; }
+    /**
+     * @param root the contents of data/items.json; Sprites must
+     *             already be loaded
+     */
+    static void Load(DataNode root) {
+        root.Only(new String[] { "items" });
 
-    /** @return the item scripts call key, or NONE if there is none */
-    static int Named(String key) {
-        for (int i = 0; i < COUNT; i++) if (KEYS[i].equals(key)) return i;
+        DataNode[] nodes = root.Groups("items", "item");
+        int n = nodes.length;
+        String[] newIds = new String[n];
+
+        names = new String[n];
+        lowerNames = new String[n];
+        pictures = new int[n];
+        colorMaps = new int[n];
+
+        for (int i = 0; i < n; i++) {
+            String id = nodes[i].Str("id");
+            DataNode node = nodes[i].Called("items.json, item [" + id + "]");
+            node.Only(KEYS);
+            for (int j = 0; j < i; j++) {
+                if (newIds[j].equals(id))
+                    throw node.Fail("there are two items with this id.");
+            }
+
+            newIds[i] = id;
+            names[i] = node.Str("name");
+            lowerNames[i] = names[i].toLowerCase();
+            pictures[i] = Sprites.Picture(node, node.Str("sheet"),
+                    node.Ints("cell", 2));
+            colorMaps[i] = node.Has("color_map") ?
+                    Sprites.ColorMapNamed(node, node.Str("color_map")) :
+                    Sprites.COLOR_MAP_NONE;
+        }
+        ids = newIds;
+    }
+
+    static void Shutdown() { ids = new String[0]; }
+
+    /** @return how many kinds of item there are */
+    static int Count() { return ids.length; }
+
+    /** @return whether a number is an item's */
+    static boolean Valid(int item) { return item >= 0 && item < ids.length; }
+
+    /** @return the item with that id, or NONE if there is none */
+    static int Named(String id) {
+        for (int i = 0; i < ids.length; i++) if (ids[i].equals(id)) return i;
         return NONE;
     }
 
+    /** @return the item's id */
+    static String Id(int item) { return ids[item]; }
+
     /** @return the name as it heads a label: "Copper ore" */
-    static String Name(int item) { return NAMES[item]; }
+    static String Name(int item) { return names[item]; }
 
     /** @return the name as it reads mid-sentence: "copper ore" */
-    static String LowerName(int item) { return NAMES[item].toLowerCase(); }
+    static String LowerName(int item) { return lowerNames[item]; }
 
     /** Draws the item's 16 pixel icon with its top left at (x, y). */
     static void DrawIcon(int item, int x, int y) {
-        Sheet sheet = Sprites.SheetOf(ATLASES[item]);
-        Gfx.DrawFrame(sheet, sheet.Frame(CELLS[item][0], CELLS[item][1]),
-                x, y, Sprites.ColorMap(COLOR_MAPS[item]));
+        Sprites.Draw(pictures[item], colorMaps[item], x, y);
     }
 }

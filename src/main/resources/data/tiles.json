@@ -1,0 +1,102 @@
+{
+  "tilesets": [
+    {
+      "id": "cave",
+      "walls": [
+        { "symbol": "#", "name": "Cave wall", "sheet": "cave", "block": [0, 0] },
+        { "symbol": "%", "name": "Cave wall", "sheet": "cave", "block": [0, 3] }
+      ],
+      "floors": [
+        {
+          "symbol": ".",
+          "sheet": "cave",
+          "cells": [[8, 0], [9, 0], [8, 1], [9, 1]],
+          "bare_percent": 50
+        },
+        { "symbol": ",", "sheet": "cave", "cells": [[8, 3], [9, 3]] }
+      ],
+      "things": [
+        { "symbol": "L", "loc": "ladder", "sheet": "cave", "cells": [[0, 11]] }
+      ]
+    },
+    {
+      "id": "dungeon",
+      "walls": [
+        { "symbol": "#", "name": "Dungeon wall", "sheet": "dungeon", "block": [0, 0] },
+        { "symbol": "%", "name": "Dungeon wall", "sheet": "dungeon", "block": [0, 3] }
+      ],
+      "floors": [
+        { "symbol": ".", "sheet": "dungeon", "cells": [[11, 1]] },
+        { "symbol": ",", "sheet": "dungeon", "cells": [[9, 2]] }
+      ],
+      "things": [
+        { "symbol": "L", "loc": "stairs", "sheet": "dungeon", "cells": [[0, 7]] }
+      ]
+    }
+  ],
+
+  "things": [
+    {
+      "symbol": "r",
+      "loc": "copper_rocks",
+      "sheet": "cave",
+      "cells": [[5, 1], [6, 1]],
+      "empty_cells": [[5, 4], [6, 4]]
+    },
+    {
+      "symbol": "R",
+      "loc": "iron_rocks",
+      "sheet": "cave",
+      "cells": [[5, 1], [6, 1]],
+      "empty_cells": [[5, 4], [6, 4]],
+      "color_map": "iron"
+    },
+    {
+      "symbol": "s",
+      "name": "Stalagmites",
+      "sheet": "cave",
+      "cells": [[0, 6], [1, 6], [2, 6], [3, 6], [4, 6]]
+    },
+    {
+      "symbol": "S",
+      "name": "Stalagmites",
+      "sheet": "cave",
+      "cells": [[0, 8], [1, 8], [2, 8], [3, 8], [4, 8]]
+    },
+    {
+      "symbol": "c",
+      "name": "Crystal",
+      "sheet": "cave",
+      "cells": [[0, 16], [1, 16], [2, 16], [3, 16], [4, 16]]
+    },
+    {
+      "symbol": "m",
+      "name": "Mushrooms",
+      "sheet": "cave",
+      "cells": [[0, 17], [1, 17], [2, 17]]
+    },
+    {
+      "symbol": "t",
+      "name": "Torch",
+      "sheet": "cave",
+      "cells": [[0, 14]],
+      "animated": true
+    },
+    { "symbol": "b", "name": "Barrel", "sheet": "cave", "cells": [[1, 13]] },
+    { "symbol": "p", "name": "Pot", "sheet": "cave", "cells": [[0, 13]] },
+    {
+      "symbol": "w",
+      "name": "Cobweb",
+      "sheet": "cave",
+      "cells": [[0, 18]],
+      "walkable": true
+    },
+    {
+      "symbol": "k",
+      "name": "Bookshelf",
+      "sheet": "dungeon",
+      "cells": [[1, 8], [2, 8], [3, 8], [4, 8], [5, 8]]
+    },
+    { "symbol": "h", "name": "Chest", "sheet": "dungeon", "cells": [[0, 9]] }
+  ]
+}

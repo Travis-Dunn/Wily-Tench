@@ -35,12 +35,12 @@ public class TravelTest {
         Fixture.Start(WIN);
         Session s = Fixture.session;
 
-        s.inventory.Add(Item.BRONZE_HAMMER);
+        s.inventory.Add(Fixture.Item("bronze_hammer"));
         s.Use(3, 1);
         s.Travel(Fixture.SECOND);
         Run(10);
 
-        Check("nothing mined", Count(Item.COPPER_ORE) == 0);
+        Check("nothing mined", Count(Fixture.Item("copper_ore")) == 0);
         Check("standing still", !s.player.Walking() && !s.Busy());
         Fixture.Finish();
     }
@@ -61,12 +61,12 @@ public class TravelTest {
         Session s = Fixture.session;
         World first = s.worlds[Fixture.FIRST];
 
-        s.inventory.Add(Item.BRONZE_HAMMER);
+        s.inventory.Add(Fixture.Item("bronze_hammer"));
         s.Use(3, 1);
         while (!first.RockEmpty(3, 1)) Run(1);
 
         s.Travel(Fixture.SECOND);
-        Run(Loc.COPPER_ROCKS.Int("respawn").intValue() + 5);
+        Run(Loc.Named("copper_rocks").Int("respawn").intValue() + 5);
         s.Travel(Fixture.FIRST);
 
         Check("refilled on return", !first.RockEmpty(3, 1));

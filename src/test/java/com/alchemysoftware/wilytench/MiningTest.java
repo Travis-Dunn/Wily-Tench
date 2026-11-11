@@ -12,8 +12,7 @@ public class MiningTest {
     private static final int COPPER_X = 3, IRON_X = 4, ROCK_Y = 1;
     private static final int PLENTY_OF_TICKS = 40;
     private static final int WIN = 0, LOSE = 255;
-    private static final int COPPER_RESPAWN =
-            Loc.COPPER_ROCKS.Int("respawn").intValue();
+    private static final int COPPER_RESPAWN = 4;
 
     private Session s;
 
@@ -22,7 +21,7 @@ public class MiningTest {
         s.Use(COPPER_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
-        Check("one ore mined", Count(Item.COPPER_ORE) == 1);
+        Check("one ore mined", Count(Fixture.Item("copper_ore")) == 1);
         Check("17.5 xp", s.skills.XpTenths(Skills.MINING) == 175);
         Check("job over", !s.Busy());
         Check("said so", s.chat.Newest().equals(
@@ -55,7 +54,7 @@ public class MiningTest {
         Check("refilled", !world.RockEmpty(COPPER_X, ROCK_Y));
         Check("named again", world.Name(COPPER_X, ROCK_Y)
                 .equals("Copper rocks"));
-        Check("still one ore", Count(Item.COPPER_ORE) == 1);
+        Check("still one ore", Count(Fixture.Item("copper_ore")) == 1);
         Fixture.Finish();
     }
 
@@ -64,7 +63,7 @@ public class MiningTest {
         s.Use(COPPER_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
-        Check("no ore", Count(Item.COPPER_ORE) == 0);
+        Check("no ore", Count(Fixture.Item("copper_ore")) == 0);
         Check("no xp", s.skills.XpTenths(Skills.MINING) == 0);
         Check("still trying", s.Busy());
         Check("and can be called off", !s.Held());
@@ -79,13 +78,13 @@ public class MiningTest {
            on ticks 4, 7, 10, and so on. */
         Run(8);
         Check("two lost swings, nothing mined",
-                Count(Item.COPPER_ORE) == 0 && s.Busy());
+                Count(Fixture.Item("copper_ore")) == 0 && s.Busy());
 
         Fixture.SetRoll(WIN);
         Run(1);
-        Check("tick 9 is between swings", Count(Item.COPPER_ORE) == 0);
+        Check("tick 9 is between swings", Count(Fixture.Item("copper_ore")) == 0);
         Run(1);
-        Check("tick 10 wins", Count(Item.COPPER_ORE) == 1 && !s.Busy());
+        Check("tick 10 wins", Count(Fixture.Item("copper_ore")) == 1 && !s.Busy());
         Check("the swing was announced once, not per swing",
                 Fixture.Said("You swing your hammer at the rock.") == 1);
         Fixture.Finish();
@@ -118,8 +117,8 @@ public class MiningTest {
 
         Check("its own respawn time",
                 s.Here().RockEmptyUntil(IRON_X, ROCK_Y) - s.Tick() == 9);
-        Check("its own ore", Count(Item.IRON_ORE) == 1 &&
-                Count(Item.COPPER_ORE) == 0);
+        Check("its own ore", Count(Fixture.Item("iron_ore")) == 1 &&
+                Count(Fixture.Item("copper_ore")) == 0);
         Check("its own experience",
                 s.skills.XpTenths(Skills.MINING) == xp + 350);
         Check("its own message", Fixture.Said(
@@ -144,14 +143,14 @@ public class MiningTest {
         s.Use(IRON_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
-        Check("no iron", Count(Item.IRON_ORE) == 0);
+        Check("no iron", Count(Fixture.Item("iron_ore")) == 0);
         Check("told why", s.chat.Newest().equals(
                 "You need a Mining level of 15 to mine this rock."));
 
         s.skills.AddXp(Skills.MINING, Skills.XpForLevel(15) * 10);
         s.Use(IRON_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
-        Check("iron at 15", Count(Item.IRON_ORE) == 1);
+        Check("iron at 15", Count(Fixture.Item("iron_ore")) == 1);
         Fixture.Finish();
     }
 
@@ -160,7 +159,7 @@ public class MiningTest {
         s.Use(COPPER_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
-        Check("no ore", Count(Item.COPPER_ORE) == 0);
+        Check("no ore", Count(Fixture.Item("copper_ore")) == 0);
         Check("told why", s.chat.Newest().equals(
                 "You need a hammer to mine this rock."));
         Fixture.Finish();
@@ -168,11 +167,11 @@ public class MiningTest {
 
     public void testFullInventoryStopsMining() {
         Start(WIN, true);
-        while (!s.inventory.Full()) s.inventory.Add(Item.IRON_ORE);
+        while (!s.inventory.Full()) s.inventory.Add(Fixture.Item("iron_ore"));
         s.Use(COPPER_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
-        Check("no ore", Count(Item.COPPER_ORE) == 0);
+        Check("no ore", Count(Fixture.Item("copper_ore")) == 0);
         Check("told why", s.chat.Newest().startsWith(
                 "Your inventory is too full"));
         Check("rock untouched", !s.Here().RockEmpty(COPPER_X, ROCK_Y));
@@ -207,21 +206,22 @@ public class MiningTest {
     }
 
     public void testInventory() {
+        /* The inventory does not care what the numbers mean. */
+        int ore = 1, other = 2;
         Inventory inv = new Inventory();
 
         for (int i = 0; i < Inventory.SLOTS; i++)
-            Check("room", inv.Add(Item.COPPER_ORE));
-        Check("full", inv.Full() && !inv.Add(Item.COPPER_ORE));
-        Check("removed", inv.Remove(3) == Item.COPPER_ORE);
+            Check("room", inv.Add(ore));
+        Check("full", inv.Full() && !inv.Add(ore));
+        Check("removed", inv.Remove(3) == ore);
         Check("empty slot", inv.Remove(3) == Item.NONE);
         Check("count", inv.Used() == Inventory.SLOTS - 1);
-        Check("fills the gap", inv.Add(Item.IRON_ORE) &&
-                inv.At(3) == Item.IRON_ORE);
+        Check("fills the gap", inv.Add(other) && inv.At(3) == other);
     }
 
     private void Start(int roll, boolean withHammer) {
         Fixture.Start(roll);
         s = Fixture.session;
-        if (withHammer) s.inventory.Add(Item.BRONZE_HAMMER);
+        if (withHammer) s.inventory.Add(Fixture.Item("bronze_hammer"));
     }
 }

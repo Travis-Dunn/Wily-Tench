@@ -14,6 +14,8 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
 final class TileView {
     private static final int TILE = Sprites.TILE;
     private static final int NO_PHASE = -1;
+    /* Sprites must be created showing something; they start hidden. */
+    private static final int FIRST_ATLAS = 0;
 
     private World world;
     private final int cols, rows;
@@ -51,14 +53,14 @@ final class TileView {
            sprites together in drawing order. */
         for (int i = 0; i < n; i++) {
             floorSprites[i] = SpriteRenderer.CreateSprite(0, 0,
-                    Sprites.ATLAS_CAVE, 0, Sprites.LAYER_FLOOR,
+                    FIRST_ATLAS, 0, Sprites.LAYER_FLOOR,
                     Sprites.COLOR_MAP_NONE, false, false, false);
             if (floorSprites[i] == SpriteRenderer.INVALID_HANDLE)
                 return null;
         }
         for (int i = 0; i < n; i++) {
             objectSprites[i] = SpriteRenderer.CreateSprite(0, 0,
-                    Sprites.ATLAS_CAVE, 0, Sprites.LAYER_OBJECT,
+                    FIRST_ATLAS, 0, Sprites.LAYER_OBJECT,
                     Sprites.COLOR_MAP_NONE, false, false, false);
             if (objectSprites[i] == SpriteRenderer.INVALID_HANDLE)
                 return null;

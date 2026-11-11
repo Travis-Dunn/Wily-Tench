@@ -16,8 +16,9 @@ import com.alchemysoftware.whitetail.script.ValueType;
  *   tick           whole   game ticks since the game was begun
  *   xp.mining      whole   experience in tenths of a point; one such
  *                          value per skill
- *   inventory      bytes   two per slot, high byte first: the item's
- *                          number plus one, or zero for an empty slot
+ *   inventory      text    the id of the item in each slot, in order,
+ *                          separated by commas; nothing between two
+ *                          commas is an empty slot
  *   var.climbed    either  one such value per script player variable
  *                          (the %names scripts declare), a whole
  *                          number or text to match
@@ -34,6 +35,10 @@ import com.alchemysoftware.whitetail.script.ValueType;
  *
  * A script that was part-way through when the game closed is not
  * saved; it is as if it had never started.
+ *
+ * Saves made before version 2 held the inventory as bytes, two per
+ * slot, giving the item's place in a fixed list plus one. Those still
+ * load: LEGACY_ITEMS is that list.
  */
 final class SaveState {
     private static final String KEY_MAP = "map";
@@ -44,7 +49,11 @@ final class SaveState {
     private static final String KEY_ROCKS_PREFIX = "rocks.";
     private static final String KEY_VAR_PREFIX = "var.";
 
+    private static final char SLOT_SEPARATOR = ',';
     private static final int BYTES_PER_SLOT = 2;
+    private static final String[] LEGACY_ITEMS = {
+        "bronze_hammer", "copper_ore", "iron_ore"
+    };
     private static final int BYTES_PER_ROCK = 8;
     private static final int NEVER = -1;
 
@@ -114,7 +123,7 @@ final class SaveState {
     /** @return the whole state, ready to hand to SaveGame.Queue() */
     SaveData Capture() {
         SaveData data = SaveData.Create();
-        byte[] slots = new byte[Inventory.SLOTS * BYTES_PER_SLOT];
+        StringBuffer slots = new StringBuffer();
         int i;
 
         data.setString(KEY_MAP, session.Here().id);
@@ -128,9 +137,12 @@ final class SaveState {
                     savedXp[i] = session.skills.XpTenths(i));
         }
 
-        for (i = 0; i < Inventory.SLOTS; i++)
-            PutShort(slots, i * BYTES_PER_SLOT, session.inventory.At(i) + 1);
-        data.setBytes(KEY_INVENTORY, slots);
+        for (i = 0; i < Inventory.SLOTS; i++) {
+            int item = session.inventory.At(i);
+            if (i > 0) slots.append(SLOT_SEPARATOR);
+            if (item != Item.NONE) slots.append(Item.Id(item));
+        }
+        data.setString(KEY_INVENTORY, slots.toString());
         savedInventoryVersion = session.inventory.Version();
 
         for (i = 0; i < session.worlds.length; i++) {
@@ -203,14 +215,26 @@ final class SaveState {
             }
         }
 
-        if (Is(data, KEY_INVENTORY, SaveData.TYPE_BYTES)) {
+        if (Is(data, KEY_INVENTORY, SaveData.TYPE_STRING)) {
+            String slots = data.getString(KEY_INVENTORY);
+            int from = 0;
+
+            for (i = 0; i < Inventory.SLOTS && from <= slots.length(); i++) {
+                int to = slots.indexOf(SLOT_SEPARATOR, from);
+                if (to < 0) to = slots.length();
+                session.inventory.Set(i,
+                        Item.Named(slots.substring(from, to)));
+                from = to + 1;
+            }
+        } else if (Is(data, KEY_INVENTORY, SaveData.TYPE_BYTES)) {
             byte[] slots = data.getBytes(KEY_INVENTORY);
             int n = Math.min(slots.length / BYTES_PER_SLOT, Inventory.SLOTS);
 
             for (i = 0; i < n; i++) {
-                int item = GetShort(slots, i * BYTES_PER_SLOT) - 1;
+                int legacy = GetShort(slots, i * BYTES_PER_SLOT) - 1;
                 session.inventory.Set(i,
-                        Item.Valid(item) ? item : Item.NONE);
+                        legacy >= 0 && legacy < LEGACY_ITEMS.length ?
+                        Item.Named(LEGACY_ITEMS[legacy]) : Item.NONE);
             }
         }
     }

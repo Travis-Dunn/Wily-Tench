@@ -140,6 +140,11 @@
             <artifactId>comp-script-sys</artifactId>
             <version>${whitetail.version}</version>
         </dependency>
+        <dependency>
+            <groupId>com.alchemysoftware</groupId>
+            <artifactId>comp-json</artifactId>
+            <version>${whitetail.version}</version>
+        </dependency>
 
         <!-- Also brings in lwjgl-platform, whose jars hold the native
              libraries that Natives.java unpacks at startup. -->
