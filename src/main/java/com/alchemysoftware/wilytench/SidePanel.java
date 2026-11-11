@@ -89,8 +89,6 @@ final class SidePanel {
      *             already be loaded
      */
     static void Load(DataNode root) {
-        root.Only(new String[] { "tabs" });
-
         DataNode[] nodes = root.Groups("tabs", "tab");
         String[] names = new String[TABS];
         int[] pictures = new int[TABS];

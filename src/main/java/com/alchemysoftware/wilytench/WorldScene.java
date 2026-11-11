@@ -4,7 +4,6 @@ import java.util.Random;
 
 import com.alchemysoftware.whitetail.display.DisplayLayout;
 import com.alchemysoftware.whitetail.error.ErrorHandler;
-import com.alchemysoftware.whitetail.error.RunFlag;
 import com.alchemysoftware.whitetail.event.Event;
 import com.alchemysoftware.whitetail.input.Button;
 import com.alchemysoftware.whitetail.input.InputSys;
@@ -32,18 +31,15 @@ import com.alchemysoftware.whitetail.timer.Timer;
  *
  * The view follows the character, trailing a little behind. Typing
  * goes to the chat box. Escape closes the menu if one is open, lets
- * go of the selected item if there is one, and otherwise closes the
- * game.
+ * go of the selected item if there is one, and otherwise goes back to
+ * the main menu, where the world stands still until Play is chosen
+ * again.
  *
  * After every game tick the game is saved, if the tick changed
  * anything worth saving.
  */
 final class WorldScene extends Scene {
     private static final int TILE = Sprites.TILE;
-
-    /* Sprites beyond the map view: the player, with room to spare for
-       the creatures and effects to come. */
-    private static final int SPARE_SPRITES = 256;
 
     private static final int ANIM_STEP_MS = 150;
     private static final int MARKER_ARM = 4;
@@ -70,7 +66,6 @@ final class WorldScene extends Scene {
     private int w, h;
     private int viewPortX, viewPortY, viewW, viewH;
 
-    private boolean spritesInit;
     private Session session;
     private SaveState save;
     private TileView tiles;
@@ -106,7 +101,6 @@ final class WorldScene extends Scene {
     @Override
     public void onInit() {
         DisplayLayout layout = Screen.GetLayout();
-        byte[] buf = Screen.GetIndexBuf();
 
         w = Screen.GetW();
         h = Screen.GetH();
@@ -115,20 +109,9 @@ final class WorldScene extends Scene {
         viewW = layout.viewportWidth;
         viewH = layout.viewportHeight;
 
-        Gfx.Init(buf, w, h);
-
-        if ((smallFont = Font.Load("small.fnt")) == null) return;
-        if ((boldFont = Font.Load("bold.fnt")) == null) return;
-        if ((titleFont = Font.Load("title.fnt")) == null) return;
-
-        if (!SpriteRenderer.Init(buf, w, h, viewPortX, viewPortY, viewW,
-                viewH, TileView.SpritesNeeded(viewW, viewH) +
-                SPARE_SPRITES)) return;
-        spritesInit = true;
-
-        /* Maps are made of what the data files define, so those
-           come first. */
-        if (!Content.Load()) return;
+        smallFont = Assets.small;
+        boldFont = Assets.bold;
+        titleFont = Assets.title;
 
         int panelX = viewPortX + viewW;
         chat = new ChatBox(smallFont, viewPortX, viewPortY + viewH, viewW,
@@ -185,7 +168,7 @@ final class WorldScene extends Scene {
             else if (menu.IsOpen()) menu.Close();
             else if (actions.SelectedSlot() != Actions.NO_SLOT)
                 actions.Deselect();
-            else RunFlag.Stop();
+            else Game.GoTo(Game.SCENE_MENU);
         }
 
         DisplayLayout layout = Screen.GetLayout();
@@ -325,11 +308,7 @@ final class WorldScene extends Scene {
 
     @Override
     public void onDestroy() {
-        if (spritesInit) SpriteRenderer.Shutdown();
-        spritesInit = false;
         Session.Close();
-        Content.Shutdown();
-        Gfx.Shutdown();
         session = null;
         save = null;
         tiles = null;

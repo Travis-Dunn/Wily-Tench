@@ -2,7 +2,6 @@ package com.alchemysoftware.wilytench;
 
 import java.io.File;
 
-import com.alchemysoftware.whitetail.config.ConfigFileParser;
 import com.alchemysoftware.whitetail.error.ErrorHandler;
 import com.alchemysoftware.whitetail.error.RunFlag;
 import com.alchemysoftware.whitetail.gc.GCPriest;
@@ -26,6 +25,8 @@ final class Game {
     /** One game tick, 600 milliseconds, in nanoseconds. */
     static final long TICK_NS = 600L * 1000L * 1000L;
 
+    static final String SCENE_MENU = "menu";
+    static final String SCENE_OPTIONS = "options";
     static final String SCENE_WORLD = "world";
 
     private static final long NS_PER_SEC = 1000L * 1000L * 1000L;
@@ -38,7 +39,8 @@ final class Game {
     private static final int STAGE_INPUT_SYS = 3;
     private static final int STAGE_INPUT_BACKEND = 4;
     private static final int STAGE_SAVE = 5;
-    private static final int STAGE_SCENES = 6;
+    private static final int STAGE_ASSETS = 6;
+    private static final int STAGE_SCENES = 7;
 
     private static int stage = STAGE_NONE;
 
@@ -88,9 +90,8 @@ final class Game {
         if (!GCPriest.Init()) return false;
         stage = STAGE_GC_PRIEST;
 
-        boolean screenOk = Screen.Init(
-                ConfigFileParser.GetBool(Settings.KEY_FULLSCREEN),
-                ConfigFileParser.GetBool(Settings.KEY_VSYNC));
+        boolean screenOk = Screen.Init(Settings.Fullscreen(),
+                Settings.VSync());
         /* Screen cleans up after itself even when only half started. */
         stage = STAGE_SCREEN;
         if (!screenOk) return false;
@@ -106,18 +107,26 @@ final class Game {
         if (!SaveGame.Init(dataDir)) return false;
         stage = STAGE_SAVE;
 
+        /* Assets cleans up after itself even when only half loaded. */
+        boolean assetsOk = Assets.Init();
+        stage = STAGE_ASSETS;
+        if (!assetsOk) return false;
+
         if (!SceneManager.Init()) return false;
         stage = STAGE_SCENES;
+        SceneManager.RegisterScene(SCENE_MENU, new MenuScene());
+        SceneManager.RegisterScene(SCENE_OPTIONS, new OptionsScene());
         SceneManager.RegisterScene(SCENE_WORLD, new WorldScene());
         SceneManager.InitScenes();
-        SceneManager.TransitionTo(SCENE_WORLD);
+        SceneManager.TransitionTo(SCENE_MENU);
 
         return RunFlag.IsRunning();
     }
 
+    /** Changes scene, from the start of the next frame. */
+    static void GoTo(String scene) { SceneManager.TransitionTo(scene); }
+
     private static void Loop() {
-        long frameNs = NS_PER_SEC /
-                ConfigFileParser.GetInt(Settings.KEY_MAX_FPS);
         long nextFrame = System.nanoTime();
 
         while (RunFlag.IsRunning() && !Window.ShouldClose()) {
@@ -137,7 +146,7 @@ final class Game {
             /* vSync usually paces the loop. This cap is for when it is
                off or the driver ignores it, so the game does not spin a
                whole processor drawing frames nobody can see. */
-            nextFrame += frameNs;
+            nextFrame += NS_PER_SEC / Settings.MaxFps();
             long wait = nextFrame - System.nanoTime();
             if (wait > 0) {
                 try {
@@ -153,6 +162,7 @@ final class Game {
 
     private static void Shutdown() {
         if (stage >= STAGE_SCENES) SceneManager.Shutdown();
+        if (stage >= STAGE_ASSETS) Assets.Shutdown();
         /* After the scenes, so the last tick's state gets written. */
         if (stage >= STAGE_SAVE) SaveGame.Shutdown();
         if (stage >= STAGE_INPUT_BACKEND) LwjglInput.Shutdown();

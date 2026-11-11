@@ -8,7 +8,7 @@ guide to those files, for a person or an AI.
 | --------- | ---- |
 | What can be carried | `data/items.json` |
 | What skills there are | `data/skills.json` |
-| The pictures on the side panel's tabs | `data/interface.json` |
+| The pictures on the side panel's tabs, and the menu widgets | `data/interface.json` |
 | What can be made from what | `data/recipes.json` |
 | What can be used on a map: rocks, ladders | `data/locs.json` |
 | What a map-file character means and looks like | `data/tiles.json` |
@@ -118,6 +118,27 @@ are, add their sheet to `sprites.json` and point each skill at its cell.
 The tabs above the side panel's box. The game has exactly two,
 `inventory` and `skills`, and both must be listed; this file chooses only
 each one's name and picture. These pictures are stand-ins too.
+
+### Widgets
+
+The `"widgets"` group of the same file names the cells of the purchased
+interface art that the menus' buttons, checkboxes, slider, and frame are
+put together from. To reskin the menus, point these at other cells; the
+art has grey and red versions of most pieces beside the orange ones.
+
+    "button": {
+      "sheet": "ui_inputs",
+      "normal": [19, 0], "hover": [19, 4], "pressed": [19, 6],
+      "pressed_drop": 3
+    }
+
+| Part | What its cells must hold |
+| ---- | ------------------------ |
+| `button` | For each of `normal`, `hover`, `pressed`: the top left cell of a button drawn three cells wide and two tall. The middle column is repeated to make wider buttons. `pressed_drop` is how many pixels shorter the pressed picture is, so that it is drawn that much lower and sinks rather than shrinks |
+| `checkbox`, `radio` | `off` and `on`: one cell each |
+| `slider` | `track`: the left cell of a track three cells wide with an arrow at each end. The middle cell is repeated. The arrows must fit in the outer 8 pixels |
+| `slider_knob` | `cell`: one cell, drawn over the track |
+| `frame` | `block`: the top left cell of a frame four cells square with a hollow middle. Its edge cells are repeated. `margin` is how many pixels of empty space the art leaves outside the frame's border |
 
 ## recipes.json
 

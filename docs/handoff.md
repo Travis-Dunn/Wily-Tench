@@ -22,7 +22,8 @@ ladder, mine copper, tin, and iron for experience, smelt copper and tin
 into bronze bars at a furnace, hammer the bars into five bronze items
 at an anvil, carry it all in an inventory,
 with a chat box, a right-click menu, a tabbed side panel for inventory
-and skills, and a save written every tick.
+and skills, and a save written every tick. The game opens on a main
+menu, with an options screen behind it.
 `readme.md` "Current state" has the full list.
 
 **Unmerged work.** At the time of writing, the branch
@@ -36,7 +37,7 @@ an item on a loc, tin, smelting, and the anvil with its menu. Check
 the pull requests himself; once one is merged, restart the branch from
 `master` rather than stacking on it.
 
-**Tests.** `mvn verify` runs 88 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 97 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -106,6 +107,23 @@ been run on Windows of any age.
   a specification: this game is single-player and offline and need not
   match it. It was not consulted for the make menu.
 
+- **Menus are laid out for 384 by 216** and centered on whatever the
+  picture is, so they will not need redoing when the picture shrinks.
+  The world scene's interface is still laid out for the larger picture.
+- **Widgets are whole cells of the purchased interface art**, assembled
+  by `Skin.java` from cells named in `interface.json`: buttons, a frame,
+  checkboxes, a slider. Anything new on a menu should be built from
+  those rather than drawn with rectangles.
+- **One character, one save, read at startup.** Travis has said the
+  game will support several characters and does not yet know how. Play
+  therefore just enters the world; the save was already loaded, or a new
+  game begun, before the menu appeared. Do not build on this.
+- **Options take effect and are saved as they are changed.** There is no
+  Apply or Cancel. Only fullscreen needs a relaunch.
+- **Feedback IDs C39 and C40** were first committed as a second C35 and
+  C36. Check the last ID in the file before adding an entry; the
+  sections are long and the newest entry is not always at the bottom.
+
 ## Known rough edges
 
 - **Movement still looks slightly "gritty"** to Travis, after one round
@@ -123,7 +141,7 @@ been run on Windows of any age.
   dash and the angle bracket in the small font, like the apostrophe.
 - **A plain click on the furnace only explains.** Smelting needs an ore
   used on it, as Travis asked. The script language cannot share code
-  between two trigger blocks (feedback C36), so making the plain click
+  between two trigger blocks (feedback C40), so making the plain click
   smelt too would mean a second copy of the script.
 - **Iron ore's icon changed.** The grey ore picture is now tin's; iron
   ore is the copper ore picture through the `iron` color map. Not looked
@@ -151,6 +169,13 @@ been run on Windows of any age.
 - **The make menu makes until the bars run out.** There is no "make 1 /
   5 / 10". Clicking elsewhere stops it. Counting down a number would
   need arithmetic the script language lacks (feedback C38).
+- **The system message box has only been seen on Linux**, over a
+  window. Whether it comes to the front over a fullscreen game, and on
+  Windows, is untested.
+- **Escape in the world goes to the menu, where Escape quits**, so two
+  quick presses close the game. There is no "are you sure".
+- **The main menu is bare**: a frame, a title in the heading font, three
+  buttons. The art pack has banners and embellishments not yet used.
 - **The make menu has no scrolling.** It runs to a new column every ten
   recipes, which fits two columns in today's view. A long list will need
   another answer, more so at 384 by 216.

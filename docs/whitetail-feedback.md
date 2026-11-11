@@ -60,6 +60,10 @@ run on Windows of any age.
 | C27 | `data/game.json` lists every script and map file by name |
 | C28 | `Session.java` reruns a script that called the game's `again()` command |
 | C29 | `Scripts.java` registers `join` and `str` commands for building messages |
+| C41 | `Settings.java` keeps the settings' live values and rewrites `config.ini` itself |
+| C42 | `Assets.java` loads what every scene needs before any scene starts |
+| C43 | `Assets.DiscardTicks()` throws ticks away in scenes where the world stands still |
+| C44 | `OptionsScene.java` asks for a relaunch and calls `JOptionPane` itself |
 | C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, with the pick kept in `Session` |
 | C38 | `Scripts.java` registers `inv_del_n` because a script cannot count |
 | C31, C32, C33, C34 | `DataNode.java` wraps `comp-json` with checked, typed reading; data files use lists with ids and a `note` convention |
@@ -640,9 +644,10 @@ registered key to an existing `config.ini`, it leaves a blank line before
 it, so a file that has grown over several releases ends up unevenly
 spaced.
 
-**C35. Conditions cannot be combined, and there is no `else if`.**
+**C39. Conditions cannot be combined, and there is no `else if`.**
 *(Hit)*  
-Status: open. Partly by design.
+Status: open. Partly by design. (First written down as a second "C35"
+by mistake; C35 is the `comp-math` entry.)
 A condition is one comparison. "The item is neither copper ore nor tin
 ore" is two nested `if`s, and "the player has both ores" is two blocks,
 each with its own copy of what to do otherwise; the smelting script
@@ -652,8 +657,9 @@ recipes, and without `else if` each further case nests one level deeper,
 against a nesting cap of 64. `and` and `or` in conditions, and
 `else if`, would shorten real scripts more than anything else has so far.
 
-**C36. Two trigger blocks cannot share code.** *(Hit)*  
-Status: open.
+**C40. Two trigger blocks cannot share code.** *(Hit)*  
+Status: open. (First written down as a second "C36" by mistake; C36 is
+the entry about settings with a few allowed words.)
 The furnace has two ways in: an ore used on it (`[oplocu,furnace]`) and
 a plain click (`[oploc,furnace]`). It would be natural for both to smelt.
 There are no procedures and one block cannot run another, so that would
@@ -690,6 +696,61 @@ written in a script at all without the host counting for it. The game
 could register `add(a, b)` and `sub(a, b)` commands, as it did `join`
 (C29), but a script language without sums will surprise everyone who
 writes content.
+
+**C41. The config system can read settings but not change them.**
+*(Hit)*  
+Status: open.
+`ConfigFileParser` has `Init()` and four `Get` methods, and no way to
+set a value or write the file. An options screen is the obvious second
+user of a settings file, and it could use none of the component beyond
+the first read: the game now copies every value out at startup, keeps
+them itself, and rewrites `config.ini` by hand, preserving comments and
+unknown lines (`Settings.Save()` and `Settings.Merge()`), about eighty
+lines. It also had to learn the file's name and format from the source,
+since both are private to the parser. `Set...()` for each type, checked
+against the entry's bounds like a line of the file is, and a `Save()`,
+would let the component own its file. Related: `Init()` can be called
+only once (C22), so none of this can be tested through the component.
+
+**C42. Scenes are initialized in no particular order.** *(Hit)*  
+Status: open.
+`SceneManager` keeps its scenes in a `HashMap`, and `InitScenes()` walks
+its values, so the order of `onInit()` calls is whatever the hash of the
+keys gives, not the order of `RegisterScene()`. With one scene that was
+invisible. With three, the two menu scenes need the fonts, the sprite
+renderer, and the data files that the world scene used to load in its
+own `onInit()`, and nothing guarantees that it runs first. The game
+moved all shared loading out of the scenes (`Assets.java`), which is
+probably where it belonged anyway, but registration order is what anyone
+would assume. A `LinkedHashMap` would make it true; the readme should
+say either way.
+
+**C43. `Timer` cannot be paused.** *(Hit)*  
+Status: open.
+The fixed-tick accumulator fills whenever `Update()` is called, which
+the main loop does every frame. While the main menu is up nothing wants
+those ticks, and if they are left, the world runs through minutes of
+them in one frame when the player returns. So every scene in which the
+world stands still drains and discards them each frame
+(`Assets.DiscardTicks()`), and a new such scene that forgets will show a
+confusing bug much later. `Timer.SetTicking(false)`, or a
+`DiscardTicks()`, would say what is meant. The same will be wanted for a
+pause, and after a modal dialog, which stalls the loop for as long as it
+is up.
+
+**C44. Fullscreen is decided once, and only fatal errors get a message
+box.** *(Hit)*  
+Status: open. Two small gaps met together.
+`Window` has no way to change between a window and fullscreen after
+`Init()`, and `Screen` could not simply shut the window down and make
+another without rebuilding everything that holds the picture. So a
+change to that one setting waits for a relaunch, and the game says so.
+For saying so, Travis asked for the system's message box. Whitetail
+shows one only as part of `ErrorHandler`'s fatal path, so the game
+calls `JOptionPane` directly, which is the first Swing import in the
+game. An `ErrorHandler`-style `Notify(message)` would keep that in one
+place, and matters for Windows 98, where whether Swing dialogs behave
+over an LWJGL window is one more thing to find out.
 
 ### D. Things that went well
 
@@ -737,6 +798,11 @@ Worth recording, so they are not "fixed" by accident.
   trigger types are just names, `HasTrigger()` answered whether a loc
   takes items, and the smelting script compiled and ran first time.
   String locals and string comparison did what the readme says.
+- Three scenes and the transitions between them worked first time:
+  `TransitionTo()` from inside `onInput()`, `onEnter()` for resetting a
+  scene's widgets. `Window.SetVSyncEnabled()` took effect at once from
+  the options screen. `InputSys.IsDown()`, `WasPressed()`, and
+  `WasReleased()` were all a slider and a push button needed.
 - `suspend()` and `Resume()` worked first time and exactly as the
   tutorial describes. A script that stops at a menu for as long as the
   player likes needed no change to how the game ticks scripts, because

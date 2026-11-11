@@ -12,7 +12,8 @@ import com.alchemysoftware.whitetail.error.ErrorHandler;
  *   sprites.json   the sprite sheets and color maps
  *   items.json     the things that can be carried
  *   skills.json    the skills
- *   interface.json the pictures on the interface's buttons
+ *   interface.json the pictures on the interface's tabs and
+ *                  widgets
  *   recipes.json   what can be made from what
  *   locs.json      the things on a map that can be used
  *   tiles.json     what each character in a map file stands for
@@ -25,6 +26,8 @@ final class Content {
     private static final String[] GAME_KEYS = {
         "maps", "scripts", "starting_items"
     };
+
+    private static final String[] INTERFACE_KEYS = { "tabs", "widgets" };
 
     private static String[] maps, scripts;
     private static int[] startingItems;
@@ -62,7 +65,10 @@ final class Content {
         Sprites.Load(DataNode.Load("sprites.json"));
         Item.Load(DataNode.Load("items.json"));
         Skills.Load(DataNode.Load("skills.json"));
-        SidePanel.Load(DataNode.Load("interface.json"));
+        DataNode ui = DataNode.Load("interface.json");
+        ui.Only(INTERFACE_KEYS);
+        SidePanel.Load(ui);
+        Skin.Load(ui.Obj("widgets"));
         Recipes.Load(DataNode.Load("recipes.json"));
         Loc.Load(DataNode.Load("locs.json"));
         Tiles.Load(DataNode.Load("tiles.json"));
@@ -93,6 +99,7 @@ final class Content {
         Tiles.Shutdown();
         Loc.Shutdown();
         Recipes.Shutdown();
+        Skin.Shutdown();
         SidePanel.Shutdown();
         Skills.Shutdown();
         Item.Shutdown();

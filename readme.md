@@ -135,7 +135,16 @@ into weapons and armor.
   in which something changed, and picks up where it left off next time.
   See "Saved games" below.
 
-Escape quits.
+- **Main menu.** The game opens on it. Play continues your saved game,
+  or begins a new one if there is none; the line under the buttons says
+  which. Options opens the options screen. Quit, or Escape, closes the
+  game. From the world, Escape comes back here, and the world stands
+  still until you press Play again.
+- **Options.** Fullscreen, vertical sync, the frame rate limit, and the
+  walking style, each with a widget. A change is acted on and written
+  to `config.ini` at once. Fullscreen alone waits for the next launch,
+  and the game says so with a system message box when you leave the
+  screen.
 
 There are no monsters or quests yet.
 
@@ -185,7 +194,8 @@ The game keeps a folder per user:
 | Windows 2000 and later | `%APPDATA%\AlchemySoftware\WilyTench` |
 | Windows 98 | `Application Data\AlchemySoftware\WilyTench` under your home folder, which is normally `C:\WINDOWS` |
 
-- `config.ini` holds the settings. Edit it and restart.
+- `config.ini` holds the settings. The options screen changes them; the
+  file can also be edited by hand while the game is closed.
   - `fullscreen` - `true` or `false`.
   - `vsync` - `true` or `false`.
   - `maxFps` - frame rate cap, used when vsync is off or ignored.
@@ -236,7 +246,11 @@ which is what makes that practical.
 | File | What it does |
 | ---- | ------------ |
 | `Main`, `Game` | Startup, the frame loop, shutdown |
-| `DataDir`, `Settings`, `Natives` | The per-user folder, `config.ini`, LWJGL's native libraries |
+| `Assets` | What every scene shares: the fonts, the sprite renderer, the data files |
+| `MenuScene`, `OptionsScene` | The main menu and the options screen |
+| `Skin` | The widgets' pictures, assembled from cells of the interface art named in `interface.json` |
+| `PushButton`, `Buttons`, `Toggle`, `Slider` | The widgets: push buttons and the clicking of them, checkboxes and option buttons, sliders |
+| `DataDir`, `Settings`, `Natives` | The per-user folder, the settings and the writing of `config.ini`, LWJGL's native libraries |
 | `Screen`, `Palette` | The window, the picture's size, and its colors, from `palette.json` |
 | `Content`, `DataNode`, `DataError` | Loading the data files, strictly, with explanations of mistakes |
 | `Sprites` | The sprite sheets and color maps, from `sprites.json`, and where the atlas tool packed each sheet |
