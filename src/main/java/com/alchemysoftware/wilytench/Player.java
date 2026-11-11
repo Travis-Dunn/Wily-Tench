@@ -5,12 +5,8 @@ import com.alchemysoftware.whitetail.sprite.SpriteAnimationDefinition;
 import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
 
 /**
- * The player's character.
- *
- * Where the character is, as far as the game's rules are concerned, is
- * always a whole tile, and it changes only on a game tick: one tile per
- * tick along the planned route. Between ticks the sprite glides from
- * the previous tile to the current one so the movement looks smooth.
+ * The player's character: a Mover, which is how it gets about, plus
+ * the sprite that shows it and the thing it is walking toward.
  *
  * The character is on one map at a time; EnterWorld() moves it to
  * another.
@@ -24,16 +20,12 @@ final class Player {
     private static final int IDLE_FRAME_MS = 250;
     private static final int WORK_FRAME_MS = 200;
 
-    private World world;
-    private Pathfinder pathfinder;
-    private int[] route;
+    private final Mover mover;
     private final int sprite;
     private final SpriteAnimation anim;
     private final SpriteAnimationDefinition idleDef, workDef;
 
-    private int x, y, prevX, prevY;
-    private int routeLen, routePos;
-    private boolean facingLeft, working;
+    private boolean working;
 
     private boolean hasTarget;
     private int targetX, targetY;
@@ -41,15 +33,11 @@ final class Player {
     private Player(World world, int sprite, SpriteAnimation anim,
                    SpriteAnimationDefinition idleDef,
                    SpriteAnimationDefinition workDef) {
-        this.world = world;
         this.sprite = sprite;
         this.anim = anim;
         this.idleDef = idleDef;
         this.workDef = workDef;
-        pathfinder = new Pathfinder(world);
-        route = new int[world.w * world.h];
-        x = prevX = world.startX;
-        y = prevY = world.startY;
+        mover = new Mover(world, world.startX, world.startY);
     }
 
     /**
@@ -96,12 +84,7 @@ final class Player {
      */
     boolean WalkTo(int tileX, int tileY) {
         hasTarget = false;
-        routeLen = pathfinder.Find(x, y, tileX, tileY, route);
-        routePos = 0;
-
-        int endX = routeLen == 0 ? x : DestX();
-        int endY = routeLen == 0 ? y : DestY();
-        return endX == tileX && endY == tileY;
+        return mover.WalkTo(tileX, tileY);
     }
 
     /**
@@ -128,14 +111,12 @@ final class Player {
      *         or west of its target
      */
     boolean BesideTarget() {
-        return hasTarget &&
-                Math.abs(targetX - x) + Math.abs(targetY - y) == 1;
+        return hasTarget && Math.abs(targetX - mover.X()) +
+                Math.abs(targetY - mover.Y()) == 1;
     }
 
     /** Turns the character to face its target, if that is to one side. */
-    void FaceTarget() {
-        if (targetX != x) facingLeft = targetX < x;
-    }
+    void FaceTarget() { mover.Face(targetX); }
 
     /** Switches between the idle and the tool-swinging animation. */
     void SetWorking(boolean working) {
@@ -145,19 +126,17 @@ final class Player {
     }
 
     /** @return the tile column the character is on */
-    int X() { return x; }
+    int X() { return mover.X(); }
 
     /** @return the tile row the character is on */
-    int Y() { return y; }
+    int Y() { return mover.Y(); }
 
     /**
      * Puts the character on a tile at once, standing still. For
      * restoring a saved game.
      */
     void Place(int tileX, int tileY) {
-        x = prevX = tileX;
-        y = prevY = tileY;
-        routeLen = routePos = 0;
+        mover.Place(tileX, tileY);
         hasTarget = false;
     }
 
@@ -166,23 +145,12 @@ final class Player {
      * still.
      */
     void EnterWorld(World world, int tileX, int tileY) {
-        this.world = world;
-        pathfinder = new Pathfinder(world);
-        route = new int[world.w * world.h];
-        Place(tileX, tileY);
+        mover.EnterWorld(world, tileX, tileY);
+        hasTarget = false;
     }
 
     /** Advances one game tick: takes the next step of the walk. */
-    void Tick() {
-        prevX = x;
-        prevY = y;
-        if (routePos == routeLen) return;
-
-        int next = route[routePos++];
-        x = next % world.w;
-        y = next / world.w;
-        if (x != prevX) facingLeft = x < prevX;
-    }
+    void Tick() { mover.Tick(); }
 
     /**
      * Moves and animates the sprite for this frame.
@@ -194,28 +162,22 @@ final class Player {
     void Animate(double tickFraction, int deltaMs) {
         SpriteRenderer.SetPosition(sprite, PixelX(tickFraction),
                 PixelY(tickFraction));
-        SpriteRenderer.SetFlip(sprite, facingLeft, false);
+        SpriteRenderer.SetFlip(sprite, mover.FacingLeft(), false);
         anim.update(sprite, deltaMs);
     }
 
     /** @return the map pixel of the sprite's left edge */
-    int PixelX(double tickFraction) {
-        return prevX * TILE +
-                (int) Math.round((x - prevX) * TILE * tickFraction);
-    }
+    int PixelX(double tickFraction) { return mover.PixelX(tickFraction); }
 
     /** @return the map pixel of the sprite's top edge */
-    int PixelY(double tickFraction) {
-        return prevY * TILE +
-                (int) Math.round((y - prevY) * TILE * tickFraction);
-    }
+    int PixelY(double tickFraction) { return mover.PixelY(tickFraction); }
 
     /** @return whether there are steps of a walk still to take */
-    boolean Walking() { return routePos < routeLen; }
+    boolean Walking() { return mover.Walking(); }
 
     /** @return the tile column where the current walk ends */
-    int DestX() { return route[routeLen - 1] % world.w; }
+    int DestX() { return mover.DestX(); }
 
     /** @return the tile row where the current walk ends */
-    int DestY() { return route[routeLen - 1] / world.w; }
+    int DestY() { return mover.DestY(); }
 }

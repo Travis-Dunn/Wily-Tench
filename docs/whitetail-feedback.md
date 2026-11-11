@@ -586,6 +586,17 @@ typed getters that fail with a description instead of returning a
 meaningless default, is something every consumer will write. Numbers
 being only `double` puts the whole-number check on the consumer too.
 
+**C35. `comp-math` has nothing for a 2D game.** *(Read)*  
+Status: open. Minor.
+Easing the walk and smoothing the camera needed a smoothstep and an
+exponential approach, a few lines each. I looked in `comp-math` first: it
+is 3D only (quaternions and projection matrices) and depends on LWJGL's
+vector classes, so a software-rendered 2D game would be adding an LWJGL
+dependency to get nothing it can use. A handful of dependency-free
+scalar helpers (clamp, lerp, smoothstep, frame-rate-independent damping,
+floor division and modulo for negative numbers) would be used by every
+game on the library; this one has written three of those five so far.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.

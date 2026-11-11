@@ -19,8 +19,9 @@ import com.alchemysoftware.whitetail.timer.Timer;
  *
  * Left click walks the character to the clicked tile, or as close as it
  * can get; clicking anything a script exists for, such as a ladder or
- * an ore rock, walks up to it and runs the script. The view stays centered on the character. Typing
- * goes to the chat box. Escape closes the game.
+ * an ore rock, walks up to it and runs the script. The view follows
+ * the character, trailing a little behind. Typing goes to the chat
+ * box. Escape closes the game.
  *
  * After every game tick the game is saved, if the tick changed
  * anything worth saving.
@@ -67,6 +68,8 @@ final class WorldScene extends Scene {
 
     /* Which map the tiles are showing, to notice when it changes. */
     private World shown;
+
+    private final Camera camera = new Camera();
 
     /* The map pixel at the top left of the viewport, as last drawn. */
     private int viewX, viewY;
@@ -187,7 +190,8 @@ final class WorldScene extends Scene {
         }
         if (SaveGame.TakeFailure()) chat.Add(MSG_SAVE_FAILED, Palette.PEACH);
 
-        if (shown != session.Here()) {
+        boolean arrived = shown != session.Here();
+        if (arrived) {
             shown = session.Here();
             tiles.SetWorld(shown);
             hoverTile = NOWHERE;
@@ -204,8 +208,15 @@ final class WorldScene extends Scene {
         double tickFraction = Math.min(Timer.GetInterpolationFactor(), 1.0);
         player.Animate(tickFraction, deltaMs);
 
-        viewX = player.PixelX(tickFraction) + TILE / 2 - viewW / 2;
-        viewY = player.PixelY(tickFraction) + TILE / 2 - viewH / 2;
+        /* The camera aims to put the character's middle at the middle
+           of the view; on a new map, or a new game, it starts there. */
+        int aimX = player.PixelX(tickFraction) + TILE / 2 - viewW / 2;
+        int aimY = player.PixelY(tickFraction) + TILE / 2 - viewH / 2;
+        if (arrived) camera.Snap(aimX, aimY);
+        else camera.Follow(aimX, aimY, delta);
+
+        viewX = camera.X();
+        viewY = camera.Y();
         tiles.Show(viewX, viewY, animMs / ANIM_STEP_MS);
     }
 
