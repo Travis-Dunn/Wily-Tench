@@ -23,6 +23,9 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * the top left of the view names the first. Actions decides what is on
  * the list and carries an option out.
  *
+ * The buttons above the inventory switch the side panel between the
+ * inventory and the skills; a click on one goes no further.
+ *
  * The view follows the character, trailing a little behind. Typing
  * goes to the chat box. Escape closes the menu if one is open, and the
  * game if not.
@@ -134,7 +137,7 @@ final class WorldScene extends Scene {
             return;
         }
         panel = new SidePanel(smallFont, boldFont, titleFont, panelX, 0,
-                w - panelX, h, session.inventory, session.skills, chat);
+                w - panelX, h, w, h, session.inventory, session.skills);
         menu = new ContextMenu(smallFont, w, h);
         actions = new Actions(session);
 
@@ -209,6 +212,7 @@ final class WorldScene extends Scene {
         }
 
         panel.Input(pointerX, pointerY);
+        if (left && panel.Click()) return;
         BuildOptions();
         if (menu.Count() == 0) return;
 
@@ -281,7 +285,8 @@ final class WorldScene extends Scene {
 
         chat.Draw();
         panel.Draw();
-        menu.Draw(pointerX, pointerY);
+        if (menu.IsOpen()) menu.Draw(pointerX, pointerY);
+        else panel.DrawTip();
     }
 
     @Override

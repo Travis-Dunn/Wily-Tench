@@ -1,0 +1,17 @@
+{
+  "note": "The icons are stand-ins from the item art until real skill icons are drawn.",
+  "skills": [
+    {
+      "id": "mining",
+      "name": "Mining",
+      "sheet": "magma_items",
+      "cell": [4, 1]
+    },
+    {
+      "id": "smithing",
+      "name": "Smithing",
+      "sheet": "items",
+      "cell": [2, 1]
+    }
+  ]
+}

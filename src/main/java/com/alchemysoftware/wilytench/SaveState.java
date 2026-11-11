@@ -61,7 +61,7 @@ final class SaveState {
 
     /* The state as last captured, for spotting changes. */
     private int savedMap = NEVER, savedX, savedY, savedInventoryVersion;
-    private final int[] savedXp = new int[Skills.COUNT];
+    private final int[] savedXp = new int[Skills.Count()];
     private final int[] savedWorldVersions;
 
     /* The script player variables, and their values as last captured:
@@ -104,7 +104,7 @@ final class SaveState {
                 savedY != player.Y() ||
                 savedInventoryVersion != session.inventory.Version())
             return true;
-        for (i = 0; i < Skills.COUNT; i++)
+        for (i = 0; i < Skills.Count(); i++)
             if (savedXp[i] != session.skills.XpTenths(i)) return true;
         for (i = 0; i < session.worlds.length; i++) {
             World world = session.worlds[i];
@@ -132,8 +132,8 @@ final class SaveState {
         data.setInt(KEY_TICK, session.Tick());
         savedMap = session.Map();
 
-        for (i = 0; i < Skills.COUNT; i++) {
-            data.setInt(KEY_XP_PREFIX + Skills.SaveKey(i),
+        for (i = 0; i < Skills.Count(); i++) {
+            data.setInt(KEY_XP_PREFIX + Skills.Id(i),
                     savedXp[i] = session.skills.XpTenths(i));
         }
 
@@ -199,8 +199,8 @@ final class SaveState {
         }
         session.Resume(tick, map, x, y);
 
-        for (i = 0; i < Skills.COUNT; i++) {
-            String key = KEY_XP_PREFIX + Skills.SaveKey(i);
+        for (i = 0; i < Skills.Count(); i++) {
+            String key = KEY_XP_PREFIX + Skills.Id(i);
             if (Is(data, key, SaveData.TYPE_INT))
                 session.skills.SetXpTenths(i, data.getInt(key));
         }

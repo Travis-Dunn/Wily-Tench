@@ -1,0 +1,17 @@
+{
+  "note": "The icons are stand-ins until real ones are drawn.",
+  "tabs": [
+    {
+      "id": "inventory",
+      "name": "Inventory",
+      "sheet": "items",
+      "cell": [3, 5]
+    },
+    {
+      "id": "skills",
+      "name": "Skills",
+      "sheet": "ui_icons",
+      "cell": [0, 12]
+    }
+  ]
+}

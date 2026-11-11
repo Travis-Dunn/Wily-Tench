@@ -7,6 +7,8 @@ guide to those files, for a person or an AI.
 | To change | Edit |
 | --------- | ---- |
 | What can be carried | `data/items.json` |
+| What skills there are | `data/skills.json` |
+| The pictures on the side panel's tabs | `data/interface.json` |
 | What can be used on a map: rocks, ladders | `data/locs.json` |
 | What a map-file character means and looks like | `data/tiles.json` |
 | Which sprite sheets and recolorings exist | `data/sprites.json` |
@@ -84,6 +86,37 @@ changed. To rename an item, give it the new id and put the old one under
 
 Saved games, scripts, and data that still say `bronze_hammer` then find
 the pickaxe.
+
+## skills.json
+
+    {
+      "id": "mining",
+      "name": "Mining",
+      "sheet": "magma_items",
+      "cell": [4, 1]
+    }
+
+| Value | Meaning |
+| ----- | ------- |
+| `id` | How scripts refer to the skill, as in `stat_xp("mining", 175)`. Saved games store experience under it, so it must never change |
+| `name` | What the player sees |
+| `sheet`, `cell` | Optional. Its icon. A skill without one is shown as the first letter of its name |
+
+Skills appear on the skills tab in the order they are listed, two to a
+row. Adding one here is all it takes to list it; a script must award
+experience in it before it does anything.
+
+The icons in use now are stand-ins borrowed from the item art. Real skill
+icons are not in the purchased art and have yet to be drawn; when they
+are, add their sheet to `sprites.json` and point each skill at its cell.
+
+## interface.json
+
+    { "id": "skills", "name": "Skills", "sheet": "ui_icons", "cell": [0, 12] }
+
+The tabs above the side panel's box. The game has exactly two,
+`inventory` and `skills`, and both must be listed; this file chooses only
+each one's name and picture. These pictures are stand-ins too.
 
 ## locs.json
 

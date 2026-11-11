@@ -388,6 +388,13 @@ bindings, typing "m" in chat will also open the map unless the game
 invents its own focus rule. `comp-input-mapper` could carry a "text entry
 is active, suppress plain-key actions" switch.
 
+The mouse has now met the same thing. A left click on one of the side
+panel's tabs must not also be taken as "do the first option for whatever
+is under the pointer", so `SidePanel.Click()` returns whether it used the
+click and `WorldScene.onInput()` stops there. With one panel that is a
+single `if`; each new clickable piece of interface will add another, in
+an order that has to be kept right by hand.
+
 The right-click menu met the same thing from the mouse side. While a menu
 is open it must have every click to itself: a click that dismisses it
 must not also walk the character to the tile underneath. With no way to
@@ -414,6 +421,11 @@ because `Create()` retains the array it is given; but it means
 interface. Either of these would remove the duplication: an immediate
 `SpriteRenderer.DrawFrame(atlas, frame, x, y, colorMap)` that ignores the
 viewport, or public read access to an atlas's and a color map's data.
+
+The interface has since grown tab buttons, skill icons, and tooltips, all
+drawn this way, and a tooltip may lie across the edge of the world view.
+Everything outside the map itself now goes through the game's own `Gfx`
+and none of it through the sprite renderer.
 
 **C22. Components with no `Shutdown()` are awkward to test around.**
 *(Hit)*  

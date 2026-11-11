@@ -94,9 +94,15 @@ rocks in them.
   view names; a right click opens the whole list as a menu. Tiles offer
   Walk here and, where something stands, its own verb and Examine. Items
   offer Use, Drop, and Examine.
-- **Side panel.** Mining level, experience so far against experience
-  needed, and the 28-slot inventory. Dropped items vanish, for now, and
-  nothing can be Used yet.
+- **Side panel.** One box, and a row of tabs above it that choose what
+  it shows: the 28-slot inventory, or the skills. Each skill is a small
+  rectangle with its icon and its level, current over earned ("1/1").
+  Point at one for a tooltip with the experience earned and the
+  experience at which the next level comes. Dropped items vanish, for
+  now, and nothing can be Used yet.
+- **Skills.** Mining, and Smithing, which is listed but cannot be
+  trained yet. Their icons, and the tabs', are stand-ins from the item
+  art until real ones are drawn.
 - **Chat box.** The game writes its messages there; anything you type
   appears on the bottom row and Enter says it. The mouse wheel, or Page Up
   and Page Down, scroll back.
@@ -116,7 +122,7 @@ rocks in them.
 
 Escape quits.
 
-There are no monsters, other skills, or quests yet.
+There are no monsters or quests yet.
 
 ## Running it in IntelliJ
 
@@ -198,7 +204,7 @@ script that was paused when the game closed is not saved.
 - **Changing what is saved.** Adding a value needs no ceremony: loading
   leaves anything missing from a file as it is. Changing what an existing
   value *means* requires raising `SaveGame.VERSION` and converting old
-  files on load. Item ids and skill save names are part of the format and
+  files on load. Item ids and skill ids are part of the format and
   must never be changed.
 - **Cost.** One save is a few hundred bytes and, where measured, about a
   millisecond, on a thread of its own so that a slow disk cannot make the
@@ -231,11 +237,12 @@ which is what makes that practical.
 | `Gfx` | Rectangles and outlines drawn straight into the picture |
 | `Font`, `Text` | Bitmap fonts, and drawing writing with them |
 | `ChatBox` | The message history and typing line under the view |
-| `SidePanel` | Skills and inventory, to the right of the view |
+| `SidePanel` | The inventory and the skills, on tabs, to the right of the view; the tab pictures come from `interface.json` |
+| `Tooltip` | The small box beside the pointer that says more about what it is over |
 | `Actions` | What can be done to each tile and item, and the doing of it |
 | `ContextMenu` | The list of options for what is under the mouse, and the right-click menu that shows it |
 | `Item`, `Inventory` | The kinds of thing that can be carried, from `items.json`, and the 28 slots they are carried in |
-| `Skills` | Experience and levels |
+| `Skills` | The skills there are, from `skills.json`, and a player's experience and levels in them |
 | `Loc` | The kinds of thing on a map that can be used, from `locs.json`, and the values scripts read from them |
 | `Sheet` | Reads an atlas file, for both the sprite renderer and interface icons |
 | `SaveState` | Turns a `Session` into a saved game and back |
@@ -299,7 +306,7 @@ takes precedence.
   works that way. Mining is interruptible: clicking elsewhere cancels it.
 - `delay(n)` is part of the language and pauses for `n` game ticks.
 - Scripts name items by their ids in `items.json`, such as
-  `"copper_ore"`, and skills by the keys in `Skills.java`, such as
+  `"copper_ore"`, and skills by their ids in `skills.json`, such as
   `"mining"`.
 - A mistake in a script's grammar or types is reported when the game
   starts, with the file, line, and a pointer to the spot. Naming an item,

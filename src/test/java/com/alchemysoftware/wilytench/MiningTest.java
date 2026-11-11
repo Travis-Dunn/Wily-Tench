@@ -22,7 +22,7 @@ public class MiningTest {
         Run(PLENTY_OF_TICKS);
 
         Check("one ore mined", Count(Fixture.Item("copper_ore")) == 1);
-        Check("17.5 xp", s.skills.XpTenths(Skills.MINING) == 175);
+        Check("17.5 xp", s.skills.XpTenths(Fixture.Mining()) == 175);
         Check("job over", !s.Busy());
         Check("said so", s.chat.Newest().equals(
                 "You manage to mine some copper ore."));
@@ -64,7 +64,7 @@ public class MiningTest {
         Run(PLENTY_OF_TICKS);
 
         Check("no ore", Count(Fixture.Item("copper_ore")) == 0);
-        Check("no xp", s.skills.XpTenths(Skills.MINING) == 0);
+        Check("no xp", s.skills.XpTenths(Fixture.Mining()) == 0);
         Check("still trying", s.Busy());
         Check("and can be called off", !s.Held());
         Fixture.Finish();
@@ -105,8 +105,8 @@ public class MiningTest {
 
     public void testEveryOreRockSharesTheOneScript() {
         Start(WIN, true);
-        s.skills.AddXp(Skills.MINING, Skills.XpForLevel(15) * 10);
-        int xp = s.skills.XpTenths(Skills.MINING);
+        s.skills.AddXp(Fixture.Mining(), Skills.XpForLevel(15) * 10);
+        int xp = s.skills.XpTenths(Fixture.Mining());
 
         s.Use(IRON_X, ROCK_Y);
         int ticks = 0;
@@ -120,7 +120,7 @@ public class MiningTest {
         Check("its own ore", Count(Fixture.Item("iron_ore")) == 1 &&
                 Count(Fixture.Item("copper_ore")) == 0);
         Check("its own experience",
-                s.skills.XpTenths(Skills.MINING) == xp + 350);
+                s.skills.XpTenths(Fixture.Mining()) == xp + 350);
         Check("its own message", Fixture.Said(
                 "You manage to mine some iron ore.") == 1);
         Fixture.Finish();
@@ -128,11 +128,11 @@ public class MiningTest {
 
     public void testLevelUpIsAnnounced() {
         Start(WIN, true);
-        s.skills.AddXp(Skills.MINING, 800);     /* 3.0 short of level 2 */
+        s.skills.AddXp(Fixture.Mining(), 800);     /* 3.0 short of level 2 */
         s.Use(COPPER_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
 
-        Check("level 2", s.skills.Level(Skills.MINING) == 2);
+        Check("level 2", s.skills.Level(Fixture.Mining()) == 2);
         Check("announced", s.chat.Newest().equals("Congratulations, you " +
                 "just advanced a Mining level! Your Mining level is now 2."));
         Fixture.Finish();
@@ -147,7 +147,7 @@ public class MiningTest {
         Check("told why", s.chat.Newest().equals(
                 "You need a Mining level of 15 to mine this rock."));
 
-        s.skills.AddXp(Skills.MINING, Skills.XpForLevel(15) * 10);
+        s.skills.AddXp(Fixture.Mining(), Skills.XpForLevel(15) * 10);
         s.Use(IRON_X, ROCK_Y);
         Run(PLENTY_OF_TICKS);
         Check("iron at 15", Count(Fixture.Item("iron_ore")) == 1);
@@ -193,16 +193,20 @@ public class MiningTest {
     }
 
     public void testLevelCurve() {
+        Fixture.Start(WIN);
         Skills skills = new Skills();
 
         Check("level 2 at 83", Skills.XpForLevel(2) == 83);
         Check("level 99 at 13,034,431",
                 Skills.XpForLevel(Skills.MAX_LEVEL) == 13034431);
-        Check("starts at 1", skills.Level(Skills.MINING) == 1);
-        Check("82.9 is not enough", !skills.AddXp(Skills.MINING, 829));
-        Check("83.0 is", skills.AddXp(Skills.MINING, 1));
-        Check("now 2", skills.Level(Skills.MINING) == 2);
+        Check("starts at 1", skills.Level(Fixture.Mining()) == 1);
+        Check("82.9 is not enough", !skills.AddXp(Fixture.Mining(), 829));
+        Check("83.0 is", skills.AddXp(Fixture.Mining(), 1));
+        Check("now 2", skills.Level(Fixture.Mining()) == 2);
         Check("formats tenths", Skills.Format(175).equals("17.5"));
+        Check("nothing boosts a level yet",
+                skills.CurrentLevel(Fixture.Mining()) == 2);
+        Fixture.Finish();
     }
 
     public void testInventory() {

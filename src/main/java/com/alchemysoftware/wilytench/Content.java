@@ -11,6 +11,8 @@ import com.alchemysoftware.whitetail.error.ErrorHandler;
  *   palette.json   the colors
  *   sprites.json   the sprite sheets and color maps
  *   items.json     the things that can be carried
+ *   skills.json    the skills
+ *   interface.json the pictures on the interface's buttons
  *   locs.json      the things on a map that can be used
  *   tiles.json     what each character in a map file stands for
  *
@@ -58,6 +60,8 @@ final class Content {
         Palette.Load(DataNode.Load("palette.json"));
         Sprites.Load(DataNode.Load("sprites.json"));
         Item.Load(DataNode.Load("items.json"));
+        Skills.Load(DataNode.Load("skills.json"));
+        SidePanel.Load(DataNode.Load("interface.json"));
         Loc.Load(DataNode.Load("locs.json"));
         Tiles.Load(DataNode.Load("tiles.json"));
 
@@ -86,6 +90,8 @@ final class Content {
     static void Shutdown() {
         Tiles.Shutdown();
         Loc.Shutdown();
+        SidePanel.Shutdown();
+        Skills.Shutdown();
         Item.Shutdown();
         Sprites.Shutdown();
         Palette.Shutdown();

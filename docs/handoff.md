@@ -19,18 +19,21 @@ file does not repeat them.
 
 The game is a small playable loop: walk around two maps joined by a
 ladder, mine copper and iron for experience, carry ore in an inventory,
-with a chat box, a right-click menu, and a save written every tick.
+with a chat box, a right-click menu, a tabbed side panel for inventory
+and skills, and a save written every tick.
 `readme.md` "Current state" has the full list.
 
 **Unmerged work.** At the time of writing, the branch
-`claude/gallant-brown-i8k7px` is five commits ahead of `master`, none yet
+`claude/gallant-brown-i8k7px` is six commits ahead of `master`, none yet
 merged: all the art and atlas packing, the palette file, movement easing
-and the camera, four-way pathfinding, and the right-click menu. Check
+and the camera, four-way pathfinding, and the right-click menu. The
+branch `claude/relaxed-ride-n5sh5i` was started from its tip, not from
+`master`, and adds the tabbed side panel and the skill list in data. Check
 `git log origin/master..HEAD` before starting. Travis opens and merges
 the pull requests himself; once one is merged, restart the branch from
 `master` rather than stacking on it.
 
-**Tests.** `mvn verify` runs 64 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 68 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -102,8 +105,19 @@ been run on Windows of any age.
 - "Use" on an inventory item does nothing yet.
 - A script paused in a `delay` is not saved.
 - Travel lands on a map's `@`, not beside the ladder arrived by.
-- Player animations, the skill list, and the menu's option lists are
-  still in Java, not data.
+- Player animations and the menu's option lists are still in Java, not
+  data. The skill list moved to `data/skills.json`.
+- **Skill and tab icons are stand-ins.** Mining shows a pickaxe and
+  Smithing a hammer from the item art; the tabs show coins and a star.
+  Travis will draw real ones; they are not in the asset pack. A skill
+  with no picture in `skills.json` is drawn as its first letter.
+- **Smithing is listed but cannot be trained.** It was added so the
+  skills tab has its rectangle ready. Nothing awards experience in it.
+- **A skill's current level is always its earned level.**
+  `Skills.CurrentLevel()` exists so the panel can show "current/earned",
+  but nothing raises or lowers a level yet, and scripts' `stat_level`
+  reads the earned one.
+- Which tab is open is not saved; the game opens on the inventory.
 
 ## What Travis has said is coming
 
@@ -133,8 +147,11 @@ exists.
 2. Items on the ground: drop, pick up, despawn, saved per map. It fits
    the tick-stamped map state already there.
 3. Option lists from data, with "Use item on thing".
-4. A second skill that consumes the first: a furnace and smelting. The
-   Magma Maze item art has ore and bars.
+4. Smithing itself, which Travis has named as the second skill: a
+   furnace and smelting, then an anvil. The skill and its place in the
+   interface exist; it needs locs, bar items (the Magma Maze item art has
+   ore and bars), a script, and probably "Use item on thing" from step
+   3.
 5. The first NPC or monster, which forces the character sprite out of
    `Player`.
 
@@ -147,7 +164,8 @@ These applied to the session that wrote this; check they still hold.
 - The game needs Whitetail installed in the local Maven repository:
   `mvn -q install` in the Whitetail checkout. That needs a JDK 8
   (`apt-get install openjdk-8-jdk`) and a `~/.m2/toolchains.xml` naming
-  it as version 1.8.
+  it as version 1.8. `apt-get update` has to be run first, or the
+  packages are not found.
 - To see the game: start `Xvfb :77 -screen 0 1920x1080x24`, install
   `x11-xserver-utils` (LWJGL 2 needs the `xrandr` program) and `xdotool`,
   run `java -ea -jar target/wily-tench.jar` with `DISPLAY=:77`, drive it

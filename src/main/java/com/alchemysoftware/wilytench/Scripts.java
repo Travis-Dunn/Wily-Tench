@@ -63,7 +63,8 @@ import com.alchemysoftware.whitetail.script.ValueType;
  *   travel(map)            moves the player to the start of a map,
  *                          named by its file, such as "dungeon.txt"
  *
- * Items and skills are named in scripts by the keys in Item and Skills.
+ * Items and skills are named in scripts by their ids in items.json
+ * and skills.json.
  * A script that names something that does not exist is a mistake in
  * the game's content and stops the game with an error saying where.
  *

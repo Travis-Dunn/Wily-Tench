@@ -137,6 +137,15 @@ final class Fixture {
         return item;
     }
 
+    /** @return the skill with that id, which must exist */
+    static int Skill(String id) {
+        int skill = Skills.Named(id);
+        Check("skill " + id + " exists", skill >= 0);
+        return skill;
+    }
+
+    static int Mining() { return Skill("mining"); }
+
     static void DeleteSaves() {
         String[] names = dir.list();
         for (int i = 0; names != null && i < names.length; i++)
