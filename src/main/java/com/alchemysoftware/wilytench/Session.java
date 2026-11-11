@@ -142,6 +142,41 @@ final class Session {
     }
 
     /**
+     * Looks closely at what stands on a tile of this map, and says
+     * what there is to see. Costs no time and interrupts nothing.
+     */
+    void ExamineTile(int tileX, int tileY) {
+        String text = Here().Examine(tileX, tileY);
+        if (text != null) chat.Add(text, Palette.ASH);
+    }
+
+    /** Looks closely at the item in an inventory slot. */
+    void ExamineItem(int slot) {
+        int item = inventory.At(slot);
+        if (item != Item.NONE) chat.Add(Item.Examine(item), Palette.ASH);
+    }
+
+    /**
+     * Uses the item in an inventory slot on its own. Nothing can be
+     * used that way yet.
+     */
+    void UseItem(int slot) {
+        if (inventory.At(slot) != Item.NONE)
+            chat.Add(MSG_NOTHING_HAPPENS, Palette.BONE);
+    }
+
+    /**
+     * Drops the item in an inventory slot. For now a dropped item is
+     * simply gone.
+     */
+    void DropItem(int slot) {
+        int item = inventory.Remove(slot);
+        if (item == Item.NONE) return;
+        chat.Add("You drop the " + Item.LowerName(item) + ".",
+                Palette.BONE);
+    }
+
+    /**
      * Moves the player to the start of a map at once, dropping any
      * walk. Scripts do this through their travel command.
      */
@@ -262,4 +297,6 @@ final class Session {
     }
 
     private static final String MSG_CANT_REACH = "You can't reach that.";
+    private static final String MSG_NOTHING_HAPPENS =
+            "Nothing interesting happens.";
 }

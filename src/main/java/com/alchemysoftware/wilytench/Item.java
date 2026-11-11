@@ -17,14 +17,17 @@ final class Item {
     static final int NONE = -1;
 
     private static final String[] KEYS = {
-        "id", "was", "name", "sheet", "cell", "color_map"
+        "id", "was", "name", "examine", "sheet", "cell", "color_map"
     };
+
+    /* What examining says of an item with nothing written for it. */
+    private static final String PLAIN = "Nothing remarkable.";
 
     private static String[] ids = new String[0];
     /* Former ids, and the item each now belongs to. */
     private static String[] oldIds = new String[0];
     private static int[] oldIdItems = new int[0];
-    private static String[] names, lowerNames;
+    private static String[] names, lowerNames, examines;
     private static int[] pictures, colorMaps;
 
     private Item() {}
@@ -42,6 +45,7 @@ final class Item {
 
         names = new String[n];
         lowerNames = new String[n];
+        examines = new String[n];
         pictures = new int[n];
         colorMaps = new int[n];
 
@@ -57,6 +61,7 @@ final class Item {
             newIds[i] = id;
             names[i] = node.Str("name");
             lowerNames[i] = names[i].toLowerCase();
+            examines[i] = node.OptStr("examine", PLAIN);
             pictures[i] = Sprites.Picture(node, node.Str("sheet"),
                     node.Ints("cell", 2));
             colorMaps[i] = node.Has("color_map") ?
@@ -126,6 +131,9 @@ final class Item {
 
     /** @return the name as it reads mid-sentence: "copper ore" */
     static String LowerName(int item) { return lowerNames[item]; }
+
+    /** @return what looking closely at the item tells the player */
+    static String Examine(int item) { return examines[item]; }
 
     /** Draws the item's 16 pixel icon with its top left at (x, y). */
     static void DrawIcon(int item, int x, int y) {

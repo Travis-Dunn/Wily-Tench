@@ -70,7 +70,7 @@ final class World {
     private final int[] floor, object, emptyObject;
     private final byte[] colorMap;
     private final boolean[] solid, animated;
-    private final String[] names;
+    private final String[] names, examines;
 
     /* Per tile: the loc there, or null, and for one that has been
        emptied the game tick at which it is full again, or FULL. */
@@ -83,7 +83,8 @@ final class World {
     private World(String id, String name, int w, int h, int startX,
                   int startY, int[] floor, int[] object, int[] emptyObject,
                   byte[] colorMap, boolean[] solid, boolean[] animated,
-                  String[] names, Loc[] locs) {
+                  String[] names, String[] examines, Loc[] locs) {
+        this.examines = examines;
         this.id = id;
         this.name = name;
         this.w = w;
@@ -150,7 +151,7 @@ final class World {
         int[] emptyObject = new int[w * h];
         byte[] colorMap = new byte[w * h];
         boolean[] solid = new boolean[w * h], animated = new boolean[w * h];
-        String[] names = new String[w * h];
+        String[] names = new String[w * h], examines = new String[w * h];
         Loc[] locs = new Loc[w * h];
         int startX = -1, startY = -1;
 
@@ -176,6 +177,7 @@ final class World {
                             (At(rows, x, y + 1) == c ? 4 : 0) |
                             (At(rows, x - 1, y) == c ? 8 : 0));
                     names[i] = wall.name;
+                    examines[i] = wall.examine;
                 } else if (ground != null) {
                     floor[i] = Tiles.FloorPicture(ground, mix);
                     solid[i] = false;
@@ -195,6 +197,8 @@ final class World {
                     solid[i] = !thing.walkable;
                     animated[i] = thing.animated;
                     names[i] = thing.name;
+                    examines[i] = thing.loc == null ? thing.examine :
+                            thing.loc.examine;
                     locs[i] = thing.loc;
                 } else {
                     ErrorHandler.LogFatalAndStop(
@@ -210,7 +214,7 @@ final class World {
         }
         return new World(filename, name, w, h, startX, startY, floor,
                 object, emptyObject, colorMap, solid, animated, names,
-                locs);
+                examines, locs);
     }
 
     /**
@@ -240,6 +244,16 @@ final class World {
         if (!Contains(x, y)) return null;
         int i = y * w + x;
         return emptyUntil[i] > now ? locs[i].emptyName : names[i];
+    }
+
+    /**
+     * @return what looking closely at what stands on the tile tells
+     *         the player, or null if nothing stands there
+     */
+    String Examine(int x, int y) {
+        if (!Contains(x, y)) return null;
+        int i = y * w + x;
+        return emptyUntil[i] > now ? locs[i].emptyExamine : examines[i];
     }
 
     /** @return the loc on the tile, or null if there is none */

@@ -5,18 +5,21 @@
       "was": ["bronze_hammer"],
       "note": "Was a hammer until the Magma Maze art brought pickaxes.",
       "name": "Bronze pickaxe",
+      "examine": "Used for mining.",
       "sheet": "magma_items",
       "cell": [5, 1]
     },
     {
       "id": "copper_ore",
       "name": "Copper ore",
+      "examine": "This needs refining.",
       "sheet": "magma_items",
       "cell": [0, 2]
     },
     {
       "id": "iron_ore",
       "name": "Iron ore",
+      "examine": "This needs refining.",
       "sheet": "magma_items",
       "cell": [2, 2]
     }

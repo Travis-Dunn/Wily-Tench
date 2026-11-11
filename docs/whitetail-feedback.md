@@ -388,6 +388,13 @@ bindings, typing "m" in chat will also open the map unless the game
 invents its own focus rule. `comp-input-mapper` could carry a "text entry
 is active, suppress plain-key actions" switch.
 
+The right-click menu met the same thing from the mouse side. While a menu
+is open it must have every click to itself: a click that dismisses it
+must not also walk the character to the tile underneath. With no way to
+mark a press as taken, the scene does this by order, handling the menu
+first and returning early, and anything added later that reads
+`WasPressed()` has to be slotted into that order by hand.
+
 **C21. The sprite renderer cannot draw outside its one viewport, so
 interface icons need a second renderer.** *(Hit)*  
 Status: open.

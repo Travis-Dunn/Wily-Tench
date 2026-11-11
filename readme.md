@@ -89,9 +89,14 @@ rocks in them.
   the rock empty for a few ticks. Copper can be mined from level 1; iron,
   the dark red rock, needs level 15. You need the hammer you start with
   and a free inventory slot.
+- **Options.** Whatever the mouse is over has a list of things to do to
+  it. A left click does the first, which the label at the top left of the
+  view names; a right click opens the whole list as a menu. Tiles offer
+  Walk here and, where something stands, its own verb and Examine. Items
+  offer Use, Drop, and Examine.
 - **Side panel.** Mining level, experience so far against experience
-  needed, and the 28-slot inventory. Point at an item to see its name;
-  right-click to drop it. Dropped items vanish, for now.
+  needed, and the 28-slot inventory. Dropped items vanish, for now, and
+  nothing can be Used yet.
 - **Chat box.** The game writes its messages there; anything you type
   appears on the bottom row and Enter says it. The mouse wheel, or Page Up
   and Page Down, scroll back.
@@ -140,7 +145,8 @@ must be installed, which it is by default on Mint.
 
 `mvn verify` also runs the tests in `src/test`, which play the game's
 rules through tick by tick with no window: walk to a rock, mine it, check
-the ore, the experience, the messages, swing by swing; load the real data
+the ore, the experience, the messages, swing by swing; build the option
+lists and choose from them; place a menu in every corner of the screen; load the real data
 files, maps, and scripts, and confirm that broken data is explained; use a ladder and
 follow its script tick by tick; travel between maps; save a game and load it back. They drive a `Session` directly, which is why the
 game's rules live there and not in the scene. They use no test framework, in the
@@ -226,6 +232,8 @@ which is what makes that practical.
 | `Font`, `Text` | Bitmap fonts, and drawing writing with them |
 | `ChatBox` | The message history and typing line under the view |
 | `SidePanel` | Skills and inventory, to the right of the view |
+| `Actions` | What can be done to each tile and item, and the doing of it |
+| `ContextMenu` | The list of options for what is under the mouse, and the right-click menu that shows it |
 | `Item`, `Inventory` | The kinds of thing that can be carried, from `items.json`, and the 28 slots they are carried in |
 | `Skills` | Experience and levels |
 | `Loc` | The kinds of thing on a map that can be used, from `locs.json`, and the values scripts read from them |

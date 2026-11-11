@@ -1,16 +1,14 @@
 package com.alchemysoftware.wilytench;
 
-import com.alchemysoftware.whitetail.input.Button;
-import com.alchemysoftware.whitetail.input.InputSys;
-
 /**
  * The interface panel to the right of the game view: the player's
  * skills and inventory.
  *
  * Each skill shows its level and experience so far against experience
  * needed for the next. The inventory is one plain box holding items in
- * four columns. Pointing at an item names it; right-clicking drops it,
- * and for now a dropped item is simply gone.
+ * four columns. Pointing at an item names it. What clicking an item
+ * does is decided elsewhere; the panel only says which slot the
+ * pointer is over.
  */
 final class SidePanel {
     private static final int MARGIN = 10;
@@ -26,12 +24,12 @@ final class SidePanel {
     private static final int SLOT = 26;
     private static final int HOVER_GAP = 4;
 
-    private static final int NO_SLOT = -1;
+    static final int NO_SLOT = -1;
     private static final int STALE = -1;
 
     private static final String TITLE = Screen.TITLE;
     private static final String INVENTORY_HEADING = "Inventory";
-    private static final String DROP_HINT = "Right-click to drop";
+    private static final String MENU_HINT = "Right-click for options";
 
     private final Font small, bold, title;
     private final int x, y, w, h;
@@ -66,20 +64,26 @@ final class SidePanel {
     }
 
     /**
+     * Notes where the pointer is.
+     *
      * @param mouseX the pointer in picture pixels, or negative if it
      *               is outside the picture
      */
     void Input(int mouseX, int mouseY) {
         hoverSlot = SlotAt(mouseX, mouseY);
-        if (hoverSlot == NO_SLOT ||
-                inventory.At(hoverSlot) == Item.NONE) return;
-
-        if (InputSys.WasPressed(Button.MOUSE_RIGHT)) {
-            int item = inventory.Remove(hoverSlot);
-            chat.Add("You drop the " + Item.LowerName(item) + ".",
-                    Palette.BONE);
-        }
     }
+
+    /**
+     * @return the inventory slot under the pointer if it holds an
+     *         item, or NO_SLOT
+     */
+    int HoverSlot() {
+        return hoverSlot != NO_SLOT &&
+                inventory.At(hoverSlot) != Item.NONE ? hoverSlot : NO_SLOT;
+    }
+
+    /** Lights a slot as if the pointer were over it. */
+    void Light(int slot) { hoverSlot = slot; }
 
     void Draw() {
         Refresh();
@@ -141,7 +145,7 @@ final class SidePanel {
         String name = Item.Name(inventory.At(hoverSlot));
         int textY = gridY + rows * SLOT + HOVER_GAP;
         Text.Draw(small, name, 0, name.length(), left, textY, Palette.MINT);
-        Text.Draw(small, DROP_HINT, 0, DROP_HINT.length(), left,
+        Text.Draw(small, MENU_HINT, 0, MENU_HINT.length(), left,
                 textY + small.lineH + 1, Palette.ASH);
     }
 

@@ -5,6 +5,7 @@
       "note": "An ordinary mining rock. mining.whtl is the script for all of them.",
       "verb": "Mine",
       "empty_name": "Rocks",
+      "empty_examine": "There is no ore left in it for the moment.",
       "params": {
         "ore": "item",
         "level": "whole",
@@ -17,11 +18,22 @@
   ],
 
   "locs": [
-    { "id": "ladder", "name": "Ladder", "verb": "Climb down" },
-    { "id": "stairs", "name": "Stairs", "verb": "Climb" },
+    {
+      "id": "ladder",
+      "name": "Ladder",
+      "verb": "Climb down",
+      "examine": "It goes down into the dark."
+    },
+    {
+      "id": "stairs",
+      "name": "Stairs",
+      "verb": "Climb",
+      "examine": "They lead back up to the cave."
+    },
     {
       "id": "copper_rocks",
       "name": "Copper rocks",
+      "examine": "A rocky outcrop with a coppery glint to it.",
       "category": "ore_rock",
       "params": {
         "ore": "copper_ore",
@@ -35,6 +47,7 @@
     {
       "id": "iron_rocks",
       "name": "Iron rocks",
+      "examine": "A rocky outcrop streaked with dark red.",
       "category": "ore_rock",
       "params": {
         "ore": "iron_ore",

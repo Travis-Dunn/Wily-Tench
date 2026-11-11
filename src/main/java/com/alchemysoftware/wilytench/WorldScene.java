@@ -17,11 +17,15 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * character, and the interface around them, and passes on what the
  * player asks for.
  *
- * Left click walks the character to the clicked tile, or as close as it
- * can get; clicking anything a script exists for, such as a ladder or
- * an ore rock, walks up to it and runs the script. The view follows
- * the character, trailing a little behind. Typing goes to the chat
- * box. Escape closes the game.
+ * Whatever the mouse is over, in the view of the world or in the
+ * inventory, has a list of things that can be done to it. A left click
+ * does the first; a right click opens the list as a menu. The label at
+ * the top left of the view names the first. Actions decides what is on
+ * the list and carries an option out.
+ *
+ * The view follows the character, trailing a little behind. Typing
+ * goes to the chat box. Escape closes the menu if one is open, and the
+ * game if not.
  *
  * After every game tick the game is saved, if the tick changed
  * anything worth saving.
@@ -51,8 +55,9 @@ final class WorldScene extends Scene {
             "not be read, so a new game was started.";
     private static final String MSG_SAVE_FAILED = "The game could not " +
             "be saved. The reason is in session.log.";
-    private static final String MSG_CANT_REACH = "You can't reach that.";
-    private static final String HOVER_WALK = "Walk here";
+
+    /* "/ 2 more options", ready-made so the label costs nothing. */
+    private static final String[] MORE = BuildMore();
 
     private int w, h;
     private int viewPortX, viewPortY, viewW, viewH;
@@ -65,6 +70,15 @@ final class WorldScene extends Scene {
     private Font smallFont, boldFont, titleFont;
     private ChatBox chat;
     private SidePanel panel;
+    private ContextMenu menu;
+    private Actions actions;
+
+    /* The pointer in picture pixels, negative when outside it. */
+    private int pointerX = NOWHERE, pointerY = NOWHERE;
+
+    /* The tile the option list is about, or NOWHERE if it is not about
+       a tile. While a menu is open this is the tile it was opened on. */
+    private int optionTileX = NOWHERE, optionTileY = NOWHERE;
 
     /* Which map the tiles are showing, to notice when it changes. */
     private World shown;
@@ -76,11 +90,6 @@ final class WorldScene extends Scene {
 
     /* The mouse, in viewport pixels, or NOWHERE when outside it. */
     private int mouseX = NOWHERE, mouseY = NOWHERE;
-
-    /* What the hover label last said, and about which tile and state of
-       the map, so the label is only rebuilt when one of those changes. */
-    private String hoverText;
-    private int hoverTile = NOWHERE, hoverVersion;
 
     private double msCarry;
     private int animMs;
@@ -126,6 +135,8 @@ final class WorldScene extends Scene {
         }
         panel = new SidePanel(smallFont, boldFont, titleFont, panelX, 0,
                 w - panelX, h, session.inventory, session.skills, chat);
+        menu = new ContextMenu(smallFont, w, h);
+        actions = new Actions(session);
 
         save = new SaveState(session);
         int loadOutcome = SaveGame.Load();
@@ -155,29 +166,54 @@ final class WorldScene extends Scene {
 
     @Override
     public void onInput() {
-        if (InputSys.WasPressed(Button.KEY_ESCAPE)) RunFlag.Stop();
+        boolean left = InputSys.WasPressed(Button.MOUSE_LEFT);
+        boolean right = InputSys.WasPressed(Button.MOUSE_RIGHT);
+
+        if (InputSys.WasPressed(Button.KEY_ESCAPE)) {
+            if (menu.IsOpen()) menu.Close();
+            else RunFlag.Stop();
+        }
 
         DisplayLayout layout = Screen.GetLayout();
-        int fbX = layout.WindowToFramebufferX(InputSys.GetMouseX());
-        int fbY = layout.WindowToFramebufferY(InputSys.GetMouseY());
+        pointerX = layout.WindowToFramebufferX(InputSys.GetMouseX());
+        pointerY = layout.WindowToFramebufferY(InputSys.GetMouseY());
 
-        if (fbX >= 0 && fbY >= 0 && layout.InViewport(fbX, fbY)) {
-            mouseX = layout.FramebufferToViewportX(fbX);
-            mouseY = layout.FramebufferToViewportY(fbY);
+        if (pointerX >= 0 && pointerY >= 0 &&
+                layout.InViewport(pointerX, pointerY)) {
+            mouseX = layout.FramebufferToViewportX(pointerX);
+            mouseY = layout.FramebufferToViewportY(pointerY);
         } else {
             mouseX = mouseY = NOWHERE;
         }
 
-        if (mouseX != NOWHERE && InputSys.WasPressed(Button.MOUSE_LEFT)) {
-            int tx = TileUnderMouseX(), ty = TileUnderMouseY();
+        chat.Input(pointerX, pointerY);
 
-            if (session.Usable(tx, ty)) session.Use(tx, ty);
-            else if (!session.WalkTo(tx, ty))
-                chat.Add(MSG_CANT_REACH, Palette.BONE);
+        if (menu.IsOpen()) {
+            /* The menu has the mouse to itself. A left click chooses
+               or dismisses; so does straying. A right click elsewhere
+               dismisses too, and then opens a menu there instead. */
+            int option = menu.OptionAt(pointerX, pointerY);
+
+            if (left) {
+                menu.Close();
+                if (option != ContextMenu.NO_OPTION)
+                    actions.Do(menu, option);
+                return;
+            }
+            if (!menu.Near(pointerX, pointerY) ||
+                    (right && option == ContextMenu.NO_OPTION)) {
+                menu.Close();
+            } else {
+                return;
+            }
         }
 
-        chat.Input(fbX, fbY);
-        panel.Input(fbX, fbY);
+        panel.Input(pointerX, pointerY);
+        BuildOptions();
+        if (menu.Count() == 0) return;
+
+        if (right) menu.Open(pointerX, pointerY);
+        else if (left) actions.Do(menu, 0);
     }
 
     @Override
@@ -192,9 +228,10 @@ final class WorldScene extends Scene {
 
         boolean arrived = shown != session.Here();
         if (arrived) {
+            /* A menu about a tile of the map just left means nothing. */
+            menu.Close();
             shown = session.Here();
             tiles.SetWorld(shown);
-            hoverTile = NOWHERE;
         }
 
         /* Animations count whole milliseconds; carry the fraction so
@@ -239,11 +276,12 @@ final class WorldScene extends Scene {
                     viewPortY + player.DestY() * TILE - viewY,
                     TILE, TILE, MARKER_ARM, Palette.AMBER);
         }
-        if (mouseX != NOWHERE) DrawHover();
+        DrawHover();
         Gfx.ClearClip();
 
         chat.Draw();
         panel.Draw();
+        menu.Draw(pointerX, pointerY);
     }
 
     @Override
@@ -259,48 +297,77 @@ final class WorldScene extends Scene {
         shown = null;
         chat = null;
         panel = null;
+        menu = null;
+        actions = null;
         smallFont = boldFont = titleFont = null;
     }
 
     @Override
     public boolean handleEvent(Event e) { return false; }
 
-    /* Outlines the tile under the mouse and names what is on it. */
-    private void DrawHover() {
-        World world = session.Here();
-        int tx = TileUnderMouseX(), ty = TileUnderMouseY();
-        boolean solid = world.Solid(tx, ty);
-        boolean usable = session.Usable(tx, ty) && !world.RockEmpty(tx, ty);
-        String name = HoverText(world, tx, ty, usable);
+    /*
+     * Fills the option list for whatever the pointer is over: an item
+     * in the inventory, a tile of the world, or nothing. Does nothing
+     * while a menu is open, since the list is then in use.
+     */
+    private void BuildOptions() {
+        if (menu.IsOpen()) return;
 
-        Gfx.Outline(viewPortX + tx * TILE - viewX,
-                viewPortY + ty * TILE - viewY, TILE, TILE,
-                usable ? Palette.MINT :
-                solid ? Palette.RUST : Palette.BONE);
+        menu.Begin();
+        optionTileX = optionTileY = NOWHERE;
 
-        if (name != null) {
-            Text.DrawOutlined(smallFont, name, 0, name.length(),
-                    viewPortX + HOVER_TEXT_X, viewPortY + HOVER_TEXT_Y,
-                    Palette.MINT, Palette.INK);
-        } else if (!solid) {
-            Text.DrawOutlined(smallFont, HOVER_WALK, 0, HOVER_WALK.length(),
-                    viewPortX + HOVER_TEXT_X, viewPortY + HOVER_TEXT_Y,
-                    Palette.BONE, Palette.INK);
+        if (panel.HoverSlot() != SidePanel.NO_SLOT) {
+            actions.ForItem(menu, panel.HoverSlot());
+        } else if (mouseX != NOWHERE) {
+            optionTileX = TileUnderMouseX();
+            optionTileY = TileUnderMouseY();
+            actions.ForTile(menu, optionTileX, optionTileY);
         }
     }
 
-    /* "Mine Copper rocks" for something usable, else just its name. */
-    private String HoverText(World world, int tx, int ty, boolean usable) {
-        int tile = world.Contains(tx, ty) ? ty * world.w + tx : NOWHERE;
+    /*
+     * Outlines the tile the option list is about and, unless a menu is
+     * open and saying it better, writes the first option at the top
+     * left of the view. Drawn inside the view's clip.
+     */
+    private void DrawHover() {
+        if (optionTileX == NOWHERE || menu.Count() == 0) return;
 
-        if (tile != hoverTile || world.Version() != hoverVersion) {
-            String name = world.Name(tx, ty);
-            hoverTile = tile;
-            hoverVersion = world.Version();
-            hoverText = usable ?
-                    world.LocAt(tx, ty).verb + " " + name : name;
+        World world = session.Here();
+        boolean usable = menu.Action(0) == Actions.USE_LOC &&
+                !world.RockEmpty(optionTileX, optionTileY);
+
+        Gfx.Outline(viewPortX + optionTileX * TILE - viewX,
+                viewPortY + optionTileY * TILE - viewY, TILE, TILE,
+                usable ? Palette.MINT :
+                world.Solid(optionTileX, optionTileY) ? Palette.RUST :
+                Palette.BONE);
+        if (menu.IsOpen()) return;
+
+        String verb = menu.Verb(0), subject = menu.Subject(0);
+        int textX = viewPortX + HOVER_TEXT_X;
+        int textY = viewPortY + HOVER_TEXT_Y;
+
+        textX = Text.DrawOutlined(smallFont, verb, 0, verb.length(), textX,
+                textY, Palette.BONE, Palette.INK);
+        if (subject != null) {
+            textX = Text.DrawOutlined(smallFont, subject, 0,
+                    subject.length(), textX + smallFont.Width(" ", 0, 1),
+                    textY, menu.SubjectColor(0), Palette.INK);
         }
-        return hoverText;
+
+        String more = MORE[Math.min(menu.Count() - 1, MORE.length - 1)];
+        Text.DrawOutlined(smallFont, more, 0, more.length(), textX, textY,
+                Palette.ASH, Palette.INK);
+    }
+
+    private static String[] BuildMore() {
+        String[] more = new String[16];
+        more[0] = "";
+        more[1] = " / 1 more option";
+        for (int i = 2; i < more.length; i++)
+            more[i] = " / " + i + " more options";
+        return more;
     }
 
     private int TileUnderMouseX() {

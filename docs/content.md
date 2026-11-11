@@ -71,6 +71,7 @@ map tile picks one, so that a field of rocks is not all the same rock.
 | ----- | ------- |
 | `id` | How everything else refers to the item |
 | `name` | What the player sees, written as it would head a label. Messages use it in lower case |
+| `examine` | Optional. What the Examine option says about it. "Nothing remarkable." if left out |
 | `sheet`, `cell` | Its icon |
 | `color_map` | Optional. A recoloring from `sprites.json` to draw the icon through |
 | `was` | Optional. A list of ids the item used to have |
@@ -95,7 +96,8 @@ does is a script; see "Scripts" in the readme.
 | ----- | ------- |
 | `id` | How tiles and scripts refer to it. `[oploc,ladder]` is its script |
 | `name` | What the player sees |
-| `verb` | The word for using it, shown before the name when the mouse is over it: "Climb down Ladder". May be left out if the category supplies one |
+| `verb` | The word for using it: "Climb down Ladder" is then its first option, the one a left click takes. May be left out if the category supplies one |
+| `examine` | Optional. What the Examine option says about it |
 | `category` | Optional. A category from the top of the file |
 | `params` | The values its category requires. Only for locs with a category |
 
@@ -124,7 +126,8 @@ kind each is. The game checks each loc against it.
 | `item` | The id of an item in `items.json` |
 
 `empty_name` makes the category's locs something that can be emptied for a
-while, and is what they are called meanwhile.
+while, and is what they are called meanwhile. `empty_examine` is what
+examining one says while it is empty.
 
 ### Adding another ordinary ore rock
 
@@ -186,13 +189,28 @@ A thing:
 | Value | Meaning |
 | ----- | ------- |
 | `symbol` | The single character that puts it on a map |
-| `name` | What the mouse-over label calls it. Needed unless it has a `loc`, which has a name of its own |
+| `name` | What the player sees it called. Needed unless it has a `loc`, which has a name of its own |
+| `examine` | Optional. What the Examine option says about it. Not allowed with a `loc`, which has its own. Walls may have one too |
 | `loc` | Optional. Makes it usable, as that loc |
 | `sheet`, `cells` | What it looks like |
 | `empty_cells` | What it looks like when emptied: one cell for each of `cells`. Required if its loc can be emptied |
 | `color_map` | Optional. A recoloring from `sprites.json` |
 | `animated` | Optional, `true` or `false`. If true, `cells` holds one cell, and the animation is that cell and the three to its right |
 | `walkable` | Optional. If true the player can walk through it. Things are solid otherwise |
+
+## What the player can do to things
+
+Pointing at something gives a list of options. A left click takes the
+first; a right click opens the whole list as a menu. For now the lists
+are fixed by kind:
+
+- A tile of the map: the loc's `verb`, if a loc with a script stands
+  there; then Walk here; then Examine, if anything stands there; then
+  Cancel.
+- An item in the inventory: Use, Drop, Examine, Cancel.
+
+So the only parts of this that data controls yet are a loc's `verb` and
+the `examine` lines. `Actions.java` builds the lists.
 
 ## sprites.json
 

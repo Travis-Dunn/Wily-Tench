@@ -17,7 +17,7 @@ package com.alchemysoftware.wilytench;
 final class Tiles {
     /** A kind of wall, which joins up with neighbors of its own kind. */
     static final class Wall {
-        String name;
+        String name, examine;
         String sheet;
         /* The top left cell of the wall's block of pieces. */
         int col, row;
@@ -33,7 +33,7 @@ final class Tiles {
 
     /** Something standing on the floor. */
     static final class Thing {
-        String name;
+        String name, examine;
         int[] pictures;
         /* The same thing emptied, cell for cell, or null. */
         int[] emptyPictures;
@@ -61,13 +61,14 @@ final class Tiles {
         "id", "walls", "floors", "things"
     };
     private static final String[] WALL_KEYS = {
-        "symbol", "name", "sheet", "block"
+        "symbol", "name", "examine", "sheet", "block"
     };
+    private static final String PLAIN = "Nothing remarkable.";
     private static final String[] FLOOR_KEYS = {
         "symbol", "sheet", "cells", "bare_percent"
     };
     private static final String[] THING_KEYS = {
-        "symbol", "name", "loc", "sheet", "cells", "empty_cells",
+        "symbol", "name", "examine", "loc", "sheet", "cells", "empty_cells",
         "color_map", "animated", "walkable"
     };
 
@@ -165,6 +166,7 @@ final class Tiles {
             int[] block = node.Ints("block", 2);
             Wall wall = new Wall();
             wall.name = node.Str("name");
+            wall.examine = node.OptStr("examine", PLAIN);
             wall.sheet = node.Str("sheet");
             wall.col = block[0];
             wall.row = block[1];
@@ -225,6 +227,11 @@ final class Tiles {
                 throw node.Fail("it needs a [name] or a [loc].");
             thing.name = node.OptStr("name",
                     thing.loc == null ? null : thing.loc.name);
+            if (thing.loc != null && node.Has("examine")) {
+                throw node.Fail("it has a [loc], so what examining it " +
+                        "says is the loc's [examine], in locs.json.");
+            }
+            thing.examine = node.OptStr("examine", PLAIN);
 
             thing.pictures = Pictures(node, "cells");
             if (node.Has("empty_cells")) {
