@@ -38,7 +38,7 @@ an item on a loc, tin, smelting, and the anvil with its menu. Check
 the pull requests himself; once one is merged, restart the branch from
 `master` rather than stacking on it.
 
-**Tests.** `mvn verify` runs 116 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 129 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -145,7 +145,7 @@ been run on Windows of any age.
 
 Travis asked for a way of making maps that is low friction for a person
 and that AIs can use too, without two representations drifting apart. The
-plan has three steps; the first is done.
+plan has three steps; the first two are done.
 
 1. **Done: the file format, the checks, and the pictures.** The map file
    is the only form a map has (`MapFile.java`, and "Maps" in
@@ -154,15 +154,16 @@ plan has three steps; the first is done.
    danger of things placed by coordinates landing one tile off, so
    nothing is placed by coordinates at all. `MapTool` tidies the files
    and draws each map to `docs/maps/`.
-2. **Next: the editor.** A separate desktop tool in Swing, beside
-   `MapTool` under `src/test`, not shipped with the game. Travis chose
-   this over an editor scene inside the game. It must read and write the
-   same file through `MapFile`, take its palette of things from
-   `tiles.json` and `npcs.json`, and draw with the game's own code
-   (`World.Build`, `Sprites.Draw`, as `MapTool` does), so that it shows
-   what the game shows. Paint walls, floors, and things; place and move
-   defined symbols and edit their settings; undo; save.
-3. **Then: "play from here"**, launching the game with the character at
+2. **Done: the editor.** A separate desktop tool in Swing, under
+   `src/test`, not shipped with the game; Travis chose this over an
+   editor scene inside the game. `MapEdit` is the editor with no window:
+   the map, every change that can be made to it, and undo, all tested.
+   `MapEditor` is the window on it. `MapPicture` draws maps for both the
+   editor and `MapTool` with the game's own code. The editor reads and
+   writes the map file through `MapFile` and takes what can be painted
+   from `tiles.json` and `npcs.json`. "The map editor" in
+   `docs/content.md` says how to use it.
+3. **Next: "play from here"**, launching the game with the character at
    a chosen tile.
 
 Things the format is meant to grow into, none built: monster spawns with
@@ -171,6 +172,38 @@ Each is a new kind of `!define`. A kind's settings belong on its define
 line; when there are several kinds, declare what settings each takes in
 data, as loc categories do. An area bigger than a tile has no home yet;
 a second grid marking areas is the likely answer.
+
+Wanted in the editor before long, deliberately not built yet. Travis
+said to keep likely features in mind without building them:
+
+- **Settings on a define.** A define has a kind, one value, and an
+  optional floor. A monster spawn will need more (which monster, how far
+  it wanders). The "This map" list and its add buttons are where a
+  settings panel belongs; `MapFile.Define` and its one-line syntax will
+  need to carry named settings.
+- **Areas**, for terrain that scripts change and for wander ranges shown
+  on the map: probably a second grid in the file and a second layer in
+  the editor. `MapEdit` holds its state in one small class so that a
+  layer can be added to what undo covers.
+- **Fixing the floor under a thing by painting**, rather than through
+  the "thing on a chosen floor" dialog.
+- **Editing `game.json` and the data files** from the editor: listing a
+  new map, adding a person. Today those are hand edits and a restart.
+- **Seeing how maps join**: where each point is arrived at from.
+- Flood fill, copy and paste of a region, and a tile-wide brush.
+
+Known limits of the editor as built:
+
+- **Only tried on a virtual display with no window manager.** Painting,
+  the rectangle, picking, the lists, the dialogs, undo by Ctrl+Z, new
+  map, and save were all driven there and looked at. How it feels on a
+  real desktop, at real sizes, is for Travis to say.
+- **One map at a time**, and the tileset cannot be changed after a map
+  is made.
+- **It reads the data files as they were when it started**, from the
+  build's copy of them.
+- **Saving a map that is not in `game.json`** still draws its picture
+  into `docs/maps/`, and `MapTool` removes it again on its next run.
 
 Known limits of step 1:
 

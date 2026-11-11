@@ -295,7 +295,9 @@ which is what makes that practical.
 | `SaveGame` | Keeps the saved game on disk, writing on its own thread |
 
 Maps are text files in `src/main/resources/maps`; `docs/content.md`
-describes them. After changing one, run the map tool (**Build Maps**, or
+describes them, and the map editor that paints them (the **Map Editor**
+run configuration, or `mvn test-compile exec:java@editor`). After
+changing one by hand, run the map tool (**Build Maps**, or
 `mvn test-compile exec:java@maps`), which tidies the file and draws the
 map into `docs/maps/`; an AI must then look at that picture.
 

@@ -113,7 +113,7 @@ final class World {
     static World Load(String filename) {
         try {
             return Build(filename,
-                    MapFile.Parse(MapFile.Read(filename), filename));
+                    MapFile.Parse(MapFile.Read(filename), filename), true);
         } catch (DataError e) {
             ErrorHandler.LogFatalAndStop(CLASS + " failed to load a map " +
                     "because of a mistake in it. " + e.getMessage() + "\n");
@@ -125,9 +125,15 @@ final class World {
      * Makes a map of a map file that has been read.
      *
      * @param filename the file's name, which becomes the map's id
+     * @param finished whether to insist on what only a finished map
+     *                 need have: exactly one start, every defined
+     *                 symbol on the map, each point once. The game
+     *                 always does. The map editor does not, so that a
+     *                 map can be shown while it is being made; the
+     *                 start is then (0, 0) if there is none
      * @throws DataError describing the first mistake found
      */
-    static World Build(String filename, MapFile file) {
+    static World Build(String filename, MapFile file, boolean finished) {
         Tiles.Set set = Tiles.Named(file.tileset);
         if (set == null) {
             throw new DataError(filename + ": there is no tileset called [" +
@@ -147,6 +153,7 @@ final class World {
         String[] rows = file.rows;
         int w = 0, h = rows.length, x, y;
         for (y = 0; y < h; y++) w = Math.max(w, rows[y].length());
+        if (w == 0 && !finished) w = h = 1;
         if (w == 0) throw new DataError(filename + ": the map has no tiles.");
 
         int[] floor = new int[w * h], object = new int[w * h];
@@ -196,6 +203,8 @@ final class World {
                     if (c == Tiles.START) {
                         startX = x;
                         startY = y;
+                    } else if (seen[c] > 1 && !finished) {
+                        continue;
                     } else if (seen[c] > 1) {
                         throw new DataError(filename + ": the point [" +
                                 pointOf[c] + "], the symbol [" + c +
@@ -229,14 +238,15 @@ final class World {
             }
         }
 
-        if (seen[Tiles.START] != 1) {
+        if (!finished && startX < 0) startX = startY = 0;
+        if (finished && seen[Tiles.START] != 1) {
             throw new DataError(filename + ": a map needs exactly one " +
                     "player start, the symbol [@], and this has " +
                     seen[Tiles.START] + ".");
         }
         for (int i = 0; i < file.defines.length; i++) {
             MapFile.Define d = file.defines[i];
-            if (seen[d.symbol] == 0) {
+            if (finished && seen[d.symbol] == 0) {
                 throw new DataError(filename + ": the symbol [" + d.symbol +
                         "] is defined but is nowhere on the map.");
             }

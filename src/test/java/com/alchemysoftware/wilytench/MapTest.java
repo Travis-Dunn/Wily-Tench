@@ -190,7 +190,7 @@ public class MapTest {
     }
 
     private static World Build(String text) {
-        return World.Build("m.txt", MapFile.Parse(text, "m.txt"));
+        return World.Build("m.txt", MapFile.Parse(text, "m.txt"), true);
     }
 
     private static void Refused(String what, String text, String expected) {

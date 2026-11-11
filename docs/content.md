@@ -449,8 +449,8 @@ new game begins at the `@` of the first map.
 ## Maps
 
 A map is a text file in `maps/`, and that file is the only form the map
-ever has. People edit it as text, AIs write it as text, and the map
-editor, when there is one, will read and write this same file.
+ever has. People edit it as text or in the map editor, AIs write it as
+text, and the editor reads and writes this same file.
 
     !name Copper Cave
     !tileset cave
@@ -487,6 +487,50 @@ thing of the tileset.
 
 Walls are one tile thick and join up with their neighbors, so draw rooms
 as outlines.
+
+### The map editor
+
+A desktop program for painting maps. Start it with the **Map Editor**
+run configuration, or
+
+    mvn test-compile exec:java@editor
+
+from the project's root folder. It opens the first map; File > Open
+lists the rest. It shows the map as the game will draw it, because it
+draws with the game's own code from the same data files.
+
+- **Painting.** Pick something from the lists on the left and paint with
+  the left mouse button. The Pencil paints tile by tile as you drag. The
+  Rectangle fills the area you drag over. The right mouse button picks
+  up whatever is under it.
+- **What can be painted.** "Ground" is nothing, the tileset's floors,
+  and its walls. "Things" is everything else `tiles.json` offers this
+  tileset. "This map" is the player's start and the symbols this map
+  defines; the buttons under it add a person from `npcs.json`, a named
+  point, or a thing on a chosen floor, and remove one.
+- **The start and points move.** Painting `@` or a point somewhere new
+  takes it from where it was.
+- **Size.** The map grows as you paint past its right and bottom edges,
+  marked by the yellow line. To make room at the top or left, or to trim
+  empty space, use the Map menu; those move every tile, which the editor
+  warns about because of saved games.
+- **Undo.** Ctrl+Z and Ctrl+Y, a whole drag at a time.
+- **The bottom lines.** The first says what is under the pointer and its
+  column and row. The second, in red, says what stops the game using the
+  map as it stands, such as a symbol defined but not placed.
+- **Saving.** Ctrl+S writes the file in the tidy layout and redraws its
+  picture in `docs/maps/`. A map with a problem can be saved, after a
+  warning, so that work is not lost; the game will not start until it is
+  put right.
+- **A new map** (File > New map) starts as a small walled room. The
+  game does not know of it until its file is added to `"maps"` in
+  `game.json`, and the player cannot reach it until a script sends them
+  to a point on it.
+
+The editor changes map files only. New kinds of rock, people, floors,
+and so on are still added in the JSON files; restart the editor to see
+them. It cannot open a map with a mistake the game could not draw past,
+such as an unknown symbol; fix that in a text editor first.
 
 ### Symbols a map defines for itself
 

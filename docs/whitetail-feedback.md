@@ -840,6 +840,14 @@ Worth recording, so they are not "fixed" by accident.
   rendered full maps into a plain array for the map tool to save as
   pictures. Software drawing into memory you own makes tools like this
   nearly free.
+  The map editor is the same trick kept running: it redraws the whole
+  map through the game's code after every stroke, and on these maps
+  that is instant. The one awkwardness is that everything is a static
+  singleton. The game's drawing writes to one buffer set by an `Init()`,
+  so a tool must point it at each picture in turn and could never draw
+  two at once; that is the game's `Gfx` here, but `SpriteRenderer` is
+  built the same way and a tool that used it for drawing would meet the
+  same wall (C22 is the testing side of this).
 - Dialogue needed nothing new from the script system. `suspend()` and
   `Resume()`, already used for the make menu, carried a whole
   conversation: nine commands' worth of talk, a choice, and a quest, with

@@ -321,6 +321,17 @@
                     </execution>
 
                     <execution>
+                        <id>editor</id>
+
+                        <configuration>
+                            <mainClass>
+                                com.alchemysoftware.wilytench.MapEditor
+                            </mainClass>
+                            <classpathScope>test</classpathScope>
+                        </configuration>
+                    </execution>
+
+                    <execution>
                         <id>atlases</id>
 
                         <configuration>
