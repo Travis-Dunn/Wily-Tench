@@ -79,7 +79,8 @@ import javax.swing.event.ListSelectionListener;
  *   left mouse button. The pencil paints tile by tile as it is
  *   dragged; the rectangle fills the area dragged over.
  *   The right mouse button picks up whatever is under it.
- *   Dragging with the middle mouse button moves the view.
+ *   Dragging with the middle mouse button moves the view, and the
+ *   mouse wheel zooms in and out.
  *   The map lies in a wide field of empty space and can be painted
  *   outward in any direction. The space is the editor's alone: a map
  *   is saved with none around it.
@@ -196,6 +197,8 @@ public final class MapEditor {
 
         scroll = new JScrollPane(canvas);
         scroll.getViewport().setBackground(EMPTY);
+        /* The wheel zooms; see Canvas. */
+        scroll.setWheelScrollingEnabled(false);
         scroll.getVerticalScrollBar().setUnitIncrement(TILE * 2);
         scroll.getHorizontalScrollBar().setUnitIncrement(TILE * 2);
 
@@ -268,20 +271,9 @@ public final class MapEditor {
             public void actionPerformed(ActionEvent e) { Rename(); }
         }));
 
-        JMenu viewMenu = new JMenu("View");
-        viewMenu.add(Item("Zoom in", KeyEvent.VK_EQUALS, ctrl,
-                new ActionListener() {
-            public void actionPerformed(ActionEvent e) { Zoom(1); }
-        }));
-        viewMenu.add(Item("Zoom out", KeyEvent.VK_MINUS, ctrl,
-                new ActionListener() {
-            public void actionPerformed(ActionEvent e) { Zoom(-1); }
-        }));
-
         bar.add(fileMenu);
         bar.add(editMenu);
         bar.add(mapMenu);
-        bar.add(viewMenu);
         return bar;
     }
 
@@ -925,6 +917,15 @@ public final class MapEditor {
                     hoverX = hoverY = -1;
                     Describe();
                     repaint();
+                }
+            });
+            /* One step of zoom for each notch of the wheel, in when
+               it is rolled away from the hand. */
+            addMouseWheelListener(new java.awt.event.MouseWheelListener() {
+                public void mouseWheelMoved(
+                        java.awt.event.MouseWheelEvent e) {
+                    if (edit != null && e.getWheelRotation() != 0)
+                        Zoom(e.getWheelRotation() < 0 ? 1 : -1);
                 }
             });
             addMouseMotionListener(new MouseMotionAdapter() {

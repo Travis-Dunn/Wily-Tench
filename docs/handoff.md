@@ -141,6 +141,34 @@ been run on Windows of any age.
   C36. Check the last ID in the file before adding an entry; the
   sections are long and the newest entry is not always at the bottom.
 
+## The 384 by 216 layout: proposed, not built
+
+Travis is drawing the game frame himself, as one 384 by 216 PNG that is
+drawn over the view of the world. He asked for numbers to start from.
+What was proposed is drawn in `docs/layout/frame-guide.png` (one guide
+pixel to one game pixel, for loading as a reference layer) and
+`frame-guide-labeled.png`. It is a starting point; his frame, when it
+arrives, is the truth, and the game's layout should be read off it.
+
+- View of the world: 304 by 150 at the top left.
+- Chat and dialogue: 304 by 66 under it. Five rows of history and one
+  for typing, 10 pixels each, a rule between.
+- Side panel: 80 wide, the full height. From the top: a strip for
+  widgets (map button, gauges, tick spinner), four tabs, the 28 slots at
+  18 pixel pitch, four more tabs.
+
+He had first thought of running the chat box the full width under a
+shorter side panel. The numbers went against it: the small font
+averages under 4 pixels a letter, so 304 pixels already holds about 77
+letters a line, and height is what is short. He has not yet said which
+he will draw.
+
+Not built, and needed for it: shrinking the picture to 384 by 216, and
+drawing one whole image over the view. `Gfx.DrawFrame` draws 16 pixel
+cells of an atlas anywhere on the picture, which the interface uses
+already; a full-picture image is a small step from that. The frame's
+colors must all be colors of `palette.json`, which can be given more.
+
 ## Map editing: the plan Travis agreed
 
 Travis asked for a way of making maps that is low friction for a person

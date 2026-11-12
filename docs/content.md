@@ -512,7 +512,7 @@ draws with the game's own code from the same data files.
 - **The start and points move.** Painting `@` or a point somewhere new
   takes it from where it was.
 - **Moving the view.** Drag with the middle mouse button, or use the
-  scroll bars. View > Zoom in and Zoom out, or Ctrl with + and -.
+  scroll bars. The mouse wheel zooms in and out.
 - **Size.** The map lies in a wide field of empty space and can be
   painted outward in any direction; the yellow line marks its extent.
   The empty space is the editor's alone. A map is saved with none
