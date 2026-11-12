@@ -16,6 +16,13 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * character, and the interface around them, and passes on what the
  * player asks for.
  *
+ * A frame is drawn in this order. The world, into the view. The marks
+ * on the world: the walk marker, the outline and label of what the
+ * pointer is over. Then the game frame, one picture the size of the
+ * whole screen with a hole where the view is. Then the interface, on
+ * the frame: the chat box or talk, and the side panel. Last, whatever
+ * floats over everything: menus and tooltips.
+ *
  * Whatever the mouse is over, in the view of the world or in the
  * inventory, has a list of things that can be done to it. A left click
  * does the first; a right click opens the list as a menu. The label at
@@ -48,7 +55,8 @@ final class WorldScene extends Scene {
     private static final int MARKER_ARM = 4;
     private static final int NOWHERE = -1;
 
-    private static final int HOVER_TEXT_X = 4, HOVER_TEXT_Y = 3;
+    /* Clear of the frame's rounded corner. */
+    private static final int HOVER_TEXT_X = 6, HOVER_TEXT_Y = 4;
 
     /* The keys that pick the first, second, third, and fourth thing
        offered to say. */
@@ -123,9 +131,8 @@ final class WorldScene extends Scene {
         boldFont = Assets.bold;
         titleFont = Assets.title;
 
-        int panelX = viewPortX + viewW;
-        chat = new ChatBox(smallFont, viewPortX, viewPortY + viewH, viewW,
-                h - viewPortY - viewH);
+        chat = new ChatBox(smallFont, Layout.chatX, Layout.chatY,
+                Layout.chatW, Layout.chatH);
 
         session = Session.Create(Content.Maps(), Content.ScriptFiles(),
                 chat, new Random());
@@ -135,13 +142,13 @@ final class WorldScene extends Scene {
             ErrorHandler.LogFatalAndStop(ERR_STR_SPRITES);
             return;
         }
-        panel = new SidePanel(smallFont, boldFont, titleFont, panelX, 0,
-                w - panelX, h, w, h, session.inventory, session.skills);
+        panel = new SidePanel(smallFont, boldFont, w, h, session.inventory,
+                session.skills);
         menu = new ContextMenu(smallFont, w, h);
         makeMenu = new MakeMenu(smallFont, session, viewPortX, viewPortY,
                 viewW, viewH);
-        dialogue = new DialogueBox(smallFont, boldFont, session, viewPortX,
-                viewPortY + viewH, viewW, h - viewPortY - viewH);
+        dialogue = new DialogueBox(smallFont, boldFont, session,
+                Layout.chatX, Layout.chatY, Layout.chatW, Layout.chatH);
         actions = new Actions(session);
 
         save = new SaveState(session);
@@ -156,12 +163,12 @@ final class WorldScene extends Scene {
         }
 
         chat.Add(SaveGame.Loaded() != null ? MSG_WELCOME_BACK : MSG_WELCOME,
-                Palette.BONE);
-        chat.Add(MSG_HOW_TO, Palette.ASH);
+                Palette.TEXT);
+        chat.Add(MSG_HOW_TO, Palette.TEXT_DIM);
         if (loadOutcome == SaveGame.LOAD_OLDER)
-            chat.Add(MSG_LOADED_OLDER, Palette.PEACH);
+            chat.Add(MSG_LOADED_OLDER, Palette.TEXT_WARN);
         else if (loadOutcome == SaveGame.LOAD_UNREADABLE)
-            chat.Add(MSG_UNREADABLE, Palette.PEACH);
+            chat.Add(MSG_UNREADABLE, Palette.TEXT_WARN);
     }
 
     @Override
@@ -257,7 +264,8 @@ final class WorldScene extends Scene {
             session.Advance();
             if (save.Changed()) SaveGame.Queue(save.Capture());
         }
-        if (SaveGame.TakeFailure()) chat.Add(MSG_SAVE_FAILED, Palette.PEACH);
+        if (SaveGame.TakeFailure())
+            chat.Add(MSG_SAVE_FAILED, Palette.TEXT_WARN);
 
         boolean arrived = shown != session.Here();
         if (arrived) {
@@ -311,6 +319,10 @@ final class WorldScene extends Scene {
         }
         if (session.OpenMake() == Recipes.NONE) DrawHover();
         Gfx.ClearClip();
+
+        /* The frame goes over the world, its rounded corners covering
+           the view's square ones, and the interface is drawn on it. */
+        Gfx.DrawBitmap(Assets.frame, 0, 0);
 
         if (session.TalkKind() != Session.TALK_NONE)
             dialogue.Draw(pointerX, pointerY);

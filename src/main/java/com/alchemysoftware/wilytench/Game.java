@@ -87,6 +87,9 @@ final class Game {
         if (!ResourceStreamResolver.Init(null,
                 ResourceStreamResolver.MODE_CLASSPATH)) return false;
 
+        /* The size of the picture is in the layout. */
+        if (!Layout.Load()) return false;
+
         if (!GCPriest.Init()) return false;
         stage = STAGE_GC_PRIEST;
 

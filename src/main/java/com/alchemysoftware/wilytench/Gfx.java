@@ -87,6 +87,25 @@ final class Gfx {
         }
     }
 
+    /**
+     * Draws a whole bitmap with its top left at (x, y). Its see-through
+     * pixels leave what is there already.
+     */
+    static void DrawBitmap(Bitmap bitmap, int x, int y) {
+        int x0 = Math.max(x, clipX0), y0 = Math.max(y, clipY0);
+        int x1 = Math.min(x + bitmap.w, clipX1);
+        int y1 = Math.min(y + bitmap.h, clipY1);
+
+        for (int py = y0; py < y1; py++) {
+            int s = (py - y) * bitmap.w + x0 - x;
+            int d = py * bufW + x0;
+            for (int px = x0; px < x1; px++, s++, d++) {
+                byte texel = bitmap.texels[s];
+                if (texel != Bitmap.CLEAR) buf[d] = texel;
+            }
+        }
+    }
+
     /** Draws the one-pixel outline of a rectangle. */
     static void Outline(int x, int y, int w, int h, int index) {
         FillRect(x, y, w, 1, index);

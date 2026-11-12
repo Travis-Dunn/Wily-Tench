@@ -7,8 +7,9 @@ import com.alchemysoftware.whitetail.timer.Timer;
 
 /**
  * What every scene draws with: the picture, the fonts, the sprite
- * renderer, and everything in the data files. Loaded once, before the
- * scenes, because the scenes come up in no particular order.
+ * renderer, the game frame, and everything in the data files. Loaded
+ * once, before the scenes, because the scenes come up in no particular
+ * order.
  *
  * Also a few things the menu scenes have in common: where the pointer
  * is, and where on the picture a menu goes.
@@ -26,6 +27,8 @@ final class Assets {
     private static final int SPARE_SPRITES = 256;
 
     static Font small, bold, title;
+    /** The game frame, drawn over the view of the world. */
+    static Bitmap frame;
 
     private static boolean spritesInit;
 
@@ -54,7 +57,8 @@ final class Assets {
                 SPARE_SPRITES)) return false;
         spritesInit = true;
 
-        return Content.Load();
+        if (!Content.Load()) return false;
+        return (frame = Bitmap.Load(Layout.frame)) != null;
     }
 
     /** Safe to call after a failed or partial Init(). */
@@ -64,6 +68,7 @@ final class Assets {
         Content.Shutdown();
         Gfx.Shutdown();
         small = bold = title = null;
+        frame = null;
     }
 
     /** @return the left edge of where a menu goes on the picture */

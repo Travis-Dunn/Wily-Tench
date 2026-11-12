@@ -38,7 +38,7 @@ an item on a loc, tin, smelting, and the anvil with its menu. Check
 the pull requests himself; once one is merged, restart the branch from
 `master` rather than stacking on it.
 
-**Tests.** `mvn verify` runs 132 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 140 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -141,33 +141,43 @@ been run on Windows of any age.
   C36. Check the last ID in the file before adding an entry; the
   sections are long and the newest entry is not always at the bottom.
 
-## The 384 by 216 layout: proposed, not built
+## The 384 by 216 picture and the game frame
 
-Travis is drawing the game frame himself, as one 384 by 216 PNG that is
-drawn over the view of the world. He asked for numbers to start from.
-What was proposed is drawn in `docs/layout/frame-guide.png` (one guide
-pixel to one game pixel, for loading as a reference layer) and
-`frame-guide-labeled.png`. It is a starting point; his frame, when it
-arrives, is the truth, and the game's layout should be read off it.
+Done. The picture is 384 by 216 game pixels, and the interface is one
+drawing by Travis, `images/frame.png`, laid over the view of the world.
 
-- View of the world: 304 by 150 at the top left.
-- Chat and dialogue: 304 by 66 under it. Five rows of history and one
-  for typing, 10 pixels each, a rule between.
-- Side panel: 80 wide, the full height. From the top: a strip for
-  widgets (map button, gauges, tick spinner), four tabs, the 28 slots at
-  18 pixel pitch, four more tabs.
+- **Draw order**, in `WorldScene.onRender`: the world into the view; the
+  marks on it; the frame, whose rounded corners cover the view's square
+  ones; the interface, on the frame; floating menus and tooltips last.
+- **`data/layout.json` says where things are on the frame**: the view,
+  the parchment, the slots, the tab rows, the open space above the tabs.
+  The numbers were measured from the frame's pixels, and `FrameTest`
+  checks them against it. When Travis redraws the frame with something
+  moved, the file changes and the Java does not. He has said the frame
+  will get more polish.
+- **`Bitmap` is the second way of drawing**: a whole PNG of any size,
+  read at startup with no tool to run. `Gfx.DrawBitmap` draws one.
+- **Two palettes for now.** `palette.json` holds the purchased art's
+  colors and then the 32 of carp32, Travis's own palette, named
+  `carp_...`. The frame is drawn in carp32. Travis intends to redraw
+  every sprite in carp32 by hand, after which the old colors go. The
+  interface's own colors on the frame are named by use in `Palette`
+  (`TEXT`, `TEXT_WARN`, `MARK`, and so on) and all come from carp32.
+- **`art/` is for Travis's own source files** that the game does not
+  read; `art/carp32.png` is the palette as a picture. What the game
+  reads is under `src/main/resources`.
 
-He had first thought of running the chat box the full width under a
-shorter side panel. The numbers went against it: the small font
-averages under 4 pixels a letter, so 304 pixels already holds about 77
-letters a line, and height is what is short. He has not yet said which
-he will draw.
+Left in the old palette and the purchased interface art, to be redone
+when Travis draws for them: the main menu and options screen, the
+right-click menu, tooltips, the make menu, the label and outline over
+the world. The space above the tabs only names the open tab; it is kept
+for a map button, gauges, and a tick spinner. Six of the eight tabs are
+empty. Skill and tab icons are still stand-ins.
 
-Not built, and needed for it: shrinking the picture to 384 by 216, and
-drawing one whole image over the view. `Gfx.DrawFrame` draws 16 pixel
-cells of an atlas anywhere on the picture, which the interface uses
-already; a full-picture image is a small step from that. The frame's
-colors must all be colors of `palette.json`, which can be given more.
+Chat and talk pack their lines a pixel closer than the font's height,
+nine pixels apart, to get five rows and a typing row (or a name, four
+lines, and "Click here to continue") onto the 58 pixel parchment. A tall
+letter under one with a tail can touch it.
 
 ## Map editing: the plan Travis agreed
 
@@ -320,7 +330,7 @@ Known limits of step 1:
   buttons. The art pack has banners and embellishments not yet used.
 - **The make menu has no scrolling.** It runs to a new column every ten
   recipes, which fits two columns in today's view. A long list will need
-  another answer, more so at 384 by 216.
+  another answer.
 - **A skill's current level is always its earned level.**
   `Skills.CurrentLevel()` exists so the panel can show "current/earned",
   but nothing raises or lowers a level yet, and scripts' `stat_level`
@@ -329,14 +339,11 @@ Known limits of step 1:
 
 ## What Travis has said is coming
 
-- **A smaller picture: 384 by 216 game pixels**, not started. He has
-  checked that everything fits. The reason is a **post-processing CRT
-  filter** for modern machines, which looks better the more real pixels
-  there are per game pixel (5 by 5 rather than 2 by 2). The chat box and
-  side panel will need laying out again, and `Screen.PRESET_SIZES` and
-  its viewport arithmetic will change. Once the picture is presented
-  through a shader, the camera's leftover fraction of a pixel can be
-  applied there, which is the real cure for the grit.
+- **A post-processing CRT filter** for modern machines, which is why the
+  picture was made small: it looks better the more real pixels there are
+  to a game pixel. Once the picture is presented through a shader, the
+  camera's leftover fraction of a pixel can be applied there, which is
+  the real cure for the grit.
 - **Menu options as properties of the thing**, in data. He said the
   drawing came first and the options would be ironed out later.
   `Actions.java` builds the lists today.
@@ -350,8 +357,7 @@ Known limits of step 1:
 None is agreed; they are in rough order of how well they fit what
 exists.
 
-1. The 384 by 216 picture and the interface re-layout, since everything
-   visual built before it will need redoing after it.
+1. (Done: the 384 by 216 picture and the game frame.)
 2. Items on the ground: drop, pick up, despawn, saved per map. It fits
    the tick-stamped map state already there.
 3. Option lists from data, with "Use item on thing".

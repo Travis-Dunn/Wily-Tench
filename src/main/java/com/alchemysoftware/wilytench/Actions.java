@@ -134,7 +134,7 @@ final class Actions {
         switch (menu.Action(option)) {
             case WALK:
                 if (!session.WalkTo(a, b))
-                    session.chat.Add(MSG_CANT_REACH, Palette.BONE);
+                    session.chat.Add(MSG_CANT_REACH, Palette.TEXT);
                 break;
             case USE_LOC:
                 session.Use(a, b);

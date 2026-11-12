@@ -201,7 +201,7 @@ final class Session {
 
         if (Scripts.Subject(Scripts.TRIGGER_USE_ITEM,
                 Here().LocAt(tileX, tileY)) == null) {
-            chat.Add(MSG_NOTHING_HAPPENS, Palette.BONE);
+            chat.Add(MSG_NOTHING_HAPPENS, Palette.TEXT);
             return;
         }
         targetItem = item;
@@ -215,7 +215,7 @@ final class Session {
     void UseItemOnItem(int slot, int otherSlot) {
         if (inventory.At(slot) != Item.NONE &&
                 inventory.At(otherSlot) != Item.NONE)
-            chat.Add(MSG_NOTHING_HAPPENS, Palette.BONE);
+            chat.Add(MSG_NOTHING_HAPPENS, Palette.TEXT);
     }
 
     /** @return which kind of talk is on show: one of the TALK_ values */
@@ -288,13 +288,13 @@ final class Session {
      */
     void ExamineTile(int tileX, int tileY) {
         String text = Here().Examine(tileX, tileY);
-        if (text != null) chat.Add(text, Palette.ASH);
+        if (text != null) chat.Add(text, Palette.TEXT_DIM);
     }
 
     /** Looks closely at the item in an inventory slot. */
     void ExamineItem(int slot) {
         int item = inventory.At(slot);
-        if (item != Item.NONE) chat.Add(Item.Examine(item), Palette.ASH);
+        if (item != Item.NONE) chat.Add(Item.Examine(item), Palette.TEXT_DIM);
     }
 
     /**
@@ -305,7 +305,7 @@ final class Session {
         int item = inventory.Remove(slot);
         if (item == Item.NONE) return;
         chat.Add("You drop the " + Item.LowerName(item) + ".",
-                Palette.BONE);
+                Palette.TEXT);
     }
 
     /**
@@ -315,7 +315,7 @@ final class Session {
     void Travel(int mapIndex) {
         Arrive(mapIndex, worlds[mapIndex].startX, worlds[mapIndex].startY);
         Here().Tick(tick);
-        chat.Add("You arrive in the " + Here().name + ".", Palette.BONE);
+        chat.Add("You arrive in the " + Here().name + ".", Palette.TEXT);
     }
 
     /**
@@ -326,7 +326,7 @@ final class Session {
     void TravelTo(int mapIndex, int tileX, int tileY) {
         Arrive(mapIndex, tileX, tileY);
         Here().Tick(tick);
-        chat.Add("You arrive in the " + Here().name + ".", Palette.BONE);
+        chat.Add("You arrive in the " + Here().name + ".", Palette.TEXT);
     }
 
     /**
@@ -339,7 +339,7 @@ final class Session {
         String name = Skills.Name(skill);
         chat.Add("Congratulations, you just advanced a " + name +
                 " level! Your " + name + " level is now " +
-                skills.Level(skill) + ".", Palette.AMBER);
+                skills.Level(skill) + ".", Palette.TEXT_NEWS);
     }
 
     /** Advances the whole game by one tick. */
@@ -434,7 +434,7 @@ final class Session {
 
         if (subject == null) return;
         if (!beside) {
-            chat.Add(MSG_CANT_REACH, Palette.BONE);
+            chat.Add(MSG_CANT_REACH, Palette.TEXT);
             return;
         }
 

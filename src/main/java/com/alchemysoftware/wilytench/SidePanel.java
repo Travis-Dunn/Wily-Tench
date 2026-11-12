@@ -1,21 +1,27 @@
 package com.alchemysoftware.wilytench;
 
 /**
- * The interface panel to the right of the game view.
+ * The interface panel to the right of the game view, as the game
+ * frame draws it: a row of tabs, the 28 squares of the inventory, and
+ * a second row of tabs under them. Layout says where on the frame
+ * those are.
  *
- * Most of it is one box, and a row of buttons above the box chooses
- * what the box shows: the inventory, or the skills. The buttons are
- * drawn as tabs, the chosen one joined to the box. Their pictures come
- * from data/interface.json.
+ * A tab chooses what the squares show: the inventory, or the skills.
+ * There is room for eight tabs, four above and four below, and so far
+ * there are two. Their pictures come from data/interface.json. The
+ * chosen tab is outlined.
  *
- * The inventory is items in four columns. Pointing at an item names
- * it. What clicking an item does is decided elsewhere; the panel only
- * says which slot the pointer is over.
+ * The inventory is one item to a square. What clicking an item does is
+ * decided elsewhere; the panel only says which slot the pointer is
+ * over, and outlines it.
  *
- * Each skill has a small rectangle holding its icon and its level as
- * it stands over its level as earned, "1/1". Pointing at one brings up
- * a tooltip with the experience earned and the experience at which
- * the next level comes.
+ * Each skill takes two squares side by side: its icon in the first,
+ * and in the second its level as it stands over its level as earned,
+ * "1/1". Pointing at one brings up a tooltip with the experience
+ * earned and the experience at which the next level comes.
+ *
+ * The space above the tabs is kept for things to come. For now it
+ * names the tab that is open and gives a figure for it.
  */
 final class SidePanel {
     static final int TAB_INVENTORY = 0;
@@ -32,40 +38,21 @@ final class SidePanel {
         "id", "name", "sheet", "cell"
     };
 
-    private static final int MARGIN = 10;
-    private static final int TITLE_Y = 6;
-    private static final int HEADING_Y = 28;
+    private static final int CELL = Layout.CELL;
+    private static final int COLS = Layout.ACROSS;
+    /* A skill has two squares side by side. */
+    private static final int SKILL_COLS = COLS / 2;
 
-    private static final int TABS_Y = 44;
-    private static final int TAB_H = 22;
-    /* How much lower the tabs not chosen stand. */
-    private static final int TAB_DROP = 2;
-
-    private static final int COLS = 4;
-    /* Each item has a SLOT-sized square of the box to itself. */
-    private static final int SLOT = 26;
-    /* A tab is as wide as a slot, so the two line up. */
-    private static final int TAB_W = SLOT;
-    private static final int HOVER_GAP = 4;
-
-    /* A skill has the room of two slots side by side. */
-    private static final int SKILL_COLS = 2;
-    private static final int SKILL_W = 2 * SLOT, SKILL_H = SLOT;
-    private static final int SKILL_PAD = 5;
-
+    private static final int HEADING_PAD = 4;
     private static final int TIP_LINES = 2;
     private static final int STALE = -1;
-
-    private static final String TITLE = Screen.TITLE;
-    private static final String MENU_HINT = "Right-click for options";
 
     private static String[] tabNames;
     private static int[] tabPictures;
 
-    private final Font small, bold, title;
-    private final int x, y, w, h;
+    private final Font small, bold;
     private final int screenW, screenH;
-    private final int gridX, gridY, rows;
+    private final int rows;
     private final Inventory inventory;
     private final Skills skills;
 
@@ -129,28 +116,23 @@ final class SidePanel {
     }
 
     /**
-     * @param x the panel's left edge in picture pixels
+     * Layout must be loaded: it says where the panel's parts are.
+     *
+     * @param small the font for figures
+     * @param bold the font for the open tab's name
      * @param screenW the width of the whole picture, which tooltips
      *                stay inside
      */
-    SidePanel(Font small, Font bold, Font title, int x, int y, int w, int h,
-              int screenW, int screenH, Inventory inventory,
-              Skills skills) {
+    SidePanel(Font small, Font bold, int screenW, int screenH,
+              Inventory inventory, Skills skills) {
         this.small = small;
         this.bold = bold;
-        this.title = title;
-        this.x = x;
-        this.y = y;
-        this.w = w;
-        this.h = h;
         this.screenW = screenW;
         this.screenH = screenH;
         this.inventory = inventory;
         this.skills = skills;
 
         rows = Inventory.SLOTS / COLS;
-        gridX = x + (w - COLS * SLOT) / 2;
-        gridY = y + TABS_Y + TAB_H + 1;
 
         int n = Skills.Count();
         shownXp = new int[n];
@@ -211,21 +193,30 @@ final class SidePanel {
     /** @return the skill under the pointer, or NO_SKILL */
     int HoverSkill() { return hoverSkill; }
 
-    /** @return the left edge of a tab's button */
-    int TabX(int which) { return gridX - 1 + which * TAB_W; }
+    /** @return the left edge of a tab's square */
+    int TabX(int which) {
+        return (which < COLS ? Layout.topTabsX : Layout.bottomTabsX) +
+                which % COLS * Layout.pitch;
+    }
 
-    /** @return the top edge of the tab buttons */
-    int TabY() { return y + TABS_Y; }
+    /** @return the top edge of a tab's square */
+    int TabY(int which) {
+        return which < COLS ? Layout.topTabsY : Layout.bottomTabsY;
+    }
 
     /** @return the left edge of an inventory slot's square */
-    int SlotX(int slot) { return gridX + slot % COLS * SLOT; }
+    int SlotX(int slot) { return Layout.slotsX + slot % COLS * Layout.pitch; }
 
-    int SlotY(int slot) { return gridY + slot / COLS * SLOT; }
+    int SlotY(int slot) { return Layout.slotsY + slot / COLS * Layout.pitch; }
 
-    /** @return the left edge of a skill's rectangle */
-    int SkillX(int skill) { return gridX + skill % SKILL_COLS * SKILL_W; }
+    /** @return the left edge of the first of a skill's two squares */
+    int SkillX(int skill) {
+        return Layout.slotsX + skill % SKILL_COLS * 2 * Layout.pitch;
+    }
 
-    int SkillY(int skill) { return gridY + skill / SKILL_COLS * SKILL_H; }
+    int SkillY(int skill) {
+        return Layout.slotsY + skill / SKILL_COLS * Layout.pitch;
+    }
 
     /**
      * @return the heading of the tooltip for what the pointer is
@@ -250,33 +241,33 @@ final class SidePanel {
         return tipLines[hoverSkill][line];
     }
 
+    /** Draws over the game frame, which must already be drawn. */
     void Draw() {
         Refresh();
+        Gfx.ClearClip();
 
-        Gfx.SetClip(x, y, w, h);
-        Gfx.FillRect(x, y, w, h, Palette.NIGHT);
-        Gfx.FillRect(x, y, 1, h, Palette.SLATE);
-
-        Text.DrawShadowed(title, TITLE, 0, TITLE.length(),
-                x + (w - title.Width(TITLE, 0, TITLE.length())) / 2,
-                y + TITLE_Y, Palette.AMBER, Palette.INK);
-
+        /* The frame leaves this space open, for what is to come. */
+        Gfx.FillRect(Layout.widgetsX, Layout.widgetsY, Layout.widgetsW,
+                Layout.widgetsH, Palette.VOID);
         String heading = tabNames[tab];
-        String count = tab == TAB_INVENTORY ? usedText : totalText;
-        Text.Draw(bold, heading, 0, heading.length(), x + MARGIN,
-                y + HEADING_Y, Palette.BONE);
-        Text.Draw(small, count, 0, count.length(),
-                x + w - MARGIN - small.Width(count, 0, count.length()),
-                y + HEADING_Y, Palette.ASH);
+        String figure = tab == TAB_INVENTORY ? usedText : totalText;
+        Text.Draw(bold, heading, 0, heading.length(),
+                Layout.widgetsX + HEADING_PAD, Layout.widgetsY + HEADING_PAD,
+                Palette.TEXT_LIGHT);
+        Text.Draw(small, figure, 0, figure.length(),
+                Layout.widgetsX + HEADING_PAD,
+                Layout.widgetsY + HEADING_PAD + bold.lineH + 2,
+                Palette.TEXT_LIGHT);
 
-        Gfx.FillRect(gridX, gridY, COLS * SLOT, rows * SLOT, Palette.INK);
-        Gfx.Outline(gridX - 1, gridY - 1, COLS * SLOT + 2, rows * SLOT + 2,
-                Palette.SLATE);
-        for (int i = 0; i < TABS; i++) DrawTab(i);
+        for (int i = 0; i < TABS; i++) {
+            int tx = TabX(i), ty = TabY(i);
+            Sprites.Draw(tabPictures[i], Sprites.COLOR_MAP_NONE, tx, ty);
+            if (i == tab) Ring(tx, ty, CELL, Palette.CHOSEN);
+            else if (i == hoverTab) Ring(tx, ty, CELL, Palette.MARK);
+        }
 
         if (tab == TAB_INVENTORY) DrawInventory();
         else DrawSkills();
-        Gfx.ClearClip();
     }
 
     /**
@@ -292,71 +283,37 @@ final class SidePanel {
                 TipLines(), pointerX, pointerY, screenW, screenH);
     }
 
-    /*
-     * The chosen tab stands full height and opens into the box below
-     * it; the others stand a little lower and are closed.
-     */
-    private void DrawTab(int which) {
-        int left = TabX(which), top = TabY(), across = TAB_W + 1;
-        int iconX = left + (across - Sheet.CELL) / 2;
-        int iconY = top + (TAB_H - Sheet.CELL) / 2 + 1;
-
-        if (which == tab) {
-            Gfx.FillRect(left, top, across, TAB_H + 1, Palette.INK);
-            Gfx.FillRect(left, top, across, 1, Palette.SLATE);
-            Gfx.FillRect(left, top, 1, TAB_H + 1, Palette.SLATE);
-            Gfx.FillRect(left + across - 1, top, 1, TAB_H + 1,
-                    Palette.SLATE);
-        } else {
-            Gfx.Outline(left, top + TAB_DROP, across, TAB_H - TAB_DROP + 1,
-                    which == hoverTab ? Palette.ASH : Palette.SLATE);
-            iconY += TAB_DROP / 2;
-        }
-        Sprites.Draw(tabPictures[which], Sprites.COLOR_MAP_NONE, iconX,
-                iconY);
-    }
-
     private void DrawInventory() {
         for (int slot = 0; slot < Inventory.SLOTS; slot++) {
             int sx = SlotX(slot), sy = SlotY(slot);
             int item = inventory.At(slot);
             if (item == Item.NONE) continue;
 
-            if (slot == selectedSlot) {
-                Gfx.Outline(sx + 1, sy + 1, SLOT - 2, SLOT - 2,
-                        Palette.AMBER);
-            } else if (slot == hoverSlot) {
-                Gfx.Outline(sx + 1, sy + 1, SLOT - 2, SLOT - 2, Palette.ASH);
-            }
-            Item.DrawIcon(item, sx + (SLOT - Sheet.CELL) / 2,
-                    sy + (SLOT - Sheet.CELL) / 2);
+            Item.DrawIcon(item, sx, sy);
+            if (slot == selectedSlot) Ring(sx, sy, CELL, Palette.CHOSEN);
+            else if (slot == hoverSlot) Ring(sx, sy, CELL, Palette.MARK);
         }
-
-        if (hoverSlot == NO_SLOT || inventory.At(hoverSlot) == Item.NONE)
-            return;
-
-        String name = Item.Name(inventory.At(hoverSlot));
-        int left = x + MARGIN;
-        int textY = gridY + rows * SLOT + HOVER_GAP;
-        Text.Draw(small, name, 0, name.length(), left, textY, Palette.MINT);
-        Text.Draw(small, MENU_HINT, 0, MENU_HINT.length(), left,
-                textY + small.lineH + 1, Palette.ASH);
     }
 
     private void DrawSkills() {
         for (int skill = 0; skill < Skills.Count(); skill++) {
             int sx = SkillX(skill), sy = SkillY(skill);
             String level = levelTexts[skill];
+            int secondX = sx + Layout.pitch;
 
-            Gfx.Outline(sx + 1, sy + 1, SKILL_W - 2, SKILL_H - 2,
-                    skill == hoverSkill ? Palette.ASH : Palette.SLATE);
-            Skills.DrawIcon(skill, title, sx + SKILL_PAD,
-                    sy + (SKILL_H - Sheet.CELL) / 2);
+            Skills.DrawIcon(skill, bold, sx, sy);
             Text.Draw(small, level, 0, level.length(),
-                    sx + SKILL_W - SKILL_PAD -
-                    small.Width(level, 0, level.length()),
-                    sy + (SKILL_H - small.lineH) / 2, Palette.AMBER);
+                    secondX + (CELL - small.Width(level, 0, level.length()))
+                    / 2, sy + (CELL - small.lineH) / 2, Palette.TEXT_LIGHT);
+            if (skill == hoverSkill)
+                Ring(sx, sy, Layout.pitch + CELL, Palette.MARK);
         }
+    }
+
+    /* Outlines squares of the frame, in the gap around them: w pixels
+       of them across, from (x, y). */
+    private static void Ring(int x, int y, int w, int color) {
+        Gfx.Outline(x - 1, y - 1, w + 2, CELL + 2, color);
     }
 
     private void Refresh() {
@@ -389,28 +346,28 @@ final class SidePanel {
     }
 
     private int TabAt(int mouseX, int mouseY) {
-        int tx = mouseX - TabX(0), ty = mouseY - TabY();
-        if (mouseX < 0 || tx < 0 || ty < 0 || ty >= TAB_H) return NO_TAB;
-
-        return tx / TAB_W < TABS ? tx / TAB_W : NO_TAB;
+        for (int i = 0; i < TABS; i++) {
+            if (mouseX >= TabX(i) && mouseX < TabX(i) + CELL &&
+                    mouseY >= TabY(i) && mouseY < TabY(i) + CELL) return i;
+        }
+        return NO_TAB;
     }
 
+    /* The slot whose square, or the gap after it, a point is in. */
     private int SlotAt(int mouseX, int mouseY) {
-        int gx = mouseX - gridX, gy = mouseY - gridY;
+        int gx = mouseX - Layout.slotsX, gy = mouseY - Layout.slotsY;
         if (mouseX < 0 || gx < 0 || gy < 0) return NO_SLOT;
 
-        int col = gx / SLOT, row = gy / SLOT;
+        int col = gx / Layout.pitch, row = gy / Layout.pitch;
         return col < COLS && row < rows ? row * COLS + col : NO_SLOT;
     }
 
     private int SkillAt(int mouseX, int mouseY) {
-        int gx = mouseX - gridX, gy = mouseY - gridY;
-        if (mouseX < 0 || gx < 0 || gy < 0) return NO_SKILL;
+        int slot = SlotAt(mouseX, mouseY);
+        if (slot == NO_SLOT) return NO_SKILL;
 
-        int col = gx / SKILL_W, row = gy / SKILL_H;
-        int skill = row * SKILL_COLS + col;
-        return col < SKILL_COLS && skill < Skills.Count() ?
-                skill : NO_SKILL;
+        int skill = slot / COLS * SKILL_COLS + slot % COLS / 2;
+        return skill < Skills.Count() ? skill : NO_SKILL;
     }
 
     private static final String TIP_XP = "Experience: ";

@@ -64,6 +64,7 @@ run on Windows of any age.
 | C42 | `Assets.java` loads what every scene needs before any scene starts |
 | C43 | `Assets.DiscardTicks()` throws ticks away in scenes where the world stands still |
 | C44 | `OptionsScene.java` asks for a relaunch and calls `JOptionPane` itself |
+| C47 | `IndexedPng.java` reads indexed-color PNGs |
 | C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, and `choiceN` and `chosen`, with the pick kept in `Session` |
 | C45 | `Scripts.java` registers `choice2`, `choice3`, and `choice4` |
 | C38 | `Scripts.java` registers `inv_del_n` because a script cannot count |
@@ -789,6 +790,29 @@ that every speech fits the talk box. A way to walk the string constants
 of a compiled script, with the command each is an argument of, would let
 a host check its content the way `mvn verify` checks the data files.
 
+**C47. `ImageBuilder.FromPNG()` does not read indexed-color PNGs.**
+*(Hit)*  
+Status: open.
+It reads color types 0, 2, and 6 (grey, RGB, RGBA) and reports type 3 as
+unsupported. Type 3, a palette in the file and one index per pixel, is
+what Aseprite and every other pixel-art program writes for a picture in
+indexed mode, which is the natural mode for art made in a fixed palette.
+The first picture Travis drew for this game was one, and the game
+stopped at startup. The purchased sheets had all happened to be RGBA.
+
+It is also the one PNG kind that suits this renderer exactly: the game
+wants indices, the file holds indices, and going through RGBA and
+matching each pixel back to a palette color is a round trip. The game
+now reads type 3 itself (`IndexedPng.java`, about 150 lines: chunks,
+`java.util.zip.Inflater`, the five row filters, 1 to 8 bits) and leaves
+the other types to Whitetail. Supporting type 3 in `comp-image`, with
+the file's palette and transparency available as well as the expanded
+pixels, would let every palette-art game drop that.
+
+Related: `FromPNG()` takes a stream and decides the kind inside, so a
+caller who needs to know the kind first must read the whole stream into
+memory and look at the header byte itself, as `Bitmap.Load()` does.
+
 ### D. Things that went well
 
 Worth recording, so they are not "fixed" by accident.
@@ -848,6 +872,13 @@ Worth recording, so they are not "fixed" by accident.
   two at once; that is the game's `Gfx` here, but `SpriteRenderer` is
   built the same way and a tool that used it for drawing would meet the
   same wall (C22 is the testing side of this).
+- Shrinking the picture to 384 by 216 and moving the view to a hole
+  inside it was one `FramebufferPreset` with different numbers.
+  `comp-display-layout` chose scale 4 on a 1080p desktop, mouse
+  positions kept converting correctly, and the sprite renderer clipped
+  the world to the new viewport without a change. Drawing the frame
+  over the world needed nothing from Whitetail, since the game owns the
+  index buffer and the order it writes to it.
 - Dialogue needed nothing new from the script system. `suspend()` and
   `Resume()`, already used for the make menu, carried a whole
   conversation: nine commands' worth of talk, a choice, and a quest, with

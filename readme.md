@@ -121,8 +121,12 @@ into weapons and armor.
   view names; a right click opens the whole list as a menu. Tiles offer
   Walk here and, where something stands, its own verb and Examine. Items
   offer Use, Drop, and Examine.
-- **Side panel.** One box, and a row of tabs above it that choose what
-  it shows: the 28-slot inventory, or the skills. Each skill is a small
+- **The game frame.** The picture is 384 by 216 game pixels. The
+  interface is one drawing laid over the view of the world: the world
+  shows through a hole in it, the chat is written on its parchment, and
+  the inventory sits in its squares.
+- **Side panel.** The frame's squares, and a row of tabs above them that
+  choose what they show: the 28-slot inventory, or the skills. Each skill is a small
   rectangle with its icon and its level, current over earned ("1/1").
   Point at one for a tooltip with the experience earned and the
   experience at which the next level comes. Dropped items vanish, for
@@ -264,6 +268,8 @@ which is what makes that practical.
 | `PushButton`, `Buttons`, `Toggle`, `Slider` | The widgets: push buttons and the clicking of them, checkboxes and option buttons, sliders |
 | `DataDir`, `Settings`, `Natives` | The per-user folder, the settings and the writing of `config.ini`, LWJGL's native libraries |
 | `Screen`, `Palette` | The window, the picture's size, and its colors, from `palette.json` |
+| `Layout` | Where things are on the game frame, from `layout.json` |
+| `Bitmap`, `IndexedPng` | Whole pictures of any size, such as the game frame, read from PNG files |
 | `Content`, `DataNode`, `DataError` | Loading the data files, strictly, with explanations of mistakes |
 | `Sprites` | The sprite sheets and color maps, from `sprites.json`, and where the atlas tool packed each sheet |
 | `Tiles` | What each map character means, from `tiles.json` |
@@ -412,6 +418,14 @@ To add a script file, write it and add its name to `scripts` in
 `Scripts.java` and add it to the list at the top of that file.
 
 ## Art
+
+There are two kinds of art, in two palettes, for now. The purchased art,
+described next, is cut into sprites. Travis's own art, so far the game
+frame, is whole pictures in `src/main/resources/images`, drawn in his
+palette carp32 (`art/carp32.png`), saved as ordinary PNGs from Aseprite,
+and read by the game as they are: change the file and run the game. In
+time every sprite is to be redrawn in carp32 and the purchased palette
+retired. `docs/content.md` says what a picture must obey.
 
 The `DD-...` folders hold the purchased Demonic Dungeon art by VEXED,
 untouched: the core pack, the interface pack, and five expansions. The

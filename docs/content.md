@@ -412,6 +412,39 @@ A color map redraws a picture with some palette colors swapped:
 Each pair is "this color becomes that one", using the names in
 `palette.json`. There is room for seven color maps.
 
+## The game frame: images and layout.json
+
+The interface is one picture, `images/frame.png`, the size of the whole
+screen, drawn over the view of the world. To change it, save a new PNG
+over it and run the game; there is no tool to run. A picture in `images/`
+must obey two rules, and the game stops with a message naming the pixel
+if it does not:
+
+- Every pixel is exactly a color of `palette.json`, or wholly
+  see-through. No partly see-through pixels.
+- It may be saved as indexed color or as full color (RGB or RGBA), not
+  interlaced.
+
+`layout.json` says where things are on the frame, in game pixels, so that
+the game lines up with the drawing:
+
+| Value | Meaning |
+| ----- | ------- |
+| `picture` | The size of the whole picture: width, height |
+| `frame` | The frame's file in `images/` |
+| `view` | The hole the world shows through: left, top, width, height. The frame is drawn over the world, so its rounded corners cover the corners of this rectangle |
+| `chat` | The parchment that the chat box and talk are written on |
+| `widgets` | The open space above the tabs |
+| `slots` | The top left of the first inventory slot |
+| `top_tabs`, `bottom_tabs` | The top left of the first tab in each row |
+| `pitch` | From one slot's or tab's left edge to the next's. They are 16 pixels square, four to a row |
+
+**If the frame is redrawn with anything moved, change these numbers to
+match.** `mvn verify` checks the file against the frame: that the view is
+a hole with frame on every side, that the parchment fills its rectangle,
+and that every slot and tab is a square of one color with a gap around
+it.
+
 ## palette.json
 
 The game shows a fixed set of colors, and every pixel of every sprite is
@@ -421,9 +454,14 @@ one of them.
 
 `colors` lists them. **The order matters**: converted art stores each
 pixel as a position in this list, so add new colors at the end, and
-rebuild the atlases after any change. Ten of the names are used by the
-game's own interface and must stay: ink, night, slate, rust, ash, leaf,
-mint, amber, peach, bone.
+rebuild the atlases after any change. Some of the names are used by the
+game's own interface and must stay; the game says which if one goes.
+
+The list is two palettes end to end. First the colors of the purchased
+art. Then the 32 colors of carp32, Travis's own palette, named
+`carp_black`, `carp_parchment`, and so on, in the order of
+`art/carp32.png`. The game frame is drawn in carp32, and in time every
+sprite will be.
 
 When new art brings a new color, the atlas tool refuses it and reports
 the color and how many pixels use it. If it is a real color of the art,

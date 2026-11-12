@@ -2,7 +2,8 @@ package com.alchemysoftware.wilytench;
 
 /**
  * Talk between the player's character and someone else, shown where
- * the chat box is while it lasts: plain writing on parchment.
+ * the chat box is while it lasts: plain writing on the game frame's
+ * parchment.
  *
  * There are two things it shows. Speech is a few lines of what
  * somebody says, under their name, beside their portrait: the other
@@ -24,11 +25,13 @@ final class DialogueBox {
     private static final int PAD = 8;
     private static final int PORTRAIT = 32;
     private static final int PORTRAIT_PAD = 2;
-    private static final int NAME_Y = 8;
-    private static final int LINE_GAP = 2;
+    private static final int NAME_Y = 1;
+    /* Lines are packed a pixel closer than the font's line height, so
+       that a name, four lines, and the way on fit the parchment. */
+    private static final int LINE_GAP = -1;
     private static final int MAX_LINES = 4;
-    private static final int CONTINUE_PAD = 6;
-    private static final int HEADING_Y = 8;
+    private static final int CONTINUE_PAD = 1;
+    private static final int HEADING_Y = 2;
 
     private static final String CONTINUE = "Click here to continue";
     private static final String HEADING = "Select an Option";
@@ -97,9 +100,8 @@ final class DialogueBox {
 
     /** Draws the talk in progress. */
     void Draw(int mouseX, int mouseY) {
+        /* The background is the frame's parchment, already drawn. */
         Gfx.SetClip(x, y, w, h);
-        Gfx.FillRect(x, y, w, h, Palette.BONE);
-        Gfx.Outline(x, y, w, h, Palette.RUST);
 
         if (session.TalkKind() == Session.TALK_CHOICE)
             DrawChoice(mouseX, mouseY);
@@ -119,7 +121,7 @@ final class DialogueBox {
 
         Text.Draw(bold, name, 0, name.length(),
                 Aligned(bold, name, 0, name.length(), textX, textW, player),
-                lineY, Palette.MAROON);
+                lineY, Palette.TEXT_NEWS);
         lineY += bold.lineH + LINE_GAP;
 
         for (int start = 0, line = 0; start < text.length() &&
@@ -131,14 +133,15 @@ final class DialogueBox {
             while (shown > start && text.charAt(shown - 1) == ' ') shown--;
             Text.Draw(font, text, start, shown,
                     Aligned(font, text, start, shown, textX, textW, player),
-                    lineY, Palette.INK);
+                    lineY, Palette.TEXT);
             start = end;
         }
 
         Text.Draw(font, CONTINUE, 0, CONTINUE.length(),
                 x + (w - font.Width(CONTINUE, 0, CONTINUE.length())) / 2,
                 y + h - CONTINUE_PAD - font.lineH,
-                Contains(mouseX, mouseY) ? Palette.RUST : Palette.MAROON);
+                Contains(mouseX, mouseY) ? Palette.TEXT_WARN :
+                Palette.TEXT_NEWS);
     }
 
     private void DrawChoice(int mouseX, int mouseY) {
@@ -146,14 +149,13 @@ final class DialogueBox {
 
         Text.Draw(bold, HEADING, 0, HEADING.length(),
                 x + (w - bold.Width(HEADING, 0, HEADING.length())) / 2,
-                y + HEADING_Y, Palette.MAROON);
+                y + HEADING_Y, Palette.TEXT_NEWS);
 
         for (int i = 0; i < session.TalkOptions(); i++) {
             String option = session.TalkOption(i);
             Text.Draw(font, option, 0, option.length(),
                     x + (w - font.Width(option, 0, option.length())) / 2,
-                    OptionY(i) + LINE_GAP / 2,
-                    i == lit ? Palette.RUST : Palette.INK);
+                    OptionY(i), i == lit ? Palette.TEXT_WARN : Palette.TEXT);
         }
     }
 
@@ -164,11 +166,11 @@ final class DialogueBox {
 
         while (end > 1 && font.Width(name, 0, end) > room) end--;
 
-        Gfx.FillRect(px, py, PORTRAIT, PORTRAIT, Palette.TAN);
-        Gfx.Outline(px, py, PORTRAIT, PORTRAIT, Palette.RUST);
+        Gfx.FillRect(px, py, PORTRAIT, PORTRAIT, Palette.PORTRAIT);
+        Gfx.Outline(px, py, PORTRAIT, PORTRAIT, Palette.PORTRAIT_EDGE);
         Text.Draw(font, name, 0, end,
                 px + (PORTRAIT - font.Width(name, 0, end)) / 2,
-                py + (PORTRAIT - font.lineH) / 2, Palette.INK);
+                py + (PORTRAIT - font.lineH) / 2, Palette.TEXT);
     }
 
     /* Where a run of text starts so as to sit at the left of a

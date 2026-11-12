@@ -221,7 +221,7 @@ final class Scripts {
     private static void Register() {
         Add("mes", new ValueType[] { STRING }, VOID, new CommandHandler() {
             public void execute(ScriptState s) {
-                session.chat.Add(s.argString(0), Palette.BONE);
+                session.chat.Add(s.argString(0), Palette.TEXT);
             }
         });
         Add("join", new ValueType[] { STRING, STRING }, STRING,

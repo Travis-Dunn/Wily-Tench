@@ -1,0 +1,15 @@
+{
+  "note": "Where things are on the picture, measured from the game frame in images/frame.png. If the frame is redrawn with anything moved, change the numbers here to match; nothing in the Java needs to know. Rectangles are left, top, width, height, in game pixels. 'view' is the hole the world shows through; the frame is drawn over the world, so its rounded corners cover the corners of this. 'widgets' is the hole above the tabs, kept for a map button, gauges, and the like. 'chat' is the parchment, which the chat box and talk are both written straight onto. 'slots', 'top_tabs', and 'bottom_tabs' are the top left of the first inventory slot and of the first tab in each row; slots and tabs are 16 pixels square and 'pitch' apart, left edge to left edge, four to a row.",
+
+  "picture": [384, 216],
+  "frame": "frame.png",
+
+  "view": [5, 5, 298, 144],
+  "widgets": [307, 5, 72, 40],
+  "chat": [5, 153, 298, 58],
+
+  "slots": [308, 66],
+  "top_tabs": [308, 46],
+  "bottom_tabs": [308, 194],
+  "pitch": 18
+}
