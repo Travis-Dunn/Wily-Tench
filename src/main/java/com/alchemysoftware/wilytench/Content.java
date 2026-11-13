@@ -25,13 +25,15 @@ import com.alchemysoftware.whitetail.error.ErrorHandler;
  */
 final class Content {
     private static final String[] GAME_KEYS = {
-        "maps", "scripts", "starting_items"
+        "maps", "scripts", "starting_items", "player"
     };
+    private static final String[] PLAYER_KEYS = { "sheet", "cell" };
 
     private static final String[] INTERFACE_KEYS = { "tabs", "widgets" };
 
     private static String[] maps, scripts;
     private static int[] startingItems;
+    private static int[] playerPictures;
 
     private Content() {}
 
@@ -81,6 +83,15 @@ final class Content {
         scripts = game.Strs("scripts");
         if (maps.length == 0) throw game.Fail("[maps] lists no maps.");
 
+        DataNode player = game.Obj("player");
+        player.Only(PLAYER_KEYS);
+        int[] cell = player.Ints("cell", 2);
+        playerPictures = new int[Player.PICTURES];
+        for (int i = 0; i < Player.PICTURES; i++) {
+            playerPictures[i] = Sprites.Picture(player, player.Str("sheet"),
+                    new int[] { cell[0] + i, cell[1] });
+        }
+
         String[] starting = game.Strs("starting_items");
         startingItems = new int[starting.length];
         for (int i = 0; i < starting.length; i++) {
@@ -117,6 +128,12 @@ final class Content {
 
     /** @return the game's script files */
     static String[] ScriptFiles() { return scripts; }
+
+    /**
+     * @return the player character's six pictures, in the order
+     *         Player describes
+     */
+    static int[] PlayerPictures() { return playerPictures; }
 
     /** @return the items a new player begins with */
     static int[] StartingItems() { return startingItems; }

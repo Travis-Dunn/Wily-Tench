@@ -80,7 +80,8 @@ rocks in them, smelt copper and tin into bronze, and hammer the bronze
 into weapons and armor.
 
 - **Walking.** Left click a tile and the character walks there by the
-  shortest route, one tile per tick, or as close as it can get. Movement
+  shortest route, one tile per tick, or as close as it can get, facing
+  the way it goes. Movement
   is north, south, east, or west only. A walk eases in and out, and the
   view follows a little behind and catches up. The name of whatever is under the mouse is shown at the top
   left.
@@ -446,8 +447,9 @@ if they do not. `docs/content.md` has the details.
 
 Things the art does not have, which shape the game:
 
-- Characters face one way and have no walking or working animation. They
-  have idle, hurt, angry, and sick poses; mining borrows "angry".
+- The purchased characters face one way and have no walking animation,
+  so the player's character is Travis's own (`art/wizard.png`), which
+  walks in four directions. It has no pictures of working yet.
 - There are only orange and grey rocks to mine. Grey serves as "mined
   out", and other ores are the orange rock recolored by swapping palette
   colors.

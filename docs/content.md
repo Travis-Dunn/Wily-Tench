@@ -375,7 +375,7 @@ A sheet is one of the purchased images, cut into 16 pixel cells:
 | ----- | ------- |
 | `id` | What `"sheet"` values elsewhere refer to, and the name of its catalog image |
 | `source` | The original PNG, from the repository's root |
-| `region` | Optional. The part of the PNG to take: left, top, width, height, in pixels. Without it, the whole image |
+| `region` | Optional. The part of the PNG to take: left, top, width, height, in pixels. Without it, everything from the top left corner as far as anything is drawn, so a sheet drawn in the corner of a larger canvas needs no region |
 
 A sheet's width and height must be multiples of 16, and its pixels must
 each be fully transparent or an opaque palette color.
@@ -445,6 +445,32 @@ a hole with frame on every side, that the parchment fills its rectangle,
 and that every slot and tab is a square of one color with a gap around
 it.
 
+### Drawing sprites: what a sheet must obey
+
+A sheet may be one of the purchased images or one of Travis's own in
+`art/`, saved from Aseprite as it is, indexed color or full color.
+
+- Cells are 16 pixels square, counted from the sheet's top left corner.
+- Every pixel is exactly a palette color, or wholly see-through.
+- **See-through means see-through, and black means black.** The game
+  always draws the floor first and then whatever stands on it. So
+  anything that stands on the floor (a mushroom, a rock, a torch, a
+  ladder, a person) must have a see-through background, or it will paint
+  a black square over the floor. A black outline around such a thing is
+  a good idea: it keeps it readable on any floor.
+- Floors and walls fill their whole tile, and their background may be
+  solid.
+
+### Characters
+
+A character is six cells in a row: two of it walking sideways **facing
+left**, two walking toward the player, two walking away. The game turns
+the sideways pair over for walking right, and stands the character in
+the first picture of each pair. `"player"` in `game.json` says where the
+player's six begin:
+
+    "player": { "sheet": "wizard", "cell": [0, 0] }
+
 ## palette.json
 
 The game shows a fixed set of colors, and every pixel of every sprite is
@@ -478,7 +504,8 @@ it was meant to be without touching the artist's file:
     {
       "maps": ["cave.txt", "dungeon.txt"],
       "scripts": ["travel.whtl", "mining.whtl", "smithing.whtl", "harl.whtl"],
-      "starting_items": ["bronze_pickaxe"]
+      "starting_items": ["bronze_pickaxe"],
+      "player": { "sheet": "wizard", "cell": [0, 0] }
     }
 
 Every map and script file must be listed here to be part of the game. A

@@ -809,6 +809,10 @@ the other types to Whitetail. Supporting type 3 in `comp-image`, with
 the file's palette and transparency available as well as the expanded
 pixels, would let every palette-art game drop that.
 
+The atlas tool had the same trouble a day later, with the first sprite
+sheets Travis drew: it read sheets with `FromPNG()` and would have
+refused them. It now decodes through the game's `Bitmap.Decode()`.
+
 Related: `FromPNG()` takes a stream and decides the kind inside, so a
 caller who needs to know the kind first must read the whole stream into
 memory and look at the header byte itself, as `Bitmap.Load()` does.

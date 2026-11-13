@@ -38,7 +38,7 @@ an item on a loc, tin, smelting, and the anvil with its menu. Check
 the pull requests himself; once one is merged, restart the branch from
 `master` rather than stacking on it.
 
-**Tests.** `mvn verify` runs 140 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 142 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -166,6 +166,24 @@ drawing by Travis, `images/frame.png`, laid over the view of the world.
 - **`art/` is for Travis's own source files** that the game does not
   read; `art/carp32.png` is the palette as a picture. What the game
   reads is under `src/main/resources`.
+
+**Travis's own sprites have begun to arrive**, in `art/`, in carp32:
+
+- `art/cave.png` is the purchased cave sheet redrawn, cell for cell, and
+  has taken its place as the sheet `cave`. Its things (mushrooms, rocks,
+  torches, the ladder) still have solid black backgrounds, so each
+  paints a black square over its floor. Travis has been told; the rule
+  is in `docs/content.md`: see-through for anything that stands on the
+  floor. Nothing in the tools works around it.
+- `art/wizard.png` is the player's character, in the six-picture layout
+  `Player.java` describes: sideways (facing left), toward, away, two
+  walking pictures each. Travis wants characters at about the level of
+  Final Fantasy III or IV, and never liked the purchased heroes, which
+  can serve as monsters. There are no pictures of working with a tool,
+  so mining and smithing show the walk pictures, fast. NPCs will use
+  the same layout; Harl is still a purchased picture.
+- The iron color map carries pairs for both palettes. The screen's
+  empty color is now carp32's black.
 
 Left in the old palette and the purchased interface art, to be redone
 when Travis draws for them: the main menu and options screen, the

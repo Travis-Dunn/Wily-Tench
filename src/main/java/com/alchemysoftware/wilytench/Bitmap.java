@@ -55,10 +55,7 @@ final class Bitmap {
         if (in == null) return null;
 
         try {
-            byte[] file = ReadAll(in);
-            Image image = IndexedPng.Is(file) ?
-                    IndexedPng.Decode(file, filename) :
-                    ImageBuilder.FromPNG(new ByteArrayInputStream(file));
+            Image image = Decode(ReadAll(in), filename);
             return image == null ? null : FromImage(image, filename);
         } catch (DataError e) {
             ErrorHandler.LogFatalAndStop("The game failed to start " +
@@ -73,7 +70,22 @@ final class Bitmap {
         }
     }
 
-    private static byte[] ReadAll(InputStream in) throws IOException {
+    /**
+     * Decodes a PNG file of any kind the game reads: indexed color by
+     * IndexedPng, the rest by Whitetail.
+     *
+     * @param file the whole file
+     * @return its pixels, or null after Whitetail has reported a
+     *         fatal error
+     * @throws DataError if it is an indexed PNG that cannot be read
+     */
+    static Image Decode(byte[] file, String filename) {
+        return IndexedPng.Is(file) ? IndexedPng.Decode(file, filename) :
+                ImageBuilder.FromPNG(new ByteArrayInputStream(file));
+    }
+
+    /** @return everything a stream holds; the stream is closed */
+    static byte[] ReadAll(InputStream in) throws IOException {
         try {
             ByteArrayOutputStream bytes = new ByteArrayOutputStream();
             byte[] chunk = new byte[4096];

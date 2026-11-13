@@ -1,7 +1,7 @@
 {
   "note": "Every color the game can show. The order matters: the converted sprite sheets store each pixel as a position in this list, so after adding, removing, or reordering colors the atlases must be rebuilt. Add new colors at the end.",
 
-  "background": "160D13",
+  "background": "000000",
 
   "colors": [
     { "name": "ink",      "rgb": "160D13" },

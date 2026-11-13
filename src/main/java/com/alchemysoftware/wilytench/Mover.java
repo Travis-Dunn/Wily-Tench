@@ -23,6 +23,12 @@ final class Mover {
     static final int STYLE_STEADY = 0;
     static final int STYLE_PULSE = 1;
 
+    /* The ways a mover can face. FACING_DOWN is toward the player. */
+    static final int FACING_DOWN = 0;
+    static final int FACING_UP = 1;
+    static final int FACING_LEFT = 2;
+    static final int FACING_RIGHT = 3;
+
     private static final int TILE = Sprites.TILE;
 
     /* The shapes a step can have. */
@@ -39,7 +45,7 @@ final class Mover {
 
     private int x, y, prevX, prevY;
     private int routeLen, routePos;
-    private boolean facingLeft;
+    private int facing = FACING_DOWN;
 
     /* The shape of the step in progress, and whether it ended at rest,
        which decides whether the next one starts from rest. */
@@ -103,7 +109,7 @@ final class Mover {
         int next = route[routePos++];
         x = next % world.w;
         y = next / world.w;
-        if (x != prevX) facingLeft = x < prevX;
+        Face(x + (x - prevX), y + (y - prevY), prevX, prevY);
 
         /* A step starts from rest if the last one ended at rest, and
            ends at rest if it is the last of the route. Should the route
@@ -115,18 +121,24 @@ final class Mover {
         atRest = stops || style == STYLE_PULSE;
     }
 
-    /** Turns to face a tile, if it is to one side. */
-    void Face(int tileX) {
-        if (tileX != x) facingLeft = tileX < x;
-    }
+    /**
+     * Turns to face a tile: along whichever of across and up-and-down
+     * it lies further off, and across on a tie. Facing the tile stood
+     * on changes nothing.
+     */
+    void Face(int tileX, int tileY) { Face(tileX, tileY, x, y); }
+
+    /** @return whether the mover is part way through a step */
+    boolean Moving() { return x != prevX || y != prevY; }
+
+    /** @return which way the mover faces: one of the FACING_ values */
+    int Facing() { return facing; }
 
     /** @return the tile column the mover is on */
     int X() { return x; }
 
     /** @return the tile row the mover is on */
     int Y() { return y; }
-
-    boolean FacingLeft() { return facingLeft; }
 
     /** @return whether there are steps of a walk still to take */
     boolean Walking() { return routePos < routeLen; }
@@ -160,6 +172,16 @@ final class Mover {
     /** @return the map pixel the picture's top edge is drawn at */
     int PixelY(double tickFraction) {
         return (int) Math.round(ExactY(tickFraction));
+    }
+
+    /* Turns to face a tile, as seen from another. */
+    private void Face(int tileX, int tileY, int fromX, int fromY) {
+        int dx = tileX - fromX, dy = tileY - fromY;
+
+        if (dx == 0 && dy == 0) return;
+        if (Math.abs(dx) >= Math.abs(dy))
+            facing = dx < 0 ? FACING_LEFT : FACING_RIGHT;
+        else facing = dy < 0 ? FACING_UP : FACING_DOWN;
     }
 
     /*
