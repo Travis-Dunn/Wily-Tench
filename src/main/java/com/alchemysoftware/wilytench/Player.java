@@ -155,8 +155,14 @@ final class Player {
     /** Starts or stops showing the character at work with a tool. */
     void SetWorking(boolean working) { this.working = working; }
 
-    /** @return which way the character faces: a Mover.FACING_ value */
+    /**
+     * @return which way the character faces, or will when the step in
+     *         progress is done: a Mover.FACING_ value
+     */
     int Facing() { return mover.Facing(); }
+
+    /** @return which way the character's picture faces this moment */
+    int ShownFacing() { return mover.ShownFacing(); }
 
     /** @return the tile column the character is on */
     int X() { return mover.X(); }
@@ -193,7 +199,7 @@ final class Player {
      * @param deltaMs whole milliseconds since the previous frame
      */
     void Animate(double tickFraction, int deltaMs) {
-        int facing = mover.Facing();
+        int facing = mover.ShownFacing();
         int pair = facing == Mover.FACING_DOWN ? FRONT :
                 facing == Mover.FACING_UP ? BACK : SIDE;
         int mode = mover.Moving() ? WALK : working ? WORK : STAND;

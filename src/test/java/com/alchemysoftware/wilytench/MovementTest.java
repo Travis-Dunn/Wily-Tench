@@ -30,6 +30,34 @@ public class MovementTest {
         Fixture.Finish();
     }
 
+    public void testACharacterTurnsToItsTargetOnlyOnceItHasArrived() {
+        Fixture.Start(0);
+        Session s = Fixture.session;
+
+        /* South of the iron rock at (4,1), having just faced it; the
+           copper rock is at (3,1), so its nearest side is one step
+           west, at (3,2). */
+        s.player.Place(4, 2);
+        s.Use(4, 1);
+        Fixture.Run(1);
+        Check("faces the first rock",
+                s.player.ShownFacing() == Mover.FACING_UP);
+
+        s.Use(3, 1);
+        Fixture.Run(1);
+        Check("has stepped west", s.player.X() == 3 && s.player.Y() == 2);
+        Check("looking west for as long as the step lasts",
+                s.player.ShownFacing() == Mover.FACING_LEFT);
+        Check("though it is already known where it will look",
+                s.player.Facing() == Mover.FACING_UP);
+
+        Fixture.Run(1);
+        Check("then turns to the rock",
+                s.player.ShownFacing() == Mover.FACING_UP &&
+                s.player.Facing() == Mover.FACING_UP);
+        Fixture.Finish();
+    }
+
     public void testACharacterFacesTheWayItWalks() {
         Fixture.Start(0);
         Session s = Fixture.session;        /* at (1,1) of the test map */

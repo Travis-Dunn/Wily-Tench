@@ -37,7 +37,7 @@ before starting. Travis opens and merges the pull requests himself; once
 one is merged, restart the working branch from `master` rather than
 stacking on it.
 
-**Tests.** `mvn verify` runs 145 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 147 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -91,7 +91,11 @@ been run on Windows of any age.
 - **Item ids are in saved games.** Rename an item by giving it a new id
   and listing the old under `"was"`.
 - **Anything that walks owns a `Mover`**, so that every character moves
-  alike, and a `Mover` knows which of four ways it faces. The sprite and
+  alike, and a `Mover` knows which of four ways it faces. Asked to face
+  something part way through a step, it keeps facing the way it is
+  travelling until the step ends (`ShownFacing()` is what is drawn,
+  `Facing()` what it will be): a character arriving beside a rock used
+  to slide its last tile already turned to the rock. The sprite and
   animation half of a character is still inside `Player`; it should be
   pulled out the same way when the first NPC walks. The six-picture
   layout of a character is already general.
@@ -371,6 +375,13 @@ Known limits of step 1:
   full speed can still pull the view back a little. Making walking
   itself smooth would mean drawing each moving thing at a part of a
   pixel, on its own quad; not built, and Travis has not asked for it.
+- **"Click here to continue" not lighting under the pointer**, on some
+  screens of talk, reported by Travis in the third session and **not
+  reproduced**: driven on a virtual display through Harl's first
+  conversation, every prompt lit, and `DialogueTest` now draws every
+  speech and checks. The lit and plain colors (`carp_red`, `carp_wine`)
+  are close, which may be part of it. Ask which speech and where the
+  pointer was.
 - The apostrophe in the small font sits wide: "can't" has a gap.
 - Dropped items vanish; there are no items on the ground.
 - Using one item on another does nothing yet; only item on loc has a

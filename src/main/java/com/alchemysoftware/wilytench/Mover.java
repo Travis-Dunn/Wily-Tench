@@ -47,6 +47,13 @@ final class Mover {
     private int routeLen, routePos;
     private int facing = FACING_DOWN;
 
+    /* Which way to turn once the step in progress is done, or NO_TURN.
+       A mover asked to face something while its picture is still
+       travelling keeps facing the way it travels until it gets there:
+       turning at once would have it slide sideways. */
+    private static final int NO_TURN = -1;
+    private int turnTo = NO_TURN;
+
     /* The shape of the step in progress, and whether it ended at rest,
        which decides whether the next one starts from rest. */
     private int pace = PACE_EVEN;
@@ -87,6 +94,7 @@ final class Mover {
         routeLen = routePos = 0;
         pace = PACE_EVEN;
         atRest = true;
+        FinishTurn();
     }
 
     /** Puts the mover on a tile of another map at once, standing still. */
@@ -101,6 +109,7 @@ final class Mover {
     void Tick() {
         prevX = x;
         prevY = y;
+        FinishTurn();
         if (routePos == routeLen) {
             atRest = true;
             return;
@@ -124,15 +133,33 @@ final class Mover {
     /**
      * Turns to face a tile: along whichever of across and up-and-down
      * it lies further off, and across on a tie. Facing the tile stood
-     * on changes nothing.
+     * on changes nothing. Part way through a step the turn is made
+     * when the step ends; Facing() says it at once all the same.
      */
-    void Face(int tileX, int tileY) { Face(tileX, tileY, x, y); }
+    void Face(int tileX, int tileY) {
+        int now = facing;
+
+        Face(tileX, tileY, x, y);
+        if (Moving() && facing != now) {
+            turnTo = facing;
+            facing = now;
+        }
+    }
 
     /** @return whether the mover is part way through a step */
     boolean Moving() { return x != prevX || y != prevY; }
 
-    /** @return which way the mover faces: one of the FACING_ values */
-    int Facing() { return facing; }
+    /**
+     * @return which way the mover faces, or will once the step in
+     *         progress is done: one of the FACING_ values
+     */
+    int Facing() { return turnTo != NO_TURN ? turnTo : facing; }
+
+    /**
+     * @return which way the mover's picture faces this moment: the
+     *         way it is travelling for as long as a step lasts
+     */
+    int ShownFacing() { return facing; }
 
     /** @return the tile column the mover is on */
     int X() { return x; }
@@ -172,6 +199,12 @@ final class Mover {
     /** @return the map pixel the picture's top edge is drawn at */
     int PixelY(double tickFraction) {
         return (int) Math.round(ExactY(tickFraction));
+    }
+
+    /* Makes the turn that was waiting for a step to end, if any. */
+    private void FinishTurn() {
+        if (turnTo != NO_TURN) facing = turnTo;
+        turnTo = NO_TURN;
     }
 
     /* Turns to face a tile, as seen from another. */

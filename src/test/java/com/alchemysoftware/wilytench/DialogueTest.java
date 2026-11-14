@@ -249,6 +249,53 @@ public class DialogueTest {
         Fixture.Finish();
     }
 
+    public void testTheContinuePromptIsLitUnderThePointerEveryTime() {
+        final int W = 384, H = 216, X = 5, Y = 153, BOX_W = 298, BOX_H = 58;
+        byte[] buf = new byte[W * H];
+        Font font = Font.Load("small.fnt"), bold = Font.Load("bold.fnt");
+        Start();
+        DialogueBox box = new DialogueBox(font, bold, s, X, Y, BOX_W, BOX_H);
+        int speeches = 0;
+
+        Gfx.Init(buf, W, H);
+        TalkToHarl();
+        while (s.TalkKind() != Session.TALK_NONE) {
+            if (s.TalkKind() == Session.TALK_CHOICE) {
+                s.ChooseTalk(YES);
+                continue;
+            }
+            speeches++;
+
+            /* The prompt is the bottom line of the box. Whatever the
+               speech above it, it is in the lit color with the pointer
+               on the box and the plain one with it off. */
+            int row0 = Y + BOX_H - font.lineH - 1;
+            java.util.Arrays.fill(buf, (byte) 0);
+            box.Draw(X + 20, Y + 20);
+            Check("lit, speech " + speeches + ": " + s.TalkText(),
+                    Has(buf, W, row0, Y + BOX_H, Palette.TEXT_WARN) &&
+                    !Has(buf, W, row0, Y + BOX_H, Palette.TEXT_NEWS));
+
+            java.util.Arrays.fill(buf, (byte) 0);
+            box.Draw(X + 20, Y - 20);
+            Check("plain, speech " + speeches,
+                    Has(buf, W, row0, Y + BOX_H, Palette.TEXT_NEWS) &&
+                    !Has(buf, W, row0, Y + BOX_H, Palette.TEXT_WARN));
+            s.ContinueTalk();
+        }
+        Check("several speeches were read: " + speeches, speeches >= 4);
+        Gfx.Shutdown();
+        Fixture.Finish();
+    }
+
+    /* Whether any pixel of some rows of a picture is a given color. */
+    private static boolean Has(byte[] buf, int w, int row0, int row1,
+                               int color) {
+        for (int i = row0 * w; i < row1 * w; i++)
+            if ((buf[i] & 0xFF) == color) return true;
+        return false;
+    }
+
     private void Start() {
         Fixture.Start(0);
         s = Fixture.session;
