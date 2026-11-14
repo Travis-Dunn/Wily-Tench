@@ -1,7 +1,9 @@
 package com.alchemysoftware.wilytench;
 
 import java.nio.ByteOrder;
+import java.nio.IntBuffer;
 
+import org.lwjgl.BufferUtils;
 import org.lwjgl.opengl.GL11;
 
 import com.alchemysoftware.whitetail.display.DisplayLayout;
@@ -29,6 +31,22 @@ import com.alchemysoftware.whitetail.window.Window;
  * number of screen pixels to each game pixel. The view of the world
  * is the part of it the layout names; the game frame is drawn over
  * the rest.
+ *
+ * There are two layers. The picture is the upper one: the frame and
+ * everything on it, the whole of a menu. The world is the lower one,
+ * the size of the view and a pixel more each way, and is seen through
+ * whatever part of the picture is left at Palette.BACKGROUND. A scene
+ * that draws the world says so each frame with ShowWorld(), and says
+ * how far to slide it up and to the left, in screen pixels less than
+ * one game pixel. That is how the view can move by less than a game
+ * pixel while every game pixel stays whole: the layers are only put
+ * together on the screen, where the pixels are small. At one screen
+ * pixel to a game pixel there is nothing to slide by, and the result
+ * is what one layer would have shown.
+ *
+ * The picture goes through Whitetail's framebuffer. That draws one
+ * texture in one place, so the world layer is a second texture kept
+ * here, drawn with OpenGL 1.1 and nothing later.
  */
 final class Screen {
     static final String TITLE = "Wily Tench";
@@ -42,11 +60,24 @@ final class Screen {
      */
     private static final int GL_MAJOR = 1, GL_MINOR = 0;
 
+    /* How far beyond the view the world layer reaches, right and
+       down, so that sliding it uncovers nothing. */
+    private static final int WORLD_SPARE = 1;
+
     private static boolean windowInit, fbInit;
 
     private static DisplayLayout layout;
+    private static GLSourceTexelLayout srcLayout;
     private static byte[] indexBuf;
     private static int[] pixelBuf;
+
+    private static byte[] worldBuf;
+    private static int[] worldPixels;
+    private static IntBuffer worldUpload;
+    private static int worldW, worldH, worldTex;
+    private static float worldU, worldV;
+    private static boolean worldShown;
+    private static int worldFineX, worldFineY;
 
     private Screen() {}
 
@@ -88,7 +119,7 @@ final class Screen {
 
         /* Both layouts take 0xAABBGGRR ints on a little-endian machine.
            RGBA_UBYTE is preferred because it only needs OpenGL 1.1. */
-        GLSourceTexelLayout srcLayout =
+        srcLayout =
                 ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN ?
                 GLSourceTexelLayout.RGBA_UBYTE :
                 GLSourceTexelLayout.RGBA_UINT_8888_REV;
@@ -109,39 +140,182 @@ final class Screen {
             return false;
         }
 
+        if (!InitWorld()) return false;
+
         Logger.LogSession(LogLevel.DEBUG, LogStrLayout(desktopW, desktopH));
+        return true;
+    }
+
+    /* Makes the world layer and the texture it is shown through. */
+    private static boolean InitWorld() {
+        int texW = 1, texH = 1;
+
+        worldW = layout.viewportWidth + WORLD_SPARE;
+        worldH = layout.viewportHeight + WORLD_SPARE;
+        while (texW < worldW) texW <<= 1;
+        while (texH < worldH) texH <<= 1;
+        worldU = (float) worldW / texW;
+        worldV = (float) worldH / texH;
+
+        try {
+            worldBuf = new byte[worldW * worldH];
+            worldPixels = new int[worldW * worldH];
+            worldUpload = BufferUtils.createIntBuffer(worldW * worldH);
+        } catch (OutOfMemoryError e) {
+            ErrorHandler.LogFatalExcpAndStop(ERR_STR_OOM, e);
+            return false;
+        }
+
+        /* GL_CLAMP, not the GL_CLAMP_TO_EDGE of OpenGL 1.2: the two
+           differ only for texels that are never looked at here. */
+        worldTex = GL11.glGenTextures();
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, worldTex);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D,
+                GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D,
+                GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D,
+                GL11.GL_TEXTURE_WRAP_S, GL11.GL_CLAMP);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D,
+                GL11.GL_TEXTURE_WRAP_T, GL11.GL_CLAMP);
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, texW, texH,
+                0, srcLayout.glFormat, srcLayout.glType, (IntBuffer) null);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+
+        int glErr = GL11.glGetError();
+        if (worldTex == 0 || glErr != GL11.GL_NO_ERROR) {
+            ErrorHandler.LogFatalAndStop(ErrStrWorldTex(glErr));
+            return false;
+        }
         return true;
     }
 
     /** Safe to call after a failed or partial Init(). */
     static void Shutdown() {
+        if (windowInit && worldTex != 0) GL11.glDeleteTextures(worldTex);
         if (fbInit) GL12SoftwareFramebuffer.Shutdown();
         if (windowInit) Window.Shutdown();
-        fbInit = windowInit = false;
+        fbInit = windowInit = worldShown = false;
         layout = null;
+        srcLayout = null;
         indexBuf = null;
         pixelBuf = null;
+        worldBuf = null;
+        worldPixels = null;
+        worldUpload = null;
+        worldTex = worldW = worldH = 0;
     }
 
     /**
-     * Colors the index buffer through the palette and shows it. Reports
-     * a fatal error if OpenGL raised one, since nothing else checks.
+     * Says that the world layer is to be shown this frame, under the
+     * picture, and how far to slide it. Lasts until the next
+     * Present().
+     *
+     * @param fineX how far left to slide it, in screen pixels: 0 to
+     *              one less than Grain()
+     * @param fineY how far up, likewise
+     */
+    static void ShowWorld(int fineX, int fineY) {
+        worldShown = true;
+        worldFineX = fineX;
+        worldFineY = fineY;
+    }
+
+    /**
+     * Colors the layers through the palette and shows them. Reports a
+     * fatal error if OpenGL raised one, since nothing else checks.
      */
     static void Present() {
         byte[] src = indexBuf;
         int[] dst = pixelBuf, pal = Palette.PIXELS;
-
-        for (int i = 0, n = src.length; i < n; i++)
-            dst[i] = pal[src[i] & 0xFF];
+        int through = pal[Palette.BACKGROUND];
 
         /* Blacks out the bars beside a picture that does not fill the
            screen; the framebuffer only draws its own rectangle. */
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
+
+        /* With the world beneath it, the picture's background is a
+           hole: a pixel with no alpha, which the alpha test drops. */
+        if (worldShown) {
+            PresentWorld();
+            through = 0;
+            GL11.glAlphaFunc(GL11.GL_GREATER, 0.5f);
+            GL11.glEnable(GL11.GL_ALPHA_TEST);
+        }
+
+        for (int i = 0, n = src.length; i < n; i++) {
+            int index = src[i] & 0xFF;
+            dst[i] = index == Palette.BACKGROUND ? through : pal[index];
+        }
         GL12SoftwareFramebuffer.Present();
+
+        if (worldShown) GL11.glDisable(GL11.GL_ALPHA_TEST);
+        worldShown = false;
 
         int glErr = GL11.glGetError();
         if (glErr != GL11.GL_NO_ERROR)
             ErrorHandler.LogFatalAndStop(ErrStrGl(glErr));
+    }
+
+    /*
+     * Draws the world layer where the view is, slid up and to the left
+     * by the amount last given to ShowWorld(), and cut off at the
+     * view's own edges.
+     */
+    private static void PresentWorld() {
+        byte[] src = worldBuf;
+        int[] dst = worldPixels, pal = Palette.PIXELS;
+        int scale = layout.pixelScale;
+
+        for (int i = 0, n = src.length; i < n; i++)
+            dst[i] = pal[src[i] & 0xFF];
+        worldUpload.clear();
+        worldUpload.put(dst);
+        worldUpload.flip();
+
+        /* Window positions count up from the bottom of the window. */
+        int viewLeft = layout.presentationX + layout.viewportX * scale;
+        int viewTop = layout.presentationY + layout.presentationHeight -
+                layout.viewportY * scale;
+        int viewW = layout.viewportWidth * scale;
+        int viewH = layout.viewportHeight * scale;
+        int left = viewLeft - worldFineX, top = viewTop + worldFineY;
+        int right = left + worldW * scale, bottom = top - worldH * scale;
+
+        GL11.glViewport(0, 0, layout.windowWidth, layout.windowHeight);
+        GL11.glScissor(viewLeft, viewTop - viewH, viewW, viewH);
+        GL11.glEnable(GL11.GL_SCISSOR_TEST);
+
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, worldTex);
+        GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, worldW, worldH,
+                srcLayout.glFormat, srcLayout.glType, worldUpload);
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glDisable(GL11.GL_BLEND);
+
+        GL11.glMatrixMode(GL11.GL_PROJECTION);
+        GL11.glPushMatrix();
+        GL11.glLoadIdentity();
+        GL11.glOrtho(0.0, layout.windowWidth, 0.0, layout.windowHeight,
+                -1.0, 1.0);
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GL11.glPushMatrix();
+        GL11.glLoadIdentity();
+
+        GL11.glBegin(GL11.GL_QUADS);
+        GL11.glTexCoord2f(0.0f, worldV); GL11.glVertex2f(left, bottom);
+        GL11.glTexCoord2f(worldU, worldV); GL11.glVertex2f(right, bottom);
+        GL11.glTexCoord2f(worldU, 0.0f); GL11.glVertex2f(right, top);
+        GL11.glTexCoord2f(0.0f, 0.0f); GL11.glVertex2f(left, top);
+        GL11.glEnd();
+
+        GL11.glMatrixMode(GL11.GL_PROJECTION);
+        GL11.glPopMatrix();
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GL11.glPopMatrix();
+
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        GL11.glDisable(GL11.GL_SCISSOR_TEST);
     }
 
     /**
@@ -156,6 +330,22 @@ final class Screen {
     /** @return the height of the picture in game pixels */
     static int GetH() { return layout.framebufferHeight; }
 
+    /**
+     * @return the live world layer, one palette index per game pixel,
+     *         row 0 at the top: GetWorldW() by GetWorldH(), which is
+     *         the view and a pixel more to the right and below
+     */
+    static byte[] GetWorldBuf() { return worldBuf; }
+
+    /** @return the width of the world layer in game pixels */
+    static int GetWorldW() { return worldW; }
+
+    /** @return the height of the world layer in game pixels */
+    static int GetWorldH() { return worldH; }
+
+    /** @return how many screen pixels there are to a game pixel */
+    static int Grain() { return layout.pixelScale; }
+
     /** @return the layout, for converting mouse positions */
     static DisplayLayout GetLayout() { return layout; }
 
@@ -165,6 +355,11 @@ final class Screen {
             "OpenGL window. The reason it gave is in session.log.\n";
     private static final String ERR_STR_OOM = CLASS + " failed to " +
             "initialize because Java is out of heap memory.\n";
+    private static String ErrStrWorldTex(int glErr) {
+        return CLASS + " failed to initialize because OpenGL would not " +
+                "make the texture for the view of the world, reporting " +
+                "error code [" + glErr + "].\n";
+    }
     private static String ErrStrGl(int glErr) {
         return CLASS + " failed to present because OpenGL reported " +
                 "error code [" + glErr + "].\n";

@@ -105,10 +105,11 @@ final class WorldScene extends Scene {
     /* Which map the tiles are showing, to notice when it changes. */
     private World shown;
 
-    private final Camera camera = new Camera();
+    private Camera camera;
 
-    /* The map pixel at the top left of the viewport, as last drawn. */
-    private int viewX, viewY;
+    /* The map pixel at the top left of the viewport, as last drawn,
+       and how many screen pixels past it the view really is. */
+    private int viewX, viewY, fineX, fineY;
 
     /* The mouse, in viewport pixels, or NOWHERE when outside it. */
     private int mouseX = NOWHERE, mouseY = NOWHERE;
@@ -137,7 +138,9 @@ final class WorldScene extends Scene {
         session = Session.Create(Content.Maps(), Content.ScriptFiles(),
                 chat, new Random());
         if (session == null) return;
-        tiles = TileView.Create(session.Here(), viewW, viewH);
+        camera = new Camera(Screen.Grain());
+        tiles = TileView.Create(session.Here(), Screen.GetWorldW(),
+                Screen.GetWorldH());
         if (tiles == null) {
             ErrorHandler.LogFatalAndStop(ERR_STR_SPRITES);
             return;
@@ -301,6 +304,8 @@ final class WorldScene extends Scene {
 
         viewX = camera.X();
         viewY = camera.Y();
+        fineX = camera.FineX();
+        fineY = camera.FineY();
         tiles.Show(viewX, viewY, animMs / ANIM_STEP_MS);
     }
 
@@ -308,21 +313,37 @@ final class WorldScene extends Scene {
     public void onRender() {
         Player player = session.player;
 
+        /* The world and the marks on it go into the world's own
+           layer, which Screen slides under the picture. */
         SpriteRenderer.Clear(Palette.BACKGROUND);
         SpriteRenderer.Render(viewX, viewY);
 
-        Gfx.SetClip(viewPortX, viewPortY, viewW, viewH);
+        boolean hover = session.OpenMake() == Recipes.NONE &&
+                optionTileX != NOWHERE && menu.Count() != 0;
+
+        Gfx.Init(Screen.GetWorldBuf(), Screen.GetWorldW(),
+                Screen.GetWorldH());
         if (player.Walking()) {
-            Gfx.Corners(viewPortX + player.DestX() * TILE - viewX,
-                    viewPortY + player.DestY() * TILE - viewY,
+            Gfx.Corners(player.DestX() * TILE - viewX,
+                    player.DestY() * TILE - viewY,
                     TILE, TILE, MARKER_ARM, Palette.AMBER);
         }
-        if (session.OpenMake() == Recipes.NONE) DrawHover();
-        Gfx.ClearClip();
+        if (hover) DrawHoverMark();
+        Gfx.Init(Screen.GetIndexBuf(), w, h);
+        Screen.ShowWorld(fineX, fineY);
 
-        /* The frame goes over the world, its rounded corners covering
-           the view's square ones, and the interface is drawn on it. */
+        /* The picture is see-through where the view is, and the frame
+           goes around that, its rounded corners covering the view's
+           square ones. The interface is drawn on the frame. */
+        Gfx.FillRect(viewPortX, viewPortY, viewW, viewH,
+                Palette.BACKGROUND);
         Gfx.DrawBitmap(Assets.frame, 0, 0);
+
+        if (hover && !menu.IsOpen()) {
+            Gfx.SetClip(viewPortX, viewPortY, viewW, viewH);
+            DrawHoverLabel();
+            Gfx.ClearClip();
+        }
 
         if (session.TalkKind() != Session.TALK_NONE)
             dialogue.Draw(pointerX, pointerY);
@@ -345,6 +366,7 @@ final class WorldScene extends Scene {
         session = null;
         save = null;
         tiles = null;
+        camera = null;
         shown = null;
         chat = null;
         panel = null;
@@ -401,27 +423,24 @@ final class WorldScene extends Scene {
         }
     }
 
-    /*
-     * Outlines the tile the option list is about and, unless a menu is
-     * open and saying it better, writes the first option at the top
-     * left of the view. Drawn inside the view's clip.
-     */
-    private void DrawHover() {
-        if (optionTileX == NOWHERE || menu.Count() == 0) return;
-
+    /* Outlines the tile the option list is about, in the world's
+       layer. */
+    private void DrawHoverMark() {
         World world = session.Here();
         int first = menu.Action(0);
         boolean usable = (first == Actions.USE_LOC ||
                 first == Actions.USE_ITEM_ON_LOC) &&
                 !world.RockEmpty(optionTileX, optionTileY);
 
-        Gfx.Outline(viewPortX + optionTileX * TILE - viewX,
-                viewPortY + optionTileY * TILE - viewY, TILE, TILE,
-                usable ? Palette.MINT :
+        Gfx.Outline(optionTileX * TILE - viewX, optionTileY * TILE - viewY,
+                TILE, TILE, usable ? Palette.MINT :
                 world.Solid(optionTileX, optionTileY) ? Palette.RUST :
                 Palette.BONE);
-        if (menu.IsOpen()) return;
+    }
 
+    /* Writes the first option at the top left of the view, on the
+       picture. Drawn inside the view's clip. */
+    private void DrawHoverLabel() {
         String verb = menu.Verb(0), subject = menu.Subject(0);
         int textX = viewPortX + HOVER_TEXT_X;
         int textY = viewPortY + HOVER_TEXT_Y;

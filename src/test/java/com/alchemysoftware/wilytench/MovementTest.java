@@ -222,7 +222,7 @@ public class MovementTest {
     }
 
     public void testTheCameraTrailsThenCatchesUp() {
-        Camera camera = new Camera();
+        Camera camera = new Camera(1);
 
         camera.Snap(100, 50);
         Check("snaps exactly", camera.X() == 100 && camera.Y() == 50);
@@ -238,7 +238,7 @@ public class MovementTest {
     }
 
     public void testTheCameraMovesTheSameAtAnyFrameRate() {
-        Camera slow = new Camera(), fast = new Camera();
+        Camera slow = new Camera(1), fast = new Camera(1);
 
         slow.Snap(0, 0);
         fast.Snap(0, 0);
@@ -251,7 +251,7 @@ public class MovementTest {
     }
 
     public void testTheCharacterDoesNotShiverOnScreenDuringASteadyWalk() {
-        Camera camera = new Camera();
+        Camera camera = new Camera(1);
         double exact = 0, speed = TILE / 0.6;      /* a tile per tick */
         int changes = 0, reversals = 0, last = 0, lastDirection = 0;
 
@@ -281,7 +281,7 @@ public class MovementTest {
     }
 
     public void testTheWorldScrollsInStepWithTheCharacterOnceSettled() {
-        Camera camera = new Camera();
+        Camera camera = new Camera(1);
         double exact = 0, speed = TILE / 0.6;
         int frame;
 
@@ -302,8 +302,40 @@ public class MovementTest {
 
     public void testTheWorldNeverScrollsBackwardsWhenAWalkChangesPace() {
         int[] rates = { 30, 60, 75, 144 };
+        int[] grains = { 1, 2, 3, 4, 5 };
 
-        for (int i = 0; i < rates.length; i++) WalkACorner(rates[i]);
+        for (int i = 0; i < rates.length; i++)
+            for (int j = 0; j < grains.length; j++)
+                WalkACorner(rates[i], grains[j]);
+    }
+
+    public void testAFinerGrainMovesTheViewInSmallerSteps() {
+        Check("whole game pixels at a grain of one: " + WalkACorner(60, 1),
+                WalkACorner(60, 1) == 0);
+        Check("parts of one at a grain of four: " + WalkACorner(60, 4),
+                WalkACorner(60, 4) > 40);
+    }
+
+    public void testASteadyWalkStaysLockedAtAFineGrain() {
+        Camera camera = new Camera(4);
+        double exact = 0, speed = TILE / 0.6;
+        int frame;
+
+        camera.Snap(0, 0);
+        for (frame = 0; frame < 300; frame++) {
+            exact += speed / 60.0;
+            camera.Follow(exact, 0.0, (int) Math.round(exact), 0, 1.0 / 60.0);
+        }
+
+        int pixel = (int) Math.round(exact);
+        int offset = pixel * 4 - (camera.X() * 4 + camera.FineX());
+        for (; frame < 600; frame++) {
+            exact += speed / 60.0;
+            pixel = (int) Math.round(exact);
+            camera.Follow(exact, 0.0, pixel, 0, 1.0 / 60.0);
+            Check("locked together, to the screen pixel", pixel * 4 -
+                    (camera.X() * 4 + camera.FineX()) == offset);
+        }
     }
 
     /*
@@ -312,14 +344,18 @@ public class MovementTest {
      * one south to rest, then three ticks standing while the camera
      * catches up. The camera only ever travels east and south, so the
      * view must too.
+     *
+     * Returns in how many frames the view moved by a part of a game
+     * pixel, across or down.
      */
-    private static void WalkACorner(int framesPerSecond) {
+    private static int WalkACorner(int framesPerSecond, int grain) {
         final int EAST = 3, SOUTH = 4, TICKS = EAST + SOUTH + 3;
-        Camera camera = new Camera();
+        Camera camera = new Camera(grain);
         int frames = (int) (TICKS * 0.6 * framesPerSecond);
-        int most = framesPerSecond >= 60 ? 1 : 2;
-        int pixelX = 0, pixelY = 0;
-        String at = " at " + framesPerSecond + " frames a second";
+        int most = (framesPerSecond >= 60 ? 1 : 2) * grain;
+        int pixelX = 0, pixelY = 0, parts = 0;
+        String at = " at " + framesPerSecond + " frames a second, grain " +
+                grain;
 
         camera.Snap(0, 0);
         for (int frame = 1; frame < frames; frame++) {
@@ -338,20 +374,28 @@ public class MovementTest {
             exactX *= TILE;
             exactY *= TILE;
 
-            int wasX = camera.X(), wasY = camera.Y();
+            int wasX = camera.X() * grain + camera.FineX();
+            int wasY = camera.Y() * grain + camera.FineY();
             pixelX = (int) Math.round(exactX);
             pixelY = (int) Math.round(exactY);
             camera.Follow(exactX, exactY, pixelX, pixelY,
                     1.0 / framesPerSecond);
 
-            int movedX = camera.X() - wasX, movedY = camera.Y() - wasY;
+            int movedX = camera.X() * grain + camera.FineX() - wasX;
+            int movedY = camera.Y() * grain + camera.FineY() - wasY;
             Check("never west, frame " + frame + at, movedX >= 0);
             Check("never north, frame " + frame + at, movedY >= 0);
             Check("no lurch, frame " + frame + at,
                     movedX <= most && movedY <= most);
+            Check("the parts are in range, frame " + frame + at,
+                    camera.FineX() >= 0 && camera.FineX() < grain &&
+                    camera.FineY() >= 0 && camera.FineY() < grain);
+            if (movedX % grain != 0 || movedY % grain != 0) parts++;
         }
         Check("comes to rest on the character" + at,
-                camera.X() == pixelX && camera.Y() == pixelY);
+                camera.X() == pixelX && camera.Y() == pixelY &&
+                camera.FineX() == 0 && camera.FineY() == 0);
+        return parts;
     }
 
     /* How fast a mover's picture is travelling at a moment of its

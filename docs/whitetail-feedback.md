@@ -65,6 +65,7 @@ run on Windows of any age.
 | C43 | `Assets.DiscardTicks()` throws ticks away in scenes where the world stands still |
 | C44 | `OptionsScene.java` asks for a relaunch and calls `JOptionPane` itself |
 | C47 | `IndexedPng.java` reads indexed-color PNGs |
+| C48 | `Screen.java` keeps a second texture for the world layer and draws it with `GL11` itself |
 | C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, and `choiceN` and `chosen`, with the pick kept in `Session` |
 | C45 | `Scripts.java` registers `choice2`, `choice3`, and `choice4` |
 | C38 | `Scripts.java` registers `inv_del_n` because a script cannot count |
@@ -639,14 +640,14 @@ floor division and modulo for negative numbers) would be used by every
 game on the library; this one has written three of those five so far.
 
 Later, a harder helper of the same family: a camera that follows a
-character smoothly when both must be drawn at whole pixels. The game's
-first two attempts each had a visible fault (the character shivering,
-then the world stepping backwards for single frames while the camera's
-lag changed), and the rule that works took a frame-by-frame simulation
-to find (`Camera.java`). Every pixel-art game with a trailing camera
-will meet both. `comp-camera` was not read for this, Whitetail not
-being at hand in that session, so whether it could hold such a thing
-is unchecked.
+character smoothly when the character must be drawn at whole pixels.
+The game's first two attempts each had a visible fault (the character
+shivering, then the world stepping backwards for single frames while
+the camera's lag changed), and the rule that works took a
+frame-by-frame simulation to find (`Camera.java`). Every pixel-art game
+with a trailing camera will meet both. `comp-camera` is a 3D camera and
+is no home for it; something beside `comp-display-layout`, which
+already knows the pixel scale the rule needs, might be.
 
 **C36. A setting that must be one of a few words has to be checked by
 the game.** *(Hit)*  
@@ -826,6 +827,37 @@ refused them. It now decodes through the game's `Bitmap.Decode()`.
 Related: `FromPNG()` takes a stream and decides the kind inside, so a
 caller who needs to know the kind first must read the whole stream into
 memory and look at the header byte itself, as `Bitmap.Load()` does.
+
+**C48. The software framebuffer is one picture in one place.** *(Hit)*
+Status: open.
+To move the view of the world by less than a game pixel, the game now
+keeps two layers, the world and the interface over it, and puts them
+together on the screen, where the world can be slid by whole screen
+pixels. `GL12SoftwareFramebuffer` is a static singleton with one buffer,
+one texture, and one rectangle fixed at `Init()`, so it can show only
+one of them. The interface goes through it; the world layer is a second
+texture that `Screen.java` creates, uploads, and draws with `GL11`
+calls of its own, about a hundred lines that mostly repeat the
+component's `Present()`.
+
+What would have let the component do both: instances, or a `Create()`
+returning a handle, in place of static state; a rectangle that can be
+given per `Present()` rather than once; and a scissor or clip rectangle.
+`Present()` leaving the alpha test alone, and saying so in its state
+contract, is what made the upper layer possible at all: the game turns
+the test on, gives its background pixels no alpha, and the component
+draws a picture with a hole in it without knowing.
+
+Two things for the Windows 98 target. The game's own texture uses
+`GL_CLAMP`, so its half of this is OpenGL 1.1 (A5 is the same point
+about the component). And the CRT filter Travis plans will want these
+same two layers as shader inputs, so a framebuffer component that can
+hold several pictures and hand their textures to a later stage would
+serve both the old path and the new one.
+
+A small one met on the way: the component's fatal checks and GL error
+strings (`CheckGlErrorInit`, `GlErrorString`) are private, so the game's
+second texture reports a bare error number.
 
 ### D. Things that went well
 

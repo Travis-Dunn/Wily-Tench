@@ -7,25 +7,33 @@ package com.alchemysoftware.wilytench;
  * moment it closes a fraction of the distance still to go. So it trails
  * a little behind a walk and drifts to rest after the walk stops.
  *
- * The picture is made of whole pixels, and that takes some care. The
- * player's picture is drawn at a whole pixel and so is the view. If
- * each were rounded on its own, the gap between them would flicker by a
- * pixel from frame to frame whenever the two happened to round
- * differently, and the character would seem to shiver. Instead the
- * camera decides how many whole pixels it is trailing by, and changes
- * its mind only when that has clearly stopped being true. The view is
- * then the player's own pixel position less that trail: while the
- * trail holds, the world scrolls exactly in step with the character.
+ * Positions here are counted in fine pixels: the grain is how many of
+ * them make a game pixel, and is how many screen pixels do. The
+ * character's picture is always drawn at a whole game pixel. The view
+ * may sit at any fine pixel, because Screen can slide the picture of
+ * the world by less than a game pixel. At a grain of one the two are
+ * the same and the view moves in whole game pixels too.
+ *
+ * That takes some care. If the view simply went wherever the camera
+ * was, the gap between it and the character would flicker from frame
+ * to frame whenever the two happened to round differently, and the
+ * character would seem to shiver. Instead the camera decides how far
+ * it is trailing, in fine pixels, and changes its mind only when that
+ * has clearly stopped being true. The view is then the character's own
+ * pixel position less that trail: while the trail holds, the world
+ * scrolls exactly in step with the character.
  *
  * The trail does have to change: it grows as a walk sets off, shrinks
  * as one stops, and at a corner does one across while doing the other
  * up and down. When it changes matters as much as whether. Lengthening
- * the trail by a pixel pulls the view a pixel back, and on a frame in
- * which the character's picture has not itself advanced, that scrolls
- * the whole world backwards for one frame, which is seen as a judder.
- * So the trail changes a pixel at a time, and waits for a frame on
- * which the change leaves the view either where it was or one pixel
- * further along the way the camera is truly travelling.
+ * the trail pulls the view back, and on a frame in which the
+ * character's picture has not itself advanced, that scrolls the whole
+ * world backwards for one frame, which is seen as a judder. So a
+ * change is held to what leaves the view either where it was or
+ * further along the way the camera is truly travelling, and by no
+ * more than a game pixel in a frame. A growing trail therefore grows
+ * on the frames in which the character's picture steps, taking part of
+ * each step; a shrinking one shrinks a little every frame.
  */
 final class Camera {
     /*
@@ -37,38 +45,50 @@ final class Camera {
     private static final double CATCH_UP_SECONDS = 0.25;
 
     /*
-     * How far, in pixels, the true trail must be from the whole number
-     * in use before a new whole number is taken. Plain rounding is
-     * 0.5; the extra is what stops a trail hovering near a half from
-     * flipping back and forth.
+     * How far, in fine pixels, the true trail must be from the one in
+     * use before a new one is taken. Plain rounding is 0.5; the extra
+     * is what stops a trail hovering near a half from flipping back
+     * and forth.
      */
     private static final double TRAIL_SLACK = 0.75;
 
     /*
-     * How far, in pixels, the true trail may get from the whole number
-     * in use before that number is set right at once, without waiting
-     * for a good frame. Walking never comes near it at any frame rate
-     * worth playing at; it is for long frames and sudden jumps.
+     * How far, in game pixels, the true trail may get from the one in
+     * use before that is set right at once, without waiting for a good
+     * frame. Walking never comes near it at any frame rate worth
+     * playing at; it is for long frames and sudden jumps.
      */
     private static final double TRAIL_LIMIT = 3.0;
 
+    private final int grain;
+
+    /* Where the camera truly is, in game pixels. */
     private double x, y;
+
+    /* The trail in use and where that puts the view, in fine pixels. */
     private int trailX, trailY;
     private int viewX, viewY;
 
+    /**
+     * @param grain how many fine pixels make a game pixel: at least 1
+     */
+    Camera(int grain) { this.grain = grain; }
+
     /** Jumps straight to a point, as after arriving somewhere new. */
     void Snap(int aimX, int aimY) {
-        x = viewX = aimX;
-        y = viewY = aimY;
+        x = aimX;
+        y = aimY;
+        viewX = aimX * grain;
+        viewY = aimY * grain;
         trailX = trailY = 0;
     }
 
     /**
      * Moves toward the point the view would show if it did not trail.
      *
-     * @param exactX that point, in pixels and fractions of one
+     * @param exactX that point, in game pixels and fractions of one
      * @param pixelX the same point as the player's picture is actually
-     *               drawn: exactX to the nearest pixel
+     *               drawn: exactX to the nearest game pixel
      * @param seconds the time since the last call
      */
     void Follow(double exactX, double exactY, int pixelX, int pixelY,
@@ -82,43 +102,65 @@ final class Camera {
 
         /* With the trail left alone, the view moves as the picture
            did. */
-        trailX = Settle(trailX, exactX - x, pixelX - trailX - viewX,
-                travelX);
-        trailY = Settle(trailY, exactY - y, pixelY - trailY - viewY,
-                travelY);
-        viewX = pixelX - trailX;
-        viewY = pixelY - trailY;
+        trailX = Settle(trailX, (exactX - x) * grain,
+                pixelX * grain - trailX - viewX, travelX);
+        trailY = Settle(trailY, (exactY - y) * grain,
+                pixelY * grain - trailY - viewY, travelY);
+        viewX = pixelX * grain - trailX;
+        viewY = pixelY * grain - trailY;
     }
 
-    /** @return the map pixel at the left edge of the view */
-    int X() { return viewX; }
+    /**
+     * @return the map pixel at the left edge of the view: the game
+     *         pixel the view is at or just past
+     */
+    int X() { return TileView.FloorDiv(viewX, grain); }
 
-    /** @return the map pixel at the top edge of the view */
-    int Y() { return viewY; }
+    /** @return the map pixel at the top edge of the view, likewise */
+    int Y() { return TileView.FloorDiv(viewY, grain); }
+
+    /**
+     * @return how many fine pixels the view is past X(): 0 to one
+     *         less than the grain
+     */
+    int FineX() { return viewX - X() * grain; }
+
+    /** @return how many fine pixels the view is past Y(), likewise */
+    int FineY() { return viewY - Y() * grain; }
 
     /*
-     * Decides the whole trail for one frame, across or up and down.
+     * Decides the trail for one frame, across or up and down, in fine
+     * pixels.
      *
-     * trail  - the whole trail in use
-     * exact  - the true trail, in pixels and fractions of one
+     * trail  - the trail in use
+     * exact  - the true trail, in fine pixels and fractions of one
      * held   - how far the view moves this frame if the trail is kept
-     * travel - how far the camera truly moved this frame
+     * travel - how far the camera truly moved this frame; only its
+     *          direction is used
      */
-    private static int Settle(int trail, double exact, int held,
-                              double travel) {
+    private int Settle(int trail, double exact, int held, double travel) {
         double off = Math.abs(exact - trail);
 
         if (off <= TRAIL_SLACK) return trail;
-        if (off > TRAIL_LIMIT) return (int) Math.round(exact);
+        if (off > TRAIL_LIMIT * grain) return (int) Math.round(exact);
 
-        /* One pixel nearer the truth moves the view one pixel the
-           other way. */
-        int step = exact > trail ? 1 : -1;
-        int moved = held - step;
+        /* Changing the trail by so much moves the view by as much the
+           other way, on top of what it was moving anyway. */
+        int wanted = (int) Math.round(exact) - trail;
+        int most = Math.max(Math.abs(held), grain);
+        int moved = held - wanted;
 
-        if (moved == 0) return trail + step;
-        if (moved == 1 && travel >= 0.0) return trail + step;
-        if (moved == -1 && travel <= 0.0) return trail + step;
-        return trail;
+        if (travel >= 0.0) moved = Math.max(0, Math.min(moved, most));
+        else moved = Math.min(0, Math.max(moved, -most));
+
+        /* What that leaves of the change. Should it now be the wrong
+           way, wait; should it be more than was wanted, the view is
+           being carried against the camera, as when the character
+           turns right round, and the truth is the better choice. */
+        int change = held - moved;
+
+        if (change == 0 || (change > 0) != (wanted > 0)) return trail;
+        if (Math.abs(change) > Math.abs(wanted)) return trail + wanted;
+        return trail + change;
     }
 }

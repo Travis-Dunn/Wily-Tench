@@ -1,6 +1,5 @@
 package com.alchemysoftware.wilytench;
 
-import com.alchemysoftware.whitetail.display.DisplayLayout;
 import com.alchemysoftware.whitetail.input.InputSys;
 import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
 import com.alchemysoftware.whitetail.timer.Timer;
@@ -40,7 +39,6 @@ final class Assets {
      * @return false after a fatal error has been reported
      */
     static boolean Init() {
-        DisplayLayout layout = Screen.GetLayout();
         byte[] buf = Screen.GetIndexBuf();
         int w = Screen.GetW(), h = Screen.GetH();
 
@@ -50,10 +48,12 @@ final class Assets {
         if ((bold = Font.Load("bold.fnt")) == null) return false;
         if ((title = Font.Load("title.fnt")) == null) return false;
 
-        if (!SpriteRenderer.Init(buf, w, h, layout.viewportX,
-                layout.viewportY, layout.viewportWidth,
-                layout.viewportHeight, TileView.SpritesNeeded(
-                layout.viewportWidth, layout.viewportHeight) +
+        /* The sprite renderer draws the world, into the layer Screen
+           keeps for it. Everything else is drawn by Gfx and Text, into
+           the picture unless a scene points them elsewhere. */
+        int worldW = Screen.GetWorldW(), worldH = Screen.GetWorldH();
+        if (!SpriteRenderer.Init(Screen.GetWorldBuf(), worldW, worldH, 0, 0,
+                worldW, worldH, TileView.SpritesNeeded(worldW, worldH) +
                 SPARE_SPRITES)) return false;
         spritesInit = true;
 
