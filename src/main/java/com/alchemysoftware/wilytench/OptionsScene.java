@@ -17,12 +17,13 @@ import com.alchemysoftware.whitetail.window.Window;
  * A change is acted on and written to the file as it is made; there is
  * nothing to confirm. Back, or Escape, returns to the main menu.
  *
- * Fullscreen and the CRT filter are the exceptions: the window is made
- * once, when the game starts, so those changes wait for the next
- * start. A line beside the checkbox says so while the setting and the
- * window disagree, and on leaving the screen the system's own message
- * box says so once more. The CRT filter's line also says when it is
- * wanted but this machine cannot do it.
+ * Fullscreen, the CRT filter, and the video signal are the exceptions:
+ * the window is made once, when the game starts, so those changes wait
+ * for the next start. A line beside the widget says so while the
+ * setting and the window disagree, and on leaving the screen the
+ * system's own message box says so once more. For the CRT filter and
+ * the video signal the line also says when the thing is wanted but
+ * this machine cannot do it.
  *
  * The frame rate slider covers the rates worth choosing between. The
  * file allows more; a rate set there by hand that the slider cannot
@@ -32,31 +33,42 @@ final class OptionsScene extends Scene {
     private static final int FRAME_CELLS_W = 22, FRAME_CELLS_H = 12;
     private static final int TITLE_Y = 16;
     private static final int LABEL_X = 28, CONTROL_X = 144;
-    private static final int ROWS_Y = 44, ROW_DY = 20;
+    private static final int ROWS_Y = 40, ROW_DY = 18;
     private static final int NOTE_GAP = 8;
     private static final int RADIO_DX = 64;
+    private static final int[] SIGNAL_X = { 0, 46, 106 };
     private static final int SLIDER_CELLS = 7;
-    private static final int BACK_CELLS = 5, BACK_Y = 150;
+    private static final int BACK_CELLS = 5, BACK_Y = 158;
 
     private static final int FPS_MIN = 20, FPS_MAX = 300, FPS_STEP = 10;
 
     private static final int ROW_FULLSCREEN = 0, ROW_VSYNC = 1;
     private static final int ROW_FPS = 2, ROW_WALK = 3, ROW_CRT = 4;
+    private static final int ROW_SIGNAL = 5, ROW_NOTE = 6;
     private static final int BACK = 0;
     private static final int STALE = -1;
 
     private static final String TITLE = "Options";
     private static final String[] LABELS = {
         "Fullscreen", "Vertical sync", "Frame rate limit", "Walking",
-        "CRT filter"
+        "CRT filter", "Video signal"
+    };
+    /* In the order of Signal's numbers. */
+    private static final String[] SIGNALS = {
+        "RGB", "S-Video", "Composite"
     };
     private static final String NOTE_RELAUNCH = "After a relaunch";
     private static final String NOTE_NO_CRT = "Not possible here";
+    private static final String NOTE_SIGNAL_RELAUNCH =
+            "The video signal changes after a relaunch";
+    private static final String NOTE_NO_SIGNAL =
+            "A video signal is not possible here";
     private static final String NOTE_SAVE_FAILED =
             "The settings could not be saved. See session.log.";
 
     private int frameX, frameY;
     private Toggle fullscreen, vSync, steady, pulse, crt;
+    private Toggle[] signals;
     private Slider fps;
     private Buttons buttons;
 
@@ -88,6 +100,11 @@ final class OptionsScene extends Scene {
         pulse = new Toggle(small, "Pulse", controlX + RADIO_DX,
                 RowY(ROW_WALK), true);
         crt = new Toggle(small, "", controlX, RowY(ROW_CRT), false);
+        signals = new Toggle[SIGNALS.length];
+        for (int i = 0; i < signals.length; i++) {
+            signals[i] = new Toggle(small, SIGNALS[i],
+                    controlX + SIGNAL_X[i], RowY(ROW_SIGNAL), true);
+        }
 
         buttons = new Buttons(small, new PushButton[] {
             new PushButton("Back",
@@ -132,6 +149,13 @@ final class OptionsScene extends Scene {
         if (pressed && crt.Contains(pointerX, pointerY)) {
             Settings.SetCrt(!Settings.Crt());
             changed = true;
+        }
+        for (int i = 0; i < signals.length; i++) {
+            if (pressed && signals[i].Contains(pointerX, pointerY) &&
+                    Settings.Signal() != i) {
+                Settings.SetSignal(i);
+                changed = true;
+            }
         }
         if (pressed && steady.Contains(pointerX, pointerY))
             changed |= SetWalk(Mover.STYLE_STEADY);
@@ -200,6 +224,22 @@ final class OptionsScene extends Scene {
                     Palette.ASH);
         }
 
+        for (int i = 0; i < signals.length; i++) {
+            signals[i].Draw(small, Settings.Signal() == i,
+                    signals[i].Contains(pointerX, pointerY));
+        }
+        /* Three choices leave no room beside them, so this line goes
+           underneath. */
+        String signalNote =
+                Settings.Signal() != Settings.LaunchedSignal() ?
+                NOTE_SIGNAL_RELAUNCH :
+                Settings.Signal() != Signal.RGB && !Screen.SignalInUse() ?
+                NOTE_NO_SIGNAL : null;
+        if (signalNote != null) {
+            Text.Draw(small, signalNote, 0, signalNote.length(),
+                    frameX + CONTROL_X, RowY(ROW_NOTE), Palette.ASH);
+        }
+
         buttons.Draw();
         if (saveFailed) {
             Text.Draw(small, NOTE_SAVE_FAILED, 0, NOTE_SAVE_FAILED.length(),
@@ -212,6 +252,7 @@ final class OptionsScene extends Scene {
     @Override
     public void onDestroy() {
         fullscreen = vSync = steady = pulse = crt = null;
+        signals = null;
         fps = null;
         buttons = null;
     }
@@ -234,9 +275,10 @@ final class OptionsScene extends Scene {
         boolean window = Settings.Fullscreen() !=
                 Settings.LaunchedFullscreen();
         boolean filter = Settings.Crt() != Settings.LaunchedCrt();
+        boolean cable = Settings.Signal() != Settings.LaunchedSignal();
 
         Game.GoTo(Game.SCENE_MENU);
-        if (!window && !filter) return;
+        if (!window && !filter && !cable) return;
 
         String message = "";
         if (window) {
@@ -247,6 +289,11 @@ final class OptionsScene extends Scene {
         if (filter) {
             message += Settings.Crt() ? MSG_RELAUNCH_CRT :
                     MSG_RELAUNCH_NO_CRT;
+        }
+        if ((window || filter) && cable) message += "\n";
+        if (cable) {
+            message += MSG_RELAUNCH_SIGNAL +
+                    SIGNALS[Settings.Signal()] + MSG_RELAUNCH_SIGNAL_END;
         }
 
         try {
@@ -267,6 +314,10 @@ final class OptionsScene extends Scene {
             "will be on the next time " + Screen.TITLE + " is started.";
     private static final String MSG_RELAUNCH_NO_CRT = "The CRT filter " +
             "will be off the next time " + Screen.TITLE + " is started.";
+    private static final String MSG_RELAUNCH_SIGNAL = "The video " +
+            "signal will be ";
+    private static final String MSG_RELAUNCH_SIGNAL_END = " the next " +
+            "time " + Screen.TITLE + " is started.";
     private static final String ERR_STR_DIALOG = "OptionsScene failed " +
             "to show a message box because an exception was " +
             "encountered.\n";

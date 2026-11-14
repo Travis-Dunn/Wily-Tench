@@ -50,6 +50,11 @@ import com.alchemysoftware.whitetail.window.Window;
  * place, and the world layer is a second texture kept here. The other
  * is the CRT filter, in Crt, used when the player has asked for it and
  * the machine can do it.
+ *
+ * Before either, the picture may be sent down a video cable, in
+ * Signal: another thing the player may ask for. That takes the two
+ * layers and gives back one picture, finer across than game pixels,
+ * which is then shown the plain way or through the CRT filter.
  */
 final class Screen {
     static final String TITLE = "Wily Tench";
@@ -82,6 +87,14 @@ final class Screen {
     private static boolean worldShown;
     private static int worldFineX, worldFineY;
 
+    /* The video cable, if the picture is sent down one, and the
+       texture for showing what comes out when the CRT filter is not
+       there to show it. */
+    private static Signal signal;
+    private static IntBuffer wideUpload;
+    private static int wideW, wideTex;
+    private static float wideU, wideV;
+
     private Screen() {}
 
     /**
@@ -89,10 +102,14 @@ final class Screen {
      *
      * @param wantCrt whether to show the picture through the CRT
      *                filter, if this machine can
+     * @param cable how the picture is to reach the screen: Signal.RGB
+     *              for directly, or Signal.SVIDEO or Signal.COMPOSITE,
+     *              if this machine can
+     * @param noise how much noise is on that cable
      * @return false after a fatal error has been reported
      */
     static boolean Init(boolean fullscreen, boolean vSync,
-                        boolean wantCrt) {
+                        boolean wantCrt, int cable, int noise) {
         /* Each query reports its own fatal error, so stop at the first
            rather than show the player two dialogs for one problem. */
         int desktopW = Window.GetDesktopWidth();
@@ -147,8 +164,10 @@ final class Screen {
         }
 
         if (!InitWorld()) return false;
+        if (cable != Signal.RGB && !InitSignal(cable, noise)) return false;
         crt = wantCrt && Crt.Init(layout, srcLayout, worldTex, worldW,
-                worldH, worldTexW, worldTexH);
+                worldH, worldTexW, worldTexH,
+                signal == null ? 1 : signal.Across());
 
         Logger.LogSession(LogLevel.DEBUG, LogStrLayout(desktopW, desktopH));
         return true;
@@ -200,10 +219,74 @@ final class Screen {
         return true;
     }
 
+    /*
+     * Sets up the video cable, and the texture its picture is shown
+     * through. Where the machine cannot do it the game carries on
+     * without, and that is not a failure; false is for a fatal error.
+     */
+    private static boolean InitSignal(int cable, int noise) {
+        int texW = 1, texH = 1;
+
+        wideW = layout.framebufferWidth * layout.pixelScale;
+        while (texW < wideW) texW <<= 1;
+        while (texH < layout.framebufferHeight) texH <<= 1;
+
+        if (layout.pixelScale < Signal.MIN_SCALE) {
+            Logger.LogSession(LogLevel.WARNING,
+                    WarnStrSignalScale(layout.pixelScale));
+            return true;
+        }
+        if (texW > GL11.glGetInteger(GL11.GL_MAX_TEXTURE_SIZE)) {
+            Logger.LogSession(LogLevel.WARNING, WarnStrSignalTex(texW));
+            return true;
+        }
+
+        try {
+            signal = new Signal(cable, noise, layout.framebufferWidth,
+                    layout.framebufferHeight, layout.viewportX,
+                    layout.viewportY, layout.viewportHeight, worldW,
+                    layout.pixelScale);
+            wideUpload = BufferUtils.createIntBuffer(
+                    wideW * layout.framebufferHeight);
+        } catch (OutOfMemoryError e) {
+            ErrorHandler.LogFatalExcpAndStop(ERR_STR_OOM, e);
+            return false;
+        }
+        wideU = (float) wideW / texW;
+        wideV = (float) layout.framebufferHeight / texH;
+
+        wideTex = GL11.glGenTextures();
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, wideTex);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D,
+                GL11.GL_TEXTURE_MIN_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D,
+                GL11.GL_TEXTURE_MAG_FILTER, GL11.GL_NEAREST);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D,
+                GL11.GL_TEXTURE_WRAP_S, GL11.GL_CLAMP);
+        GL11.glTexParameteri(GL11.GL_TEXTURE_2D,
+                GL11.GL_TEXTURE_WRAP_T, GL11.GL_CLAMP);
+        GL11.glTexImage2D(GL11.GL_TEXTURE_2D, 0, GL11.GL_RGBA8, texW, texH,
+                0, srcLayout.glFormat, srcLayout.glType, (IntBuffer) null);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+
+        int glErr = GL11.glGetError();
+        if (wideTex == 0 || glErr != GL11.GL_NO_ERROR) {
+            ErrorHandler.LogFatalAndStop(ErrStrWorldTex(glErr));
+            return false;
+        }
+        Logger.LogSession(LogLevel.DEBUG, cable == Signal.SVIDEO ?
+                LOG_STR_SVIDEO : LOG_STR_COMPOSITE);
+        return true;
+    }
+
     /** Safe to call after a failed or partial Init(). */
     static void Shutdown() {
         if (windowInit) Crt.Shutdown();
         if (windowInit && worldTex != 0) GL11.glDeleteTextures(worldTex);
+        if (windowInit && wideTex != 0) GL11.glDeleteTextures(wideTex);
+        signal = null;
+        wideUpload = null;
+        wideTex = wideW = 0;
         if (fbInit) GL12SoftwareFramebuffer.Shutdown();
         if (windowInit) Window.Shutdown();
         fbInit = windowInit = worldShown = crt = false;
@@ -248,7 +331,7 @@ final class Screen {
         /* With the world beneath it, the picture's background is a
            hole: a pixel with no alpha. */
         if (worldShown) {
-            UploadWorld();
+            ColorWorld();
             through = 0;
         }
         for (int i = 0, n = src.length; i < n; i++) {
@@ -256,10 +339,20 @@ final class Screen {
             dst[i] = index == Palette.BACKGROUND ? through : pal[index];
         }
 
-        if (crt) {
+        if (signal != null) {
+            /* The cable takes both layers and gives back one picture
+               with no holes, so the world's texture is not needed. */
+            int[] received = signal.Run(dst, worldPixels,
+                    worldShown ? worldFineX : 0);
+
+            if (crt) Crt.Present(received, 0, 0);
+            else DrawWide(received);
+        } else if (crt) {
+            if (worldShown) UploadWorld();
             Crt.Present(dst, worldFineX, worldFineY);
         } else if (worldShown) {
             /* The alpha test drops the hole's pixels. */
+            UploadWorld();
             DrawWorld();
             GL11.glAlphaFunc(GL11.GL_GREATER, 0.5f);
             GL11.glEnable(GL11.GL_ALPHA_TEST);
@@ -275,21 +368,66 @@ final class Screen {
             ErrorHandler.LogFatalAndStop(ErrStrGl(glErr));
     }
 
-    /* Colors the world layer and puts it in its texture. */
-    private static void UploadWorld() {
+    /* Colors the world layer. */
+    private static void ColorWorld() {
         byte[] src = worldBuf;
         int[] dst = worldPixels, pal = Palette.PIXELS;
 
         for (int i = 0, n = src.length; i < n; i++)
             dst[i] = pal[src[i] & 0xFF];
+    }
+
+    /* Puts the colored world layer in its texture. */
+    private static void UploadWorld() {
         worldUpload.clear();
-        worldUpload.put(dst);
+        worldUpload.put(worldPixels);
         worldUpload.flip();
 
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, worldTex);
         GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, worldW, worldH,
                 srcLayout.glFormat, srcLayout.glType, worldUpload);
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+    }
+
+    /* Shows a picture that came down the video cable: one layer,
+       filling the picture's place, a screen pixel to each of its
+       pixels across. */
+    private static void DrawWide(int[] pixels) {
+        wideUpload.clear();
+        wideUpload.put(pixels);
+        wideUpload.flip();
+
+        GL11.glViewport(layout.presentationX, layout.presentationY,
+                layout.presentationWidth, layout.presentationHeight);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, wideTex);
+        GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, wideW,
+                layout.framebufferHeight, srcLayout.glFormat,
+                srcLayout.glType, wideUpload);
+        GL11.glEnable(GL11.GL_TEXTURE_2D);
+        GL11.glDisable(GL11.GL_DEPTH_TEST);
+        GL11.glDisable(GL11.GL_BLEND);
+
+        GL11.glMatrixMode(GL11.GL_PROJECTION);
+        GL11.glPushMatrix();
+        GL11.glLoadIdentity();
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GL11.glPushMatrix();
+        GL11.glLoadIdentity();
+
+        GL11.glBegin(GL11.GL_QUADS);
+        GL11.glTexCoord2f(0.0f, wideV); GL11.glVertex2f(-1.0f, -1.0f);
+        GL11.glTexCoord2f(wideU, wideV); GL11.glVertex2f(1.0f, -1.0f);
+        GL11.glTexCoord2f(wideU, 0.0f); GL11.glVertex2f(1.0f, 1.0f);
+        GL11.glTexCoord2f(0.0f, 0.0f); GL11.glVertex2f(-1.0f, 1.0f);
+        GL11.glEnd();
+
+        GL11.glMatrixMode(GL11.GL_PROJECTION);
+        GL11.glPopMatrix();
+        GL11.glMatrixMode(GL11.GL_MODELVIEW);
+        GL11.glPopMatrix();
+
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+        GL11.glViewport(0, 0, layout.windowWidth, layout.windowHeight);
     }
 
     /*
@@ -375,11 +513,17 @@ final class Screen {
     static int GrainX() { return layout.pixelScale; }
 
     /**
-     * @return the same, up and down. Through the CRT filter that is
-     *         whole game pixels only: a row of game pixels is a
-     *         scanline, and a tube cannot draw between its scanlines.
+     * @return the same, up and down. Through the CRT filter, or down
+     *         a video cable, that is whole game pixels only: a row of
+     *         game pixels is a scanline, and neither a tube nor a
+     *         signal has anything between its lines.
      */
-    static int GrainY() { return crt ? 1 : layout.pixelScale; }
+    static int GrainY() {
+        return crt || signal != null ? 1 : layout.pixelScale;
+    }
+
+    /** @return whether the picture is sent down a video cable */
+    static boolean SignalInUse() { return signal != null; }
 
     /** @return whether the picture is shown through the CRT filter */
     static boolean CrtInUse() { return crt; }
@@ -393,6 +537,21 @@ final class Screen {
             "OpenGL window. The reason it gave is in session.log.\n";
     private static final String ERR_STR_OOM = CLASS + " failed to " +
             "initialize because Java is out of heap memory.\n";
+    private static final String LOG_STR_SVIDEO = CLASS + " is sending " +
+            "the picture as S-Video.\n";
+    private static final String LOG_STR_COMPOSITE = CLASS + " is " +
+            "sending the picture as composite video.\n";
+    private static String WarnStrSignalScale(int scale) {
+        return CLASS + " is not sending the picture as a video signal " +
+                "because it is shown at [" + scale + "] screen pixels " +
+                "to a game pixel and that needs at least [" +
+                Signal.MIN_SCALE + "].\n";
+    }
+    private static String WarnStrSignalTex(int texW) {
+        return CLASS + " is not sending the picture as a video signal " +
+                "because the graphics driver has no texture [" + texW +
+                "] pixels wide.\n";
+    }
     private static String ErrStrWorldTex(int glErr) {
         return CLASS + " failed to initialize because OpenGL would not " +
                 "make the texture for the view of the world, reporting " +

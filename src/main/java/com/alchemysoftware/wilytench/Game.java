@@ -94,7 +94,8 @@ final class Game {
         stage = STAGE_GC_PRIEST;
 
         boolean screenOk = Screen.Init(Settings.Fullscreen(),
-                Settings.VSync(), Settings.Crt());
+                Settings.VSync(), Settings.Crt(), Settings.Signal(),
+                Settings.SignalNoise());
         /* Screen cleans up after itself even when only half started. */
         stage = STAGE_SCREEN;
         if (!screenOk) return false;

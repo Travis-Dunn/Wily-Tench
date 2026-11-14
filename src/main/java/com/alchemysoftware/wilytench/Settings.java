@@ -21,8 +21,9 @@ import com.alchemysoftware.whitetail.log.Logger;
  * here, where the options screen changes them, and Save() writes them
  * back. The file may also be edited by hand while the game is closed.
  *
- * Fullscreen and the CRT filter are fixed when the window is made, so
- * a change to either takes effect the next time the game starts. The
+ * Fullscreen, the CRT filter, and the video signal are fixed when the
+ * window is made, so a change to any takes effect the next time the
+ * game starts. The
  * others can be acted on at once by whoever changes them.
  */
 final class Settings {
@@ -31,6 +32,15 @@ final class Settings {
     static final String KEY_MAX_FPS = "maxFps";
     static final String KEY_WALK_STYLE = "walkStyle";
     static final String KEY_CRT = "crt";
+    static final String KEY_SIGNAL = "signal";
+    static final String KEY_SIGNAL_NOISE = "signalNoise";
+
+    /* The values signal may have, in the order of Signal's numbers. */
+    private static final String[] SIGNALS = {
+        "rgb", "svideo", "composite"
+    };
+    private static final int SIGNAL_MAX_LEN = 16;
+    private static final int NOISE_MAX = 100;
 
     /* The values walkStyle may have. */
     static final String WALK_STEADY = "steady";
@@ -46,6 +56,7 @@ final class Settings {
     private static File file;
     private static boolean fullscreen, launchedFullscreen, vSync;
     private static boolean crt, launchedCrt;
+    private static int signal, launchedSignal, signalNoise;
     private static int maxFps = MAX_FPS_DEFAULT;
     private static int walkStyle = Mover.STYLE_STEADY;
 
@@ -73,6 +84,13 @@ final class Settings {
         entries.add(new ConfigEntry(KEY_CRT, ConfigEntry.TYPE_BOOL,
                 null, null, Boolean.FALSE));
 
+        entries.add(new ConfigEntry(KEY_SIGNAL, ConfigEntry.TYPE_STR,
+                Integer.valueOf(1), Integer.valueOf(SIGNAL_MAX_LEN),
+                SIGNALS[Signal.RGB]));
+        entries.add(new ConfigEntry(KEY_SIGNAL_NOISE, ConfigEntry.TYPE_INT,
+                Integer.valueOf(0), Integer.valueOf(NOISE_MAX),
+                Integer.valueOf(0)));
+
         if (!ConfigFileParser.Init(dataDir, entries)) return false;
 
         file = new File(dataDir, FILENAME);
@@ -83,6 +101,9 @@ final class Settings {
         walkStyle = ReadWalkStyle(ConfigFileParser.GetStr(KEY_WALK_STYLE));
         crt = ConfigFileParser.GetBool(KEY_CRT);
         launchedCrt = crt;
+        signal = ReadSignal(ConfigFileParser.GetStr(KEY_SIGNAL));
+        launchedSignal = signal;
+        signalNoise = ConfigFileParser.GetInt(KEY_SIGNAL_NOISE);
         return true;
     }
 
@@ -112,6 +133,24 @@ final class Settings {
     static boolean LaunchedCrt() { return launchedCrt; }
 
     static void SetCrt(boolean on) { crt = on; }
+
+    /**
+     * @return how the picture is to reach the screen: Signal.RGB,
+     *         Signal.SVIDEO, or Signal.COMPOSITE
+     */
+    static int Signal() { return signal; }
+
+    /** @return the same as it was when this run of the game began */
+    static int LaunchedSignal() { return launchedSignal; }
+
+    /** @param mode Signal.RGB, Signal.SVIDEO, or Signal.COMPOSITE */
+    static void SetSignal(int mode) { signal = mode; }
+
+    /**
+     * @return how much noise is on the video cable. There is no widget
+     *         for it; it is set in the file.
+     */
+    static int SignalNoise() { return signalNoise; }
 
     static void SetFullscreen(boolean on) { fullscreen = on; }
 
@@ -149,14 +188,16 @@ final class Settings {
             String[] merged = Merge(lines.toArray(new String[lines.size()]),
                     new String[] {
                         KEY_FULLSCREEN, KEY_VSYNC, KEY_MAX_FPS,
-                        KEY_WALK_STYLE, KEY_CRT
+                        KEY_WALK_STYLE, KEY_CRT, KEY_SIGNAL,
+                        KEY_SIGNAL_NOISE
                     },
                     new String[] {
                         String.valueOf(fullscreen), String.valueOf(vSync),
                         String.valueOf(maxFps),
                         walkStyle == Mover.STYLE_PULSE ?
                         WALK_PULSE : WALK_STEADY,
-                        String.valueOf(crt)
+                        String.valueOf(crt), SIGNALS[signal],
+                        String.valueOf(signalNoise)
                     });
 
             writer = new PrintWriter(new FileWriter(file));
@@ -225,6 +266,18 @@ final class Settings {
                     "]; [" + WALK_STEADY + "] is being used.\n");
         }
         return Mover.STYLE_STEADY;
+    }
+
+    private static int ReadSignal(String value) {
+        for (int i = 0; i < SIGNALS.length; i++)
+            if (SIGNALS[i].equalsIgnoreCase(value)) return i;
+
+        Logger.LogSession(LogLevel.WARNING, "Settings failed to " +
+                "understand signal [" + value + "] because it must be [" +
+                SIGNALS[Signal.RGB] + "], [" + SIGNALS[Signal.SVIDEO] +
+                "], or [" + SIGNALS[Signal.COMPOSITE] + "]; [" +
+                SIGNALS[Signal.RGB] + "] is being used.\n");
+        return Signal.RGB;
     }
 
     private static final String ERR_STR_WRITE = "the write did not finish";

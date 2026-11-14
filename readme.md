@@ -158,10 +158,19 @@ into weapons and armor.
   game. From the world, Escape comes back here, and the world stands
   still until you press Play again.
 - **Options.** Fullscreen, vertical sync, the frame rate limit, the
-  walking style, and the CRT filter, each with a widget. A change is
-  acted on and written to `config.ini` at once. Fullscreen and the CRT
-  filter wait for the next launch, and the game says so with a system
-  message box when you leave the screen.
+  walking style, the CRT filter, and the video signal, each with a
+  widget. A change is acted on and written to `config.ini` at once.
+  Fullscreen, the CRT filter, and the video signal wait for the next
+  launch, and the game says so with a system message box when you
+  leave the screen.
+- **The video signal.** RGB unless you choose otherwise, which is no
+  cable at all. Composite sends the picture as an NTSC television
+  signal and shows what a set would make of it: color smeared
+  sideways, fine patterns turned to color, edges that crawl. S-Video
+  is the better cable: the smear without the stray color. It works
+  with the CRT filter or without. It is heavy work for the processor.
+  The signal is a port of
+  [NTSC-CRT by EMMIR](https://github.com/LMP88959/NTSC-CRT).
 - **The CRT filter.** Off unless you turn it on. It shows the picture
   as a cathode ray tube would: scanlines, a shadow mask, a little glow.
   It needs a graphics driver with shaders and a screen big enough for
@@ -222,6 +231,9 @@ The game keeps a folder per user:
   - `vsync` - `true` or `false`.
   - `maxFps` - frame rate cap, used when vsync is off or ignored.
   - `crt` - `true` or `false`: the CRT filter.
+  - `signal` - `rgb`, `svideo`, or `composite`: the video signal.
+  - `signalNoise` - 0 to 100: noise on the video cable. There is no
+    widget for it. By about 40 the picture struggles to hold still.
   - `walkStyle` - `steady` or `pulse`. With `steady`, a walk eases away
     from a standstill, holds an even speed, and eases to a stop. With
     `pulse`, every tile is eased into and out of, so a long walk surges
@@ -277,6 +289,8 @@ which is what makes that practical.
 | `PushButton`, `Buttons`, `Toggle`, `Slider` | The widgets: push buttons and the clicking of them, checkboxes and option buttons, sliders |
 | `DataDir`, `Settings`, `Natives` | The per-user folder, the settings and the writing of `config.ini`, LWJGL's native libraries |
 | `Crt` | The CRT filter: shows the two layers through the shader in `shaders/crt.frag`, where the look is set |
+| `Ntsc` | A television signal: turns a picture into the voltage on an NTSC cable and back, as composite video or S-Video. A port of EMMIR's NTSC-CRT |
+| `Signal` | The video cable option: puts the two layers onto a signal and gives back the picture a set would show |
 | `Screen`, `Palette` | The window, the picture's size, and its colors, from `palette.json`. `Screen` shows two layers, the world and the interface over it, and can slide the world by less than a game pixel |
 | `Layout` | Where things are on the game frame, from `layout.json` |
 | `Bitmap`, `IndexedPng` | Whole pictures of any size, such as the game frame, read from PNG files |

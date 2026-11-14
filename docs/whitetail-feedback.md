@@ -65,7 +65,7 @@ run on Windows of any age.
 | C43 | `Assets.DiscardTicks()` throws ticks away in scenes where the world stands still |
 | C44 | `OptionsScene.java` asks for a relaunch and calls `JOptionPane` itself |
 | C47 | `IndexedPng.java` reads indexed-color PNGs |
-| C48 | `Screen.java` keeps a second texture for the world layer and draws it with `GL11` itself; `Crt.java` keeps a third, for the picture |
+| C48 | `Screen.java` keeps a second texture for the world layer, and another for a picture that came down the video cable, and draws both with `GL11` itself; `Crt.java` keeps one for the picture |
 | C49 | `Crt.java` compiles and runs its shader with `GL20` calls of its own |
 | C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, and `choiceN` and `chosen`, with the pick kept in `Session` |
 | C45 | `Scripts.java` registers `choice2`, `choice3`, and `choice4` |
@@ -661,6 +661,10 @@ out-of-range numbers, with a good log line naming the offending text. A
 `TYPE_CHOICE` taking a list of allowed strings would give choices the
 same treatment.
 
+`signal` (`rgb`, `svideo`, or `composite`) is now a second setting of
+this kind, with a second copy of the same check and warning
+(`Settings.ReadSignal()`).
+
 A cosmetic thing seen in passing: when the config system appends a newly
 registered key to an existing `config.ini`, it leaves a blank line before
 it, so a file that has grown over several releases ends up unevenly
@@ -863,6 +867,13 @@ to a texture of its own as well (`Crt.java`) and
 `GL12SoftwareFramebuffer` only lends its `int[]`. A `GetTexture()`, or
 a `Upload()` separate from the drawing in `Present()`, would have been
 enough.
+
+The video signal (`Signal.java`) made a third texture in `Screen.java`
+for the same reason from the other side: what comes off the cable is
+wider than the picture, one pixel to every screen pixel across, and the
+component's buffer is one size fixed at `Init()`. So there are now
+three ways the picture reaches the screen and the component serves
+one of them.
 
 A small one met on the way: the component's fatal checks and GL error
 strings (`CheckGlErrorInit`, `GlErrorString`) are private, so the game's

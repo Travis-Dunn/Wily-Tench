@@ -58,12 +58,15 @@ final class Crt {
      * @param worldTex the texture Screen keeps the world layer in,
      *                 worldTexW by worldTexH texels, of which the top
      *                 left worldW by worldH hold the layer
+     * @param across how many pixels of the picture given to Present()
+     *               make a game pixel, across: 1, or more when it has
+     *               come through Signal
      * @return whether the filter can be used; if not, the reason is in
      *         session.log and nothing is left behind
      */
     static boolean Init(DisplayLayout layout, GLSourceTexelLayout srcLayout,
                         int worldTex, int worldW, int worldH,
-                        int worldTexW, int worldTexH) {
+                        int worldTexW, int worldTexH, int across) {
         if (layout.pixelScale < MIN_SCALE) {
             Logger.LogSession(LogLevel.WARNING,
                     WarnStrScale(layout.pixelScale));
@@ -80,7 +83,7 @@ final class Crt {
         Crt.layout = layout;
         Crt.srcLayout = srcLayout;
         Crt.worldTex = worldTex;
-        pictureW = layout.framebufferWidth;
+        pictureW = layout.framebufferWidth * across;
         pictureH = layout.framebufferHeight;
 
         int texW = 1, texH = 1;
@@ -118,6 +121,7 @@ final class Crt {
         GL20.glUniform2f(At("viewOrigin"), layout.viewportX,
                 layout.viewportY);
         GL20.glUniform1f(At("scale"), layout.pixelScale);
+        GL20.glUniform1f(At("across"), across);
         slideAt = At("slide");
         GL20.glUseProgram(0);
 
@@ -149,7 +153,8 @@ final class Crt {
      * already be in its texture, if any of the picture is see-through.
      *
      * @param picture the picture's pixels, with no alpha where the
-     *                world is to show
+     *                world is to show: as many to a game pixel across
+     *                as Init() was told
      * @param fineX how far left the world is slid, in screen pixels
      * @param fineY how far up, likewise
      */
@@ -185,9 +190,10 @@ final class Crt {
         /* The program is given each place on the rectangle in game
            pixels, counted from the top left. */
         GL11.glBegin(GL11.GL_QUADS);
+        float w = layout.framebufferWidth;
         GL11.glTexCoord2f(0.0f, pictureH); GL11.glVertex2f(-1.0f, -1.0f);
-        GL11.glTexCoord2f(pictureW, pictureH); GL11.glVertex2f(1.0f, -1.0f);
-        GL11.glTexCoord2f(pictureW, 0.0f); GL11.glVertex2f(1.0f, 1.0f);
+        GL11.glTexCoord2f(w, pictureH); GL11.glVertex2f(1.0f, -1.0f);
+        GL11.glTexCoord2f(w, 0.0f); GL11.glVertex2f(1.0f, 1.0f);
         GL11.glTexCoord2f(0.0f, 0.0f); GL11.glVertex2f(-1.0f, 1.0f);
         GL11.glEnd();
 

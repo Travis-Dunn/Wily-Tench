@@ -34,7 +34,8 @@
  * Positions are in game pixels from the top left of the picture. The
  * picture is two layers, as Screen describes: the interface, and under
  * it, wherever the interface has no alpha, the world, slid by part of a
- * game pixel.
+ * game pixel. When the picture has come down a video cable (Signal) it
+ * is one layer with no holes, and finer across than game pixels.
  *
  * The numbers under "To taste" are the look, and are meant to be
  * changed.
@@ -44,11 +45,12 @@ uniform sampler2D picture;
 uniform sampler2D world;
 uniform vec2 pictureTexels;     /* the size of the picture's texture */
 uniform vec2 worldTexels;       /* the size of the world's texture */
-uniform vec2 pictureSize;       /* the picture, in game pixels */
+uniform vec2 pictureSize;       /* the picture, in its own texels */
 uniform vec2 worldSize;         /* the world layer, in game pixels */
 uniform vec2 viewOrigin;        /* where the view is on the picture */
 uniform vec2 slide;             /* how far the world is slid left and up */
 uniform float scale;            /* screen pixels to a game pixel */
+uniform float across;           /* picture texels to a game pixel, across */
 
 /* To taste. */
 
@@ -91,12 +93,13 @@ vec4 Texel(sampler2D layer, vec2 texels, vec2 size, vec2 cell)
 }
 
 /* A layer as the beam draws it: a whole row of game pixels, each
-   running into the next over a short distance. */
-vec4 Beam(sampler2D layer, vec2 texels, vec2 size, vec2 p)
+   texel running into the next over a short distance. The layer has
+   grid texels to a game pixel across. */
+vec4 Beam(sampler2D layer, vec2 texels, vec2 size, vec2 p, float grid)
 {
-    float x = p.x - 0.5, left = floor(x), row = floor(p.y);
-    float along = clamp((x - left - 0.5) * scale / BEAM_BLUR + 0.5,
-            0.0, 1.0);
+    float x = p.x * grid - 0.5, left = floor(x), row = floor(p.y);
+    float along = clamp((x - left - 0.5) * scale / (grid * BEAM_BLUR) +
+            0.5, 0.0, 1.0);
 
     return mix(Texel(layer, texels, size, vec2(left, row)),
             Texel(layer, texels, size, vec2(left + 1.0, row)), along);
@@ -105,7 +108,8 @@ vec4 Beam(sampler2D layer, vec2 texels, vec2 size, vec2 p)
 /* The two layers together at one game pixel, for the glow. */
 vec3 Both(vec2 cell)
 {
-    vec4 over = Texel(picture, pictureTexels, pictureSize, cell);
+    vec4 over = Texel(picture, pictureTexels, pictureSize,
+            vec2(cell.x * across + floor(across * 0.5), cell.y));
     vec4 under = Texel(world, worldTexels, worldSize,
             floor(cell + 0.5 - viewOrigin + slide));
 
@@ -161,9 +165,9 @@ void main()
 {
     vec2 p = gl_TexCoord[0].xy;
 
-    vec4 over = Beam(picture, pictureTexels, pictureSize, p);
+    vec4 over = Beam(picture, pictureTexels, pictureSize, p, across);
     vec4 under = Beam(world, worldTexels, worldSize,
-            p - viewOrigin + slide);
+            p - viewOrigin + slide, 1.0);
     vec3 light = over.rgb + (1.0 - over.a) * under.rgb;
 
     /* The average of Scanline() over a line, by the four screen rows

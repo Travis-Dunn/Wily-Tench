@@ -37,7 +37,7 @@ before starting. Travis opens and merges the pull requests himself; once
 one is merged, restart the working branch from `master` rather than
 stacking on it.
 
-**Tests.** `mvn verify` runs 147 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 152 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -233,6 +233,54 @@ has no licence, so none of its code was used.
   into each scanline, at the cost of a soft world whenever the slide
   is not zero.
 - **Only seen on Mesa's software OpenGL**, in still frames.
+
+**The video signal.** Also the third session. Travis named EMMIR's
+NTSC-CRT (github.com/LMP88959/NTSC-CRT) and asked for it beside the CRT
+filter. They are different things and either can be on alone: this is
+the cable, that is the tube. The signal runs first and gives back a
+picture, which is then shown the plain way or through the filter.
+
+- **`Ntsc.java` is a port of EMMIR's C**, the standard NTSC system
+  only, integers only like the original. His license allows any use
+  and asks for a credit, which is in the file and the readme. **It was
+  checked against his C byte for byte**: the same picture through both,
+  six frames, with noise and without, at his default controls and at
+  the ones in use, not one pixel different. The C is not in this
+  repository, so `mvn verify` cannot repeat that; whoever changes
+  `Ntsc.java` should, by compiling `crt_core.c` and `crt_ntsc.c` with a
+  small `main` that sets `raw`, `as_color`, an output 240 rows tall,
+  and the saturation and contrast in `Ntsc.java`, and comparing output
+  rows 5 to 220.
+- **S-Video is this project's own**, not his: brightness and color
+  kept in two arrays through the same code, and a sharper brightness
+  filter. Travis agreed to it as the fallback should composite make
+  the writing unreadable.
+- **`Signal.java` is the game's side**: it puts the two layers
+  together sample by sample (about two samples to a game pixel, so the
+  world still slides by less than a pixel across), turns the carrier's
+  phase over sixty times a second by the clock, and keeps the two
+  decoded pictures of a scene that has not changed so that standing
+  still costs nothing.
+- **The setting** is `signal` in `config.ini`, `rgb`, `svideo`, or
+  `composite`, and three option buttons on the options screen, decided
+  at launch. `signalNoise`, 0 to 100, is in the file only; Travis said
+  noise and flicker are a subject for later. It needs two screen
+  pixels to a game pixel and nothing of OpenGL beyond 1.1.
+- **The set's controls were calibrated**: saturation, contrast, and
+  brightness chosen, for each kind of cable, so that the 32 colors of
+  carp32 come back nearest themselves. At EMMIR's defaults the game
+  looked washed out. Strong reds still lose a good deal on composite.
+- **Cost**: about 7 ms a frame on the cloud machine's processor, all on
+  the game's one thread, measured outside the game. That is fine at 60
+  frames a second and too much for the default cap of 100. Not
+  measured on Travis's machine. If it matters, the rows are
+  independent once each line's sync is found and could be shared out
+  among threads.
+- **What it does to this game, seen in still frames**: composite
+  fringes the small font with color, readable but busy; the dithered
+  walls blend and shimmer. S-Video leaves writing clean. How the crawl
+  and the 60-a-second phase flip look in motion nobody has seen yet.
+- PAL (EMMIR's PAL-CRT) was not looked at.
 
 **Travis's own sprites have begun to arrive**, in `art/`, in carp32:
 
