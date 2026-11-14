@@ -37,8 +37,11 @@ before starting. Travis opens and merges the pull requests himself; once
 one is merged, restart the working branch from `master` rather than
 stacking on it.
 
-**Tests.** `mvn verify` runs 142 tests of the rules, with no window. All
-pass.
+**Tests.** `mvn verify` runs 143 tests of the rules, with no window.
+All passed when last run in full, which was before the camera change of
+the third session: that session could not get Whitetail, so only the
+camera's own tests were run, compiled by hand outside Maven. Run `mvn
+verify` at the first chance.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
 display. Travis runs it on his Linux desktop in IntelliJ. Nothing has
@@ -285,13 +288,24 @@ Known limits of step 1:
 
 ## Known rough edges
 
-- **Movement still looks slightly "gritty"** to Travis, after one round
-  of fixing. The camera no longer makes the character shiver; what
-  remains is most likely whole-pixel stepping at low speed, possibly
-  frame pacing if vsync is not taking effect on his machine (`maxFps` in
-  `config.ini` set to the refresh rate would test that). He expects the
-  planned CRT filter to soften it. Motion cannot be judged from still
-  frames; say so rather than claim it is fixed.
+- **Movement: a judder on starting, turning, and stopping**, reported
+  by Travis in steady mode, had a definite cause, now fixed. The camera
+  trails the character by a whole number of pixels, and whenever that
+  number grew on a frame in which the character's picture had not
+  itself moved, the whole world scrolled one pixel backwards for that
+  frame: seven or so times in every start and every corner. `Camera`
+  now changes the trail only on a frame where the view stays put or
+  moves the way the camera is travelling; its opening comment has the
+  reasoning, and `MovementTest` walks a corner at four frame rates.
+  Whether it *looks* right is for Travis to say: it was checked by
+  arithmetic, frame by frame, not by eye. What is left is inherent to
+  whole pixels: while the trail changes, the character shifts on
+  screen a pixel at a time, and on a corner the view moves diagonally
+  in single-pixel stairs. An about-face at full speed can still pull
+  the view back a pixel a few times. The earlier "gritty" complaint
+  may have been this same fault or may be frame pacing (`maxFps` in
+  `config.ini` set to the refresh rate would test that); he expects
+  the planned CRT filter to soften what remains.
 - The apostrophe in the small font sits wide: "can't" has a gap.
 - Dropped items vanish; there are no items on the ground.
 - Using one item on another does nothing yet; only item on loc has a
@@ -417,7 +431,10 @@ chosen something not on the list, so treat this as a menu.
 These applied to the session that wrote this; check they still hold.
 
 - Each repository is cloned under `/home/user`. Whitetail is read-only in
-  practice: nothing has ever been committed to it from here.
+  practice: nothing has ever been committed to it from here. In the
+  third session Whitetail was not there and adding it was refused, so
+  the game could not be built or run; ask Travis to start the session
+  with both repositories if a build is needed.
 - The game needs Whitetail installed in the local Maven repository:
   `mvn -q install` in the Whitetail checkout. That needs a JDK 8
   (`apt-get install openjdk-8-jdk`) and a `~/.m2/toolchains.xml` naming

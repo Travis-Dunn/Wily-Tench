@@ -16,6 +16,16 @@ package com.alchemysoftware.wilytench;
  * its mind only when that has clearly stopped being true. The view is
  * then the player's own pixel position less that trail: while the
  * trail holds, the world scrolls exactly in step with the character.
+ *
+ * The trail does have to change: it grows as a walk sets off, shrinks
+ * as one stops, and at a corner does one across while doing the other
+ * up and down. When it changes matters as much as whether. Lengthening
+ * the trail by a pixel pulls the view a pixel back, and on a frame in
+ * which the character's picture has not itself advanced, that scrolls
+ * the whole world backwards for one frame, which is seen as a judder.
+ * So the trail changes a pixel at a time, and waits for a frame on
+ * which the change leaves the view either where it was or one pixel
+ * further along the way the camera is truly travelling.
  */
 final class Camera {
     /*
@@ -33,6 +43,14 @@ final class Camera {
      * flipping back and forth.
      */
     private static final double TRAIL_SLACK = 0.75;
+
+    /*
+     * How far, in pixels, the true trail may get from the whole number
+     * in use before that number is set right at once, without waiting
+     * for a good frame. Walking never comes near it at any frame rate
+     * worth playing at; it is for long frames and sudden jumps.
+     */
+    private static final double TRAIL_LIMIT = 3.0;
 
     private double x, y;
     private int trailX, trailY;
@@ -56,12 +74,18 @@ final class Camera {
     void Follow(double exactX, double exactY, int pixelX, int pixelY,
                 double seconds) {
         double closed = 1.0 - Math.exp(-seconds / CATCH_UP_SECONDS);
+        double travelX = (exactX - x) * closed;
+        double travelY = (exactY - y) * closed;
 
-        x += (exactX - x) * closed;
-        y += (exactY - y) * closed;
+        x += travelX;
+        y += travelY;
 
-        trailX = Settle(trailX, exactX - x);
-        trailY = Settle(trailY, exactY - y);
+        /* With the trail left alone, the view moves as the picture
+           did. */
+        trailX = Settle(trailX, exactX - x, pixelX - trailX - viewX,
+                travelX);
+        trailY = Settle(trailY, exactY - y, pixelY - trailY - viewY,
+                travelY);
         viewX = pixelX - trailX;
         viewY = pixelY - trailY;
     }
@@ -72,8 +96,29 @@ final class Camera {
     /** @return the map pixel at the top edge of the view */
     int Y() { return viewY; }
 
-    private static int Settle(int trail, double exact) {
-        return Math.abs(exact - trail) > TRAIL_SLACK ?
-                (int) Math.round(exact) : trail;
+    /*
+     * Decides the whole trail for one frame, across or up and down.
+     *
+     * trail  - the whole trail in use
+     * exact  - the true trail, in pixels and fractions of one
+     * held   - how far the view moves this frame if the trail is kept
+     * travel - how far the camera truly moved this frame
+     */
+    private static int Settle(int trail, double exact, int held,
+                              double travel) {
+        double off = Math.abs(exact - trail);
+
+        if (off <= TRAIL_SLACK) return trail;
+        if (off > TRAIL_LIMIT) return (int) Math.round(exact);
+
+        /* One pixel nearer the truth moves the view one pixel the
+           other way. */
+        int step = exact > trail ? 1 : -1;
+        int moved = held - step;
+
+        if (moved == 0) return trail + step;
+        if (moved == 1 && travel >= 0.0) return trail + step;
+        if (moved == -1 && travel <= 0.0) return trail + step;
+        return trail;
     }
 }

@@ -638,6 +638,16 @@ scalar helpers (clamp, lerp, smoothstep, frame-rate-independent damping,
 floor division and modulo for negative numbers) would be used by every
 game on the library; this one has written three of those five so far.
 
+Later, a harder helper of the same family: a camera that follows a
+character smoothly when both must be drawn at whole pixels. The game's
+first two attempts each had a visible fault (the character shivering,
+then the world stepping backwards for single frames while the camera's
+lag changed), and the rule that works took a frame-by-frame simulation
+to find (`Camera.java`). Every pixel-art game with a trailing camera
+will meet both. `comp-camera` was not read for this, Whitetail not
+being at hand in that session, so whether it could hold such a thing
+is unchecked.
+
 **C36. A setting that must be one of a few words has to be checked by
 the game.** *(Hit)*  
 Status: open. Minor.

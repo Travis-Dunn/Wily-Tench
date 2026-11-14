@@ -300,6 +300,60 @@ public class MovementTest {
         }
     }
 
+    public void testTheWorldNeverScrollsBackwardsWhenAWalkChangesPace() {
+        int[] rates = { 30, 60, 75, 144 };
+
+        for (int i = 0; i < rates.length; i++) WalkACorner(rates[i]);
+    }
+
+    /*
+     * A steady walk as Mover paces it, seen through the camera: away
+     * from rest and two more tiles east, three tiles south, a last
+     * one south to rest, then three ticks standing while the camera
+     * catches up. The camera only ever travels east and south, so the
+     * view must too.
+     */
+    private static void WalkACorner(int framesPerSecond) {
+        final int EAST = 3, SOUTH = 4, TICKS = EAST + SOUTH + 3;
+        Camera camera = new Camera();
+        int frames = (int) (TICKS * 0.6 * framesPerSecond);
+        int most = framesPerSecond >= 60 ? 1 : 2;
+        int pixelX = 0, pixelY = 0;
+        String at = " at " + framesPerSecond + " frames a second";
+
+        camera.Snap(0, 0);
+        for (int frame = 1; frame < frames; frame++) {
+            double ticks = frame / (0.6 * framesPerSecond);
+            int tick = (int) ticks;
+            double t = ticks - tick;
+            double exactX, exactY;
+
+            if (tick == 0) exactX = Mover.EaseIn(t);
+            else exactX = Math.min(ticks, EAST);
+            if (tick < EAST) exactY = 0.0;
+            else if (tick < EAST + SOUTH - 1) exactY = ticks - EAST;
+            else if (tick == EAST + SOUTH - 1)
+                exactY = SOUTH - Mover.EaseIn(1.0 - t);
+            else exactY = SOUTH;
+            exactX *= TILE;
+            exactY *= TILE;
+
+            int wasX = camera.X(), wasY = camera.Y();
+            pixelX = (int) Math.round(exactX);
+            pixelY = (int) Math.round(exactY);
+            camera.Follow(exactX, exactY, pixelX, pixelY,
+                    1.0 / framesPerSecond);
+
+            int movedX = camera.X() - wasX, movedY = camera.Y() - wasY;
+            Check("never west, frame " + frame + at, movedX >= 0);
+            Check("never north, frame " + frame + at, movedY >= 0);
+            Check("no lurch, frame " + frame + at,
+                    movedX <= most && movedY <= most);
+        }
+        Check("comes to rest on the character" + at,
+                camera.X() == pixelX && camera.Y() == pixelY);
+    }
+
     /* How fast a mover's picture is travelling at a moment of its
        step, in tiles per tick. */
     private static double Speed(Mover mover, double at) {
