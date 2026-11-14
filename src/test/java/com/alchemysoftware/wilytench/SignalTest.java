@@ -53,7 +53,9 @@ public class SignalTest {
 
         int one = MostColor(Send(stripes, false, 0));
         int two = MostColor(Send(stripes, true, 0));
-        Check("colored on composite: " + one, one >= 40);
+        /* Less than a plain set would show, since this one has a comb
+           filter (Ntsc.COMB), but still plainly color. */
+        Check("colored on composite: " + one, one >= 20);
         Check("grey on S-Video: " + two, two <= 10);
     }
 
@@ -120,6 +122,35 @@ public class SignalTest {
         Check("half a game pixel of slide moves it two screen pixels " +
                 "left: from " + still + " to " + slid,
                 still - slid >= 1 && still - slid <= 3);
+    }
+
+    public void testEveryColumnOfThePictureCarriesTheSameWeight() {
+        final int W = 384, H = 4, SCALE = 4, SPAN = 8;
+        Signal signal = new Signal(Signal.SVIDEO, 0, W, H, 0, 0, H, W + 1,
+                SCALE);
+        int[] picture = new int[W * H], world = new int[(W + 1) * H];
+
+        /* Columns black and white by turns. A signal line is not a
+           whole number of samples to a column, and if each sample
+           took one column whole, some columns would get half the
+           samples of the rest and show as stripes down the screen.
+           So: any stretch of eight columns must come out as bright as
+           any other. */
+        for (int i = 0; i < picture.length; i++)
+            picture[i] = i % W % 2 == 0 ? WHITE : BLACK;
+
+        int[] out = signal.Run(picture, world, 0);
+        int least = Integer.MAX_VALUE, most = 0;
+        for (int col = 2 * SPAN; col + SPAN <= W - 2 * SPAN; col += 2) {
+            int sum = 0;
+            for (int x = col * SCALE; x < (col + SPAN) * SCALE; x++)
+                sum += out[W * SCALE + x] >> 8 & 0xFF;
+            sum /= SPAN * SCALE;
+            least = Math.min(least, sum);
+            most = Math.max(most, sum);
+        }
+        Check("evenly bright, from " + least + " to " + most,
+                most - least <= 6);
     }
 
     /* Sends a picture a few times over, so the set has settled, and

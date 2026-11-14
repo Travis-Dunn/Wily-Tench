@@ -12,11 +12,12 @@ package com.alchemysoftware.wilytench;
  * standard NTSC system at four samples to a cycle of the color
  * carrier, without its bloom, with the settings this game uses fixed:
  * a picture given one sample to a sample and one row to a line
- * ("raw"), in color, progressive, always the even field. Given the
- * same picture and the same settings of the set's controls, Encode()
- * and Decode() produce the same bytes as the C does, with noise and
- * without; that was checked when the port was made, and anything
- * changed here should be checked the same way.
+ * ("raw"), in color, progressive, always the even field. With the two
+ * departures named at COMB undone, and given the same picture and the
+ * same settings of the set's controls, Encode() and Decode() produce
+ * the same bytes as the C does, with noise and without; that was
+ * checked when the port was made and again after COMB was added, and
+ * anything changed here should be checked the same way.
  *
  * What it does to a picture is what a composite cable did. Brightness
  * and color share one wire, color riding on a carrier wave, so each
@@ -25,10 +26,12 @@ package com.alchemysoftware.wilytench;
  * wire than brightness, so it smears sideways. None of it happens up
  * and down, since each line is sent on its own.
  *
- * One thing is added to the original: S-Video, where brightness and
- * color travel on two wires. Color still smears, but nothing leaks,
- * and the brightness can be left sharper since there is no carrier to
- * filter out of it.
+ * Three things are added to the original, all to make a picture this
+ * small easier on the eye. S-Video, where brightness and color travel
+ * on two wires: color still smears, but nothing leaks, and the
+ * brightness can be left sharper since there is no carrier to filter
+ * out of it. A set that can partly tell color from brightness on one
+ * wire (COMB). And equal room for both parts of color (Q_FREQ).
  *
  * The signal is HRES samples to a line and VRES lines to a field,
  * most of them picture and the rest the pulses a set finds its place
@@ -79,7 +82,28 @@ final class Ntsc {
     private static final int L_FREQ = 1431818;
     private static final int Y_FREQ = 420000;
     private static final int I_FREQ = 150000;
-    private static final int Q_FREQ = 55000;
+    private static final int Q_FREQ = 150000;
+
+    /*
+     * Two things here are not as in the original, and with them put
+     * back (Q_FREQ to 55000, COMB to 0) composite video is the
+     * original's to the byte.
+     *
+     * Q_FREQ. Broadcast NTSC gives one part of color a third of the
+     * room of the other, which smears some colors, blues and greens
+     * above all, across six or seven of this game's pixels. Consoles
+     * did not bother with the difference and nor does this.
+     *
+     * COMB. Out of 256, how much of the color the set manages to tell
+     * apart from the brightness on one wire, as better sets did with
+     * a comb filter. At 0 it cannot at all: every fine detail is
+     * taken for color, and writing as small as this game's becomes a
+     * rainbow. At 256 nothing leaks and composite is S-Video with a
+     * softer picture. This does not model how a comb filter works,
+     * only how well: the set is simply told the color that was sent,
+     * and uses that much of the knowledge.
+     */
+    private static final int COMB = 176;
 
     /* Signal levels, in IRE units. */
     private static final int WHITE_LEVEL = 100, BURST_LEVEL = 20;
@@ -127,6 +151,9 @@ final class Ntsc {
     private final byte[] sentColor = new byte[INPUT_SIZE + 2 * HRES];
     private final byte[] got = new byte[INPUT_SIZE + 2 * HRES];
     private final byte[] gotColor = new byte[INPUT_SIZE + 2 * HRES];
+
+    /* The color that was sent, by itself, for COMB to draw on. */
+    private final byte[] known = new byte[INPUT_SIZE + 2 * HRES];
     private boolean twoWires;
 
     /* The color carrier as the decoder has come to know it. */
@@ -135,7 +162,7 @@ final class Ntsc {
     private int seed = 194;
 
     private final Lowpass limitY, limitI, limitQ;
-    private final Equalizer eqY, eqYSharp, eqI, eqQ;
+    private final Equalizer eqY, eqI, eqQ;
 
     /* One decoded line, before it is fitted to the picture's width. */
     private final int[] lineY = new int[AV_LEN + 1];
@@ -157,12 +184,6 @@ final class Ntsc {
         eqY = new Equalizer(Khz(1500), Khz(3000), HRES, 65536, 8192, 9175);
         eqI = new Equalizer(Khz(80), Khz(1150), HRES, 65536, 65536, 1311);
         eqQ = new Equalizer(Khz(80), Khz(1000), HRES, 65536, 65536, 0);
-        /* Not in the original: brightness with no carrier to remove,
-           so the middle band is kept whole. The top band is dropped,
-           because it arrives earlier than the others and what it
-           adds is a ghost beside every edge. */
-        eqYSharp = new Equalizer(Khz(1500), Khz(3000), HRES, 65536, 65536,
-                0);
     }
 
     /**
@@ -277,9 +298,12 @@ final class Ntsc {
                 } else {
                     int ire = BLACK_LEVEL + BLACK_POINT +
                             ((fy + fi + fq) * white >> 10);
+                    int chroma = (fi + fq) * white >> 10;
 
                     line[to + x] = (byte) Math.max(0,
                             Math.min(ire, MOST_IRE));
+                    known[to + x] = (byte) Math.max(-MOST_IRE,
+                            Math.min(chroma, MOST_IRE));
                 }
             }
         }
@@ -297,7 +321,8 @@ final class Ntsc {
      */
     void Decode(int[] out, int noise) {
         byte[] sigY = got, sigC = twoWires ? gotColor : got;
-        Equalizer luma = twoWires ? eqYSharp : eqY;
+        Equalizer luma = eqY;
+        int comb = twoWires ? 0 : COMB;
         int[] wave = new int[CC_SAMPLES];
         int i, j = 0, line = 0, s;
         int saturation = twoWires ? SATURATION_2 : SATURATION;
@@ -380,13 +405,48 @@ final class Ntsc {
             wave[2] = -wave[0];
             wave[3] = -wave[1];
 
+            /* The last few samples of brightness, for the two ways
+               of filtering it that are not the original's. */
+            int d0 = 0, d1 = 0, d2 = 0, d3 = 0, d4 = 0, d5 = 0;
+
             luma.Reset();
             eqI.Reset();
             eqQ.Reset();
             for (i = 0; i < AV_LEN; i++) {
-                int c = sigC[pos + i];
+                int c = sigC[pos + i], v = sigY[pos + i];
 
-                lineY[i] = luma.Step(sigY[pos + i] + bright) << 4;
+                if (comb > 0) {
+                    /* Take from the brightness as much of the color
+                       as the set can tell is color, and from the
+                       color as much of the rest. */
+                    int k = known[pos + i];
+
+                    v -= comb * k >> 8;
+                    c = k + ((256 - comb) * (c - k) >> 8);
+                }
+                d5 = d4;
+                d4 = d3;
+                d3 = d2;
+                d2 = d1;
+                d1 = d0;
+                d0 = v + bright;
+                if (twoWires) {
+                    /* Brightness with a wire to itself has no carrier
+                       to be filtered out of it, so it is only
+                       softened a touch, and held back three samples
+                       to arrive when the color does. */
+                    lineY[i] = (d2 + 2 * d3 + d4) << 2;
+                } else if (comb > 0) {
+                    /* A set with a comb filter can afford a sharper
+                       picture. Five samples weighed 1 2 2 2 1 let
+                       nothing through at the carrier's own pitch,
+                       which is one of the filters the original
+                       offers in place of its equalizer; held back
+                       three samples likewise. */
+                    lineY[i] = (d1 + 2 * (d2 + d3 + d4) + d5) << 1;
+                } else {
+                    lineY[i] = luma.Step(d0) << 4;
+                }
                 lineI[i] = eqI.Step(c * wave[i & 3] >> 9) >> 3;
                 lineQ[i] = eqQ.Step(c * wave[(i + 3) & 3] >> 9) >> 3;
             }

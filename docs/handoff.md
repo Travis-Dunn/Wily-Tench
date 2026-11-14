@@ -37,7 +37,7 @@ before starting. Travis opens and merges the pull requests himself; once
 one is merged, restart the working branch from `master` rather than
 stacking on it.
 
-**Tests.** `mvn verify` runs 152 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 153 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -280,6 +280,33 @@ picture, which is then shown the plain way or through the filter.
   fringes the small font with color, readable but busy; the dithered
   walls blend and shimmer. S-Video leaves writing clean. How the crawl
   and the 60-a-second phase flip look in motion nobody has seen yet.
+- **Travis's first verdict was "horrible - I love it"**: too strong in
+  both modes, writing legible only in RGB, and in S-Video "vertical
+  line distortions" when walking sideways. What was done about it:
+  - *The vertical lines were a fault.* 384 game pixels into 753
+    samples gave fifteen columns one sample where the rest had two.
+    `Signal.Compose()` now averages each sample over what it covers.
+  - *`Ntsc.COMB`*: a set that can partly tell color from brightness
+    on one wire, 0 to 256, now 176. At 0 composite is EMMIR's exactly
+    and small writing is a rainbow. With it on, brightness goes
+    through his five-sample 1 2 2 2 1 filter in place of his
+    equalizer, which is sharper.
+  - *`Ntsc.Q_FREQ`* widened to match `I_FREQ`, as consoles did, which
+    roughly halves the worst smear of color.
+  - *S-Video brightness* is now three samples weighed 1 2 1. An
+    equalizer cut off higher was tried first and is unstable above
+    about 2.4 MHz at this sample rate; do not try it again.
+  With `COMB` at 0 and `Q_FREQ` at 55000 the port still matches the C
+  byte for byte, checked again. These numbers were chosen from still
+  frames by whether the chat box could be read; Travis has not yet
+  seen them.
+- **Suggested to Travis and not built**: a tuning mode, keys that
+  change the filter's and the signal's numbers while the game runs
+  with the values written on screen, since he has the eye for it and
+  the numbers are otherwise a rebuild or a relaunch each. That means
+  making the shader's constants uniforms. Also raised: a bolder or
+  larger font would survive a cable better than 8 pixel Helvetica
+  with strokes one pixel wide.
 - PAL (EMMIR's PAL-CRT) was not looked at.
 
 **Travis's own sprites have begun to arrive**, in `art/`, in carp32:

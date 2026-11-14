@@ -12,12 +12,19 @@ package com.alchemysoftware.wilytench;
  * then shows that one.
  *
  * The two layers Screen keeps are put together here, since a signal
- * carries one picture. A line of signal is Ntsc.SAMPLES samples, about
- * two to a game pixel, and each sample is taken from wherever it falls
- * on the layers; the world layer's slide of part of a game pixel is
- * allowed for in that, so across, the view still moves by less than a
- * game pixel. Up and down a row of game pixels is a line of signal
- * and there is nothing between lines.
+ * carries one picture. A line of signal is Ntsc.SAMPLES samples, a
+ * little under two to a game pixel, and each sample is the average of
+ * the stretch of the layers it covers; the world layer's slide of part
+ * of a game pixel is allowed for in that, so across, the view still
+ * moves by less than a game pixel. Up and down a row of game pixels
+ * is a line of signal and there is nothing between lines.
+ *
+ * The averaging matters. A sample is not a whole number of game
+ * pixels wide, so taking each from the one pixel it starts on gives
+ * most pixels two samples and every twenty-fifth only one: fifteen
+ * narrow columns standing still on the screen, which the world
+ * visibly ripples through as it scrolls. Averaged, every pixel
+ * carries the same weight wherever it falls.
  *
  * What comes out is as many rows, and wide enough for every screen
  * pixel across to have its own: Across() to a game pixel.
@@ -45,10 +52,14 @@ final class Signal {
     private final int[][] shown = new int[PHASES][];
     private final boolean[] kept = new boolean[PHASES];
 
-    /* For each sample of a line, which column of the picture it falls
-       on and which of the world layer. The second moves with the
-       slide. */
-    private final int[] pictureCol, worldCol;
+    /* How finely a sample's share of a pixel is counted. */
+    private static final int WHOLE = 256;
+
+    /* For each sample of a line: the column of the picture it starts
+       on, and how much of it, out of WHOLE, lies on the next column
+       instead. Then the same for the world layer, which moves with
+       the slide. */
+    private final int[] pictureCol, pictureNext, worldCol, worldNext;
     private int slide = -1;
 
     /**
@@ -82,9 +93,10 @@ final class Signal {
             shown[i] = new int[pictureW * across * rows];
 
         pictureCol = new int[Ntsc.SAMPLES];
+        pictureNext = new int[Ntsc.SAMPLES];
         worldCol = new int[Ntsc.SAMPLES];
-        for (int x = 0; x < Ntsc.SAMPLES; x++)
-            pictureCol[x] = x * pictureW / Ntsc.SAMPLES;
+        worldNext = new int[Ntsc.SAMPLES];
+        Spread(pictureCol, pictureNext, 0, pictureW);
     }
 
     /** @return how many pixels of Run()'s picture make a game pixel */
@@ -125,13 +137,7 @@ final class Signal {
     /* Puts the two layers together, a sample at a time. */
     private void Compose(int[] picture, int[] world, int fineX) {
         if (fineX != slide) {
-            /* Positions along a line in screen pixels. */
-            for (int x = 0; x < Ntsc.SAMPLES; x++) {
-                int at = x * pictureW * across / Ntsc.SAMPLES;
-                int col = (at - viewX * across + fineX) / across;
-
-                worldCol[x] = Math.max(0, Math.min(col, worldW - 1));
-            }
+            Spread(worldCol, worldNext, fineX - viewX * across, worldW);
             slide = fineX;
         }
 
@@ -141,12 +147,76 @@ final class Signal {
             int under = (y - viewY) * worldW;
 
             for (int x = 0; x < Ntsc.SAMPLES; x++) {
-                int pixel = picture[from + pictureCol[x]];
+                int at = from + pictureCol[x];
+                int a = picture[at], b = picture[at + 1];
+                int pixel = a == b ? a : Mix(a, b, pictureNext[x]);
 
-                if (pixel >>> 24 == 0 && inView)
-                    pixel = world[under + worldCol[x]];
-                scene[to + x] = pixel;
+                /* Where the picture has a hole, or part of one, the
+                   world makes up the rest. A hole is black with no
+                   alpha, so adding is all it takes. */
+                int alpha = pixel >>> 24;
+                if (alpha != 0xFF && inView) {
+                    at = under + worldCol[x];
+                    a = world[at];
+                    b = world[at + 1];
+                    int below = a == b ? a : Mix(a, b, worldNext[x]);
+
+                    pixel = alpha == 0 ? below :
+                            pixel + Mix(below, 0, alpha * WHOLE / 0xFF);
+                }
+                scene[to + x] = pixel | 0xFF000000;
             }
         }
+    }
+
+    /*
+     * Works out which columns of a layer each sample of a line covers.
+     *
+     * shift - how far right of the picture's left edge the layer's
+     *         own left edge is drawn, in screen pixels, negated: what
+     *         to add to a place on the picture to get a place on the
+     *         layer
+     * w     - the layer's width in game pixels
+     */
+    private void Spread(int[] col, int[] next, int shift, int w) {
+        /* Places along a line are counted in screen pixels times the
+           number of samples, in which both a sample's edges and a
+           game pixel's are whole numbers. */
+        long sample = (long) pictureW * across;
+        long pixel = (long) across * Ntsc.SAMPLES;
+
+        for (int x = 0; x < Ntsc.SAMPLES; x++) {
+            long start = x * sample + (long) shift * Ntsc.SAMPLES;
+            long end = start + sample;
+            long first = start >= 0 ? start / pixel :
+                    -((-start + pixel - 1) / pixel);
+            long edge = (first + 1) * pixel;
+            long over = end > edge ? end - edge : 0;
+            int c = (int) first, share = (int) (over * WHOLE / sample);
+
+            /* Off the layer's edges there is only its edge. The last
+               column is never the first of a pair, so that the pair
+               is always there to read. */
+            if (c < 0) {
+                c = 0;
+                share = 0;
+            } else if (c >= w - 1) {
+                c = w - 2;
+                share = WHOLE;
+            }
+            col[x] = c;
+            next[x] = share;
+        }
+    }
+
+    /* A color part of the way from one to another: share out of
+       WHOLE. Alpha is mixed like the rest. */
+    private static int Mix(int a, int b, int share) {
+        int keep = WHOLE - share;
+        int rb = ((a & 0x00FF00FF) * keep + (b & 0x00FF00FF) * share) >>> 8;
+        int ag = ((a >>> 8 & 0x00FF00FF) * keep +
+                (b >>> 8 & 0x00FF00FF) * share) >>> 8;
+
+        return rb & 0x00FF00FF | (ag & 0x00FF00FF) << 8;
     }
 }
