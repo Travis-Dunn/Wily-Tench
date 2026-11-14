@@ -2,7 +2,13 @@
   "sheets": [
     {
       "id": "cave",
-      "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Cave.png"
+      "note": "Travis's redrawing of the purchased cave sheet in carp32, cell for cell.",
+      "source": "art/cave.png"
+    },
+    {
+      "id": "wizard",
+      "note": "The player's character. Six cells: walking sideways (facing left), away from the player, and toward the player, two of each.",
+      "source": "art/wizard.png"
     },
     {
       "id": "dungeon",
@@ -150,8 +156,8 @@
   "color_maps": [
     {
       "id": "iron",
-      "note": "Turns the orange rock into dark red-brown iron rock.",
-      "swaps": [["tan", "rust"], ["rust", "maroon"], ["maroon", "plum"]]
+      "note": "Turns copper rock into dark red iron rock. The first three pairs are for the purchased art, whose rock is orange; the last two for the cave sheet in carp32, whose rock is pink.",
+      "swaps": [["tan", "rust"], ["rust", "maroon"], ["maroon", "plum"], ["carp_pink", "carp_red"], ["carp_purple", "carp_wine"]]
     }
   ]
 }

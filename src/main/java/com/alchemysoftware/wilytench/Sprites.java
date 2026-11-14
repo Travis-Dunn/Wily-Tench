@@ -45,7 +45,6 @@ final class Sprites {
 
     private static final String SPRITES_FOLDER = "sprites";
     private static final String INDEX_FILE = "index.json";
-    private static final String HERO_SHEET = "heroes";
     private static final String REBUILD = " Rebuild the atlases: run " +
             "the \"Build Atlases\" configuration, or \"mvn test-compile " +
             "exec:java@atlases\".";
@@ -74,7 +73,6 @@ final class Sprites {
     private static String[] colorMapIds = new String[1];
     private static byte[][] colorMaps = new byte[1][];
 
-    private static int heroSheet;
 
     private Sprites() {}
 
@@ -114,7 +112,6 @@ final class Sprites {
         LoadSheets(root.Groups("sheets", "sheet"),
                 index.Groups("sheets", "sheet"));
         LoadColorMaps(root, root.OptGroups("color_maps", "color map"));
-        heroSheet = SheetNamed(root, HERO_SHEET);
     }
 
     static void Shutdown() {
@@ -167,14 +164,6 @@ final class Sprites {
     static void Draw(int picture, int colorMap, int x, int y) {
         Gfx.DrawFrame(atlases[AtlasOf(picture)], FrameOf(picture), x, y,
                 colorMaps[colorMap]);
-    }
-
-    /** @return the atlas holding the player's character */
-    static int HeroAtlas() { return sheetAtlas[heroSheet]; }
-
-    /** @return the frame for column col, row row of the hero sheet */
-    static int Hero(int col, int row) {
-        return FrameOf(PictureAt(heroSheet, col, row));
     }
 
     private static int PictureAt(int sheet, int col, int row) {

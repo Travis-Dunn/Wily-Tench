@@ -1,7 +1,7 @@
 {
   "note": "Every color the game can show. The order matters: the converted sprite sheets store each pixel as a position in this list, so after adding, removing, or reordering colors the atlases must be rebuilt. Add new colors at the end.",
 
-  "background": "160D13",
+  "background": "000000",
 
   "colors": [
     { "name": "ink",      "rgb": "160D13" },
@@ -26,7 +26,40 @@
     { "name": "silver",   "rgb": "B7ABAA", "note": "Haunted Temple." },
     { "name": "mauve",    "rgb": "AA8C94", "note": "Frozen Cavern." },
     { "name": "dusk",     "rgb": "6E516A", "note": "Frozen Cavern." },
-    { "name": "ochre",    "rgb": "AE7032", "note": "Arid Underground monsters." }
+    { "name": "ochre",    "rgb": "AE7032", "note": "Arid Underground monsters." },
+
+    { "name": "carp_black",         "rgb": "000000", "note": "The first of the 32 colors of carp32, Travis's own palette, in the order of art/carp32.png. In time every sprite will be redrawn in these and the colors above will go." },
+    { "name": "carp_grey",          "rgb": "4E4E4E" },
+    { "name": "carp_light_grey",    "rgb": "A2A2A2" },
+    { "name": "carp_white",         "rgb": "FFFFFF" },
+    { "name": "carp_indigo",        "rgb": "35075A" },
+    { "name": "carp_brass",         "rgb": "9D854B" },
+    { "name": "carp_olive",         "rgb": "5C613D" },
+    { "name": "carp_cream",         "rgb": "F3EDAA" },
+    { "name": "carp_navy",          "rgb": "21269A" },
+    { "name": "carp_dark_olive",    "rgb": "454101" },
+    { "name": "carp_parchment",     "rgb": "ECB186" },
+    { "name": "carp_blush",         "rgb": "FACAB1" },
+    { "name": "carp_blue",          "rgb": "2D5EE3" },
+    { "name": "carp_mustard",       "rgb": "6D6C00" },
+    { "name": "carp_coral",         "rgb": "E27654" },
+    { "name": "carp_pink",          "rgb": "F7A2B3" },
+    { "name": "carp_sky",           "rgb": "6B8FFB" },
+    { "name": "carp_lime",          "rgb": "A2A602" },
+    { "name": "carp_red",           "rgb": "B82525" },
+    { "name": "carp_magenta",       "rgb": "E271AD" },
+    { "name": "carp_pale_blue",     "rgb": "94B7FD" },
+    { "name": "carp_yellow_green",  "rgb": "D2E16A" },
+    { "name": "carp_wine",          "rgb": "852B2D" },
+    { "name": "carp_purple",        "rgb": "9C4F8A" },
+    { "name": "carp_ice",           "rgb": "B4DBF6" },
+    { "name": "carp_pale_green",    "rgb": "D9F5B1" },
+    { "name": "carp_umber",         "rgb": "644245" },
+    { "name": "carp_violet_grey",   "rgb": "69526F" },
+    { "name": "carp_foam",          "rgb": "CDFCEA" },
+    { "name": "carp_green",         "rgb": "7DC090" },
+    { "name": "carp_teal",          "rgb": "37846F" },
+    { "name": "carp_deep_teal",     "rgb": "385658" }
   ],
 
   "corrections": [

@@ -80,7 +80,8 @@ rocks in them, smelt copper and tin into bronze, and hammer the bronze
 into weapons and armor.
 
 - **Walking.** Left click a tile and the character walks there by the
-  shortest route, one tile per tick, or as close as it can get. Movement
+  shortest route, one tile per tick, or as close as it can get, facing
+  the way it goes. Movement
   is north, south, east, or west only. A walk eases in and out, and the
   view follows a little behind and catches up. The name of whatever is under the mouse is shown at the top
   left.
@@ -100,6 +101,17 @@ into weapons and armor.
   takes. What you lack is shown in red. Click one and the character
   keeps making it, one every three ticks, until the bars run out or you
   click elsewhere. Escape, or a click off the menu, closes it.
+- **Talking.** Harl, an old smith, stands in the forge room. Click him
+  and the character walks over and talks. Talk takes the place of the
+  chat box: what is said, on parchment, under the speaker's name and
+  beside a square standing in for their portrait, with the other person
+  on the left and your character on the right. Click the box, or press
+  Space, to read on. Sometimes you are offered things to say; click one,
+  or press its number. Doing anything else ends the talk.
+- **A first quest.** Harl asks for a bronze axe. Agree, and he gives you
+  a pickaxe if you have none. Mine, smelt, and smith the axe, bring it
+  to him, and he takes it and gives 250 Smithing experience. The chat
+  box says when it is done. There is no quest list yet.
 - **Using an item on something.** Choosing Use on an item selects it,
   marked by an amber outline. Whatever is pointed at next offers, first,
   to have the item used on it: "Use Copper ore -> Furnace". Doing
@@ -110,8 +122,12 @@ into weapons and armor.
   view names; a right click opens the whole list as a menu. Tiles offer
   Walk here and, where something stands, its own verb and Examine. Items
   offer Use, Drop, and Examine.
-- **Side panel.** One box, and a row of tabs above it that choose what
-  it shows: the 28-slot inventory, or the skills. Each skill is a small
+- **The game frame.** The picture is 384 by 216 game pixels. The
+  interface is one drawing laid over the view of the world: the world
+  shows through a hole in it, the chat is written on its parchment, and
+  the inventory sits in its squares.
+- **Side panel.** The frame's squares, and a row of tabs above them that
+  choose what they show: the 28-slot inventory, or the skills. Each skill is a small
   rectangle with its icon and its level, current over earned ("1/1").
   Point at one for a tooltip with the experience earned and the
   experience at which the next level comes. Dropped items vanish, for
@@ -124,7 +140,8 @@ into weapons and armor.
 
 - **Two maps.** The world is made of separate maps joined by ladders and
   stairs. Click the ladder in the cave and the character walks over and
-  climbs down to the dungeon; the stairs there lead back. Each map keeps
+  climbs down to the dungeon, arriving beside the stairs; they lead
+  back. Each map keeps
   its own state, so a rock mined in the cave refills on schedule while you
   are in the dungeon.
 - **Scripts.** What mining a rock or climbing a ladder does is not Java
@@ -135,9 +152,18 @@ into weapons and armor.
   in which something changed, and picks up where it left off next time.
   See "Saved games" below.
 
-Escape quits.
+- **Main menu.** The game opens on it. Play continues your saved game,
+  or begins a new one if there is none; the line under the buttons says
+  which. Options opens the options screen. Quit, or Escape, closes the
+  game. From the world, Escape comes back here, and the world stands
+  still until you press Play again.
+- **Options.** Fullscreen, vertical sync, the frame rate limit, and the
+  walking style, each with a widget. A change is acted on and written
+  to `config.ini` at once. Fullscreen alone waits for the next launch,
+  and the game says so with a system message box when you leave the
+  screen.
 
-There are no monsters or quests yet.
+There are no monsters yet.
 
 ## Running it in IntelliJ
 
@@ -185,7 +211,8 @@ The game keeps a folder per user:
 | Windows 2000 and later | `%APPDATA%\AlchemySoftware\WilyTench` |
 | Windows 98 | `Application Data\AlchemySoftware\WilyTench` under your home folder, which is normally `C:\WINDOWS` |
 
-- `config.ini` holds the settings. Edit it and restart.
+- `config.ini` holds the settings. The options screen changes them; the
+  file can also be edited by hand while the game is closed.
   - `fullscreen` - `true` or `false`.
   - `vsync` - `true` or `false`.
   - `maxFps` - frame rate cap, used when vsync is off or ignored.
@@ -236,11 +263,18 @@ which is what makes that practical.
 | File | What it does |
 | ---- | ------------ |
 | `Main`, `Game` | Startup, the frame loop, shutdown |
-| `DataDir`, `Settings`, `Natives` | The per-user folder, `config.ini`, LWJGL's native libraries |
+| `Assets` | What every scene shares: the fonts, the sprite renderer, the data files |
+| `MenuScene`, `OptionsScene` | The main menu and the options screen |
+| `Skin` | The widgets' pictures, assembled from cells of the interface art named in `interface.json` |
+| `PushButton`, `Buttons`, `Toggle`, `Slider` | The widgets: push buttons and the clicking of them, checkboxes and option buttons, sliders |
+| `DataDir`, `Settings`, `Natives` | The per-user folder, the settings and the writing of `config.ini`, LWJGL's native libraries |
 | `Screen`, `Palette` | The window, the picture's size, and its colors, from `palette.json` |
+| `Layout` | Where things are on the game frame, from `layout.json` |
+| `Bitmap`, `IndexedPng` | Whole pictures of any size, such as the game frame, read from PNG files |
 | `Content`, `DataNode`, `DataError` | Loading the data files, strictly, with explanations of mistakes |
 | `Sprites` | The sprite sheets and color maps, from `sprites.json`, and where the atlas tool packed each sheet |
 | `Tiles` | What each map character means, from `tiles.json` |
+| `MapFile` | A map file as written: reads it, and writes it back in one fixed layout |
 | `World` | One map: what is on each tile, whether it is solid, and which rocks are mined out |
 | `Session` | A game in progress: all the maps, the player, skills, inventory, script variables, and tick count. The rules, with no window |
 | `TileView` | Draws the visible part of the map |
@@ -253,6 +287,8 @@ which is what makes that practical.
 | `Font`, `Text` | Bitmap fonts, and drawing writing with them |
 | `ChatBox` | The message history and typing line under the view |
 | `SidePanel` | The inventory and the skills, on tabs, to the right of the view; the tab pictures come from `interface.json` |
+| `Npc` | The people, from `npcs.json`. For now they stand still on a tile and can only be talked to |
+| `DialogueBox` | Talk with someone, drawn in place of the chat box: speech with a stand-in portrait, or a choice of things to say |
 | `Recipes` | The lists of what can be made from what, from `recipes.json` |
 | `MakeMenu` | The window that shows one of those lists and asks what to make |
 | `Tooltip` | The small box beside the pointer that says more about what it is over |
@@ -266,7 +302,11 @@ which is what makes that practical.
 | `SaveGame` | Keeps the saved game on disk, writing on its own thread |
 
 Maps are text files in `src/main/resources/maps`; `docs/content.md`
-describes them.
+describes them, and the map editor that paints them (the **Map Editor**
+run configuration, or `mvn test-compile exec:java@editor`). After
+changing one by hand, run the map tool (**Build Maps**, or
+`mvn test-compile exec:java@maps`), which tidies the file and draws the
+map into `docs/maps/`; an AI must then look at that picture.
 
 ## Scripts
 
@@ -316,6 +356,32 @@ three data files and no script; `docs/content.md` has the recipe. A rock
 that should behave differently gets its own `[oploc,its_name]` block, which
 takes precedence.
 
+### Talk
+
+Talking to a person runs `[opnpc,their_id]`. In it, `chatnpc("...")` has
+them say something and `chatplayer("...")` has the player's character
+say something; each fills the talk box and the script waits there until
+the player clicks. `choice2("...", "...")`, `choice3`, and `choice4`
+offer things to say, and `chosen()` then answers 1, 2, 3, or 4.
+
+    chatnpc("I need a bronze axe made.")
+    choice2("I'll make you one.", "Not just now.")
+    if (chosen() = 2) {
+        chatplayer("Not just now.")
+        return
+    }
+
+A script that talks should call `interruptible()` first, so that walking
+away ends it. Because the player can leave at any click, a script should
+change nothing (give an item, advance a quest) until the talk leading up
+to it has been read; put the change after the last line of that talk,
+not before it.
+
+**A quest is a player variable.** `def_int %harl_axe` at the top of the
+file declares one; it starts at 0, the script sets it as the quest moves
+on, and it is saved with the game. `harl.whtl` is the whole of the first
+quest and the example to copy.
+
 ### Asking the player to choose
 
 A script can stop and ask what to make. `make_open("anvil_bronze_bar")`
@@ -354,6 +420,14 @@ To add a script file, write it and add its name to `scripts` in
 
 ## Art
 
+There are two kinds of art, in two palettes, for now. The purchased art,
+described next, is cut into sprites. Travis's own art, so far the game
+frame, is whole pictures in `src/main/resources/images`, drawn in his
+palette carp32 (`art/carp32.png`), saved as ordinary PNGs from Aseprite,
+and read by the game as they are: change the file and run the game. In
+time every sprite is to be redrawn in carp32 and the purchased palette
+retired. `docs/content.md` says what a picture must obey.
+
 The `DD-...` folders hold the purchased Demonic Dungeon art by VEXED,
 untouched: the core pack, the interface pack, and five expansions. The
 game does not read those PNGs. `data/sprites.json` lists the images in
@@ -373,8 +447,9 @@ if they do not. `docs/content.md` has the details.
 
 Things the art does not have, which shape the game:
 
-- Characters face one way and have no walking or working animation. They
-  have idle, hurt, angry, and sick poses; mining borrows "angry".
+- The purchased characters face one way and have no walking animation,
+  so the player's character is Travis's own (`art/wizard.png`), which
+  walks in four directions. It has no pictures of working yet.
 - There are only orange and grey rocks to mine. Grey serves as "mined
   out", and other ores are the orange rock recolored by swapping palette
   colors.

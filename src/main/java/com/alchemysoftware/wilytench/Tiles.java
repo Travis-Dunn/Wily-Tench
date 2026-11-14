@@ -29,6 +29,8 @@ final class Tiles {
         int[] pictures;
         /* Out of a hundred tiles, how many show no picture at all. */
         int barePercent;
+        /* Its place in the tileset's list of floors, from zero. */
+        int order;
     }
 
     /** Something standing on the floor. */
@@ -40,6 +42,8 @@ final class Tiles {
         int colorMap;
         boolean animated, walkable;
         Loc loc;
+        /* Set only for a person a map file has placed; see World. */
+        Npc npc;
     }
 
     /** The meaning of every character for one tileset. */
@@ -191,6 +195,7 @@ final class Tiles {
 
             Floor floor = new Floor();
             floor.pictures = Pictures(node, "cells");
+            floor.order = i;
             floor.barePercent = node.OptInt("bare_percent", 0);
             if (floor.barePercent < 0 || floor.barePercent > PERCENT) {
                 throw node.Fail("[bare_percent] must be from 0 to " +

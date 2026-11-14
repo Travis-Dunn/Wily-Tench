@@ -8,9 +8,10 @@ guide to those files, for a person or an AI.
 | --------- | ---- |
 | What can be carried | `data/items.json` |
 | What skills there are | `data/skills.json` |
-| The pictures on the side panel's tabs | `data/interface.json` |
+| The pictures on the side panel's tabs, and the menu widgets | `data/interface.json` |
 | What can be made from what | `data/recipes.json` |
 | What can be used on a map: rocks, ladders | `data/locs.json` |
+| Who can be talked to | `data/npcs.json` |
 | What a map-file character means and looks like | `data/tiles.json` |
 | Which sprite sheets and recolorings exist | `data/sprites.json` |
 | The colors | `data/palette.json` |
@@ -118,6 +119,27 @@ are, add their sheet to `sprites.json` and point each skill at its cell.
 The tabs above the side panel's box. The game has exactly two,
 `inventory` and `skills`, and both must be listed; this file chooses only
 each one's name and picture. These pictures are stand-ins too.
+
+### Widgets
+
+The `"widgets"` group of the same file names the cells of the purchased
+interface art that the menus' buttons, checkboxes, slider, and frame are
+put together from. To reskin the menus, point these at other cells; the
+art has grey and red versions of most pieces beside the orange ones.
+
+    "button": {
+      "sheet": "ui_inputs",
+      "normal": [19, 0], "hover": [19, 4], "pressed": [19, 6],
+      "pressed_drop": 3
+    }
+
+| Part | What its cells must hold |
+| ---- | ------------------------ |
+| `button` | For each of `normal`, `hover`, `pressed`: the top left cell of a button drawn three cells wide and two tall. The middle column is repeated to make wider buttons. `pressed_drop` is how many pixels shorter the pressed picture is, so that it is drawn that much lower and sinks rather than shrinks |
+| `checkbox`, `radio` | `off` and `on`: one cell each |
+| `slider` | `track`: the left cell of a track three cells wide with an arrow at each end. The middle cell is repeated. The arrows must fit in the outer 8 pixels |
+| `slider_knob` | `cell`: one cell, drawn over the track |
+| `frame` | `block`: the top left cell of a frame four cells square with a hollow middle. Its edge cells are repeated. `margin` is how many pixels of empty space the art leaves outside the frame's border |
 
 ## recipes.json
 
@@ -234,6 +256,37 @@ interesting happens." for the rest. `inv_del` takes an item away and
 Every loc still needs a `verb` and an `[oploc,...]` script for a plain
 click, even if all that does is explain.
 
+## npcs.json
+
+A person. For now people stand still on one tile and can only be talked
+to; what they say is the script `[opnpc,id]`. See "Talk" in the readme.
+
+    {
+      "id": "harl",
+      "name": "Harl",
+      "examine": "An old smith. His hands have seen a lot of work."
+    }
+
+| Value | Meaning |
+| ----- | ------- |
+| `id` | How tiles and scripts refer to them. `[opnpc,harl]` is his script |
+| `name` | What the player sees, and what heads their side of a talk |
+| `examine` | Optional. What the Examine option says |
+| `sheet`, `cell` | What they look like |
+
+### Adding someone to talk to
+
+1. Add them to `npcs.json`.
+2. In the map file, define a symbol for them, `!define H npc harl`, and
+   put it on the grid. See "Maps".
+3. Run the map tool and look at the picture.
+4. Write their `[opnpc,id]` block in a script file, and list the file in
+   `game.json` if it is new.
+
+Keep each `chatnpc` and `chatplayer` to what fits the talk box: four
+lines, about fifty words. Anything longer is cut off, and nothing checks
+this for you. Split a long speech into two.
+
 ## tiles.json
 
 This file gives meaning to the characters in map files. A **tileset** is
@@ -243,7 +296,8 @@ tileset exist only there; things in the list at the bottom of the file can
 be put on any map.
 
 Two characters are built in and cannot be redefined: a space is nothing at
-all, and `@` is where the player arrives. `!` cannot be used either.
+all, and `@` is where the player arrives. `!` cannot be used either. A
+map file may define further characters for itself; see "Maps".
 
 A wall:
 
@@ -296,7 +350,7 @@ first; a right click opens the whole list as a menu. For now the lists
 are fixed by kind:
 
 - A tile of the map: the loc's `verb`, if a loc with a script stands
-  there; then Walk here; then Examine, if anything stands there; then
+  there, or Talk-to, if a person with a script does; then Walk here; then Examine, if anything stands there; then
   Cancel.
 - An item in the inventory: Use, Drop, Examine, Cancel.
 
@@ -321,7 +375,7 @@ A sheet is one of the purchased images, cut into 16 pixel cells:
 | ----- | ------- |
 | `id` | What `"sheet"` values elsewhere refer to, and the name of its catalog image |
 | `source` | The original PNG, from the repository's root |
-| `region` | Optional. The part of the PNG to take: left, top, width, height, in pixels. Without it, the whole image |
+| `region` | Optional. The part of the PNG to take: left, top, width, height, in pixels. Without it, everything from the top left corner as far as anything is drawn, so a sheet drawn in the corner of a larger canvas needs no region |
 
 A sheet's width and height must be multiples of 16, and its pixels must
 each be fully transparent or an opaque palette color.
@@ -358,6 +412,65 @@ A color map redraws a picture with some palette colors swapped:
 Each pair is "this color becomes that one", using the names in
 `palette.json`. There is room for seven color maps.
 
+## The game frame: images and layout.json
+
+The interface is one picture, `images/frame.png`, the size of the whole
+screen, drawn over the view of the world. To change it, save a new PNG
+over it and run the game; there is no tool to run. A picture in `images/`
+must obey two rules, and the game stops with a message naming the pixel
+if it does not:
+
+- Every pixel is exactly a color of `palette.json`, or wholly
+  see-through. No partly see-through pixels.
+- It may be saved as indexed color or as full color (RGB or RGBA), not
+  interlaced.
+
+`layout.json` says where things are on the frame, in game pixels, so that
+the game lines up with the drawing:
+
+| Value | Meaning |
+| ----- | ------- |
+| `picture` | The size of the whole picture: width, height |
+| `frame` | The frame's file in `images/` |
+| `view` | The hole the world shows through: left, top, width, height. The frame is drawn over the world, so its rounded corners cover the corners of this rectangle |
+| `chat` | The parchment that the chat box and talk are written on |
+| `widgets` | The open space above the tabs |
+| `slots` | The top left of the first inventory slot |
+| `top_tabs`, `bottom_tabs` | The top left of the first tab in each row |
+| `pitch` | From one slot's or tab's left edge to the next's. They are 16 pixels square, four to a row |
+
+**If the frame is redrawn with anything moved, change these numbers to
+match.** `mvn verify` checks the file against the frame: that the view is
+a hole with frame on every side, that the parchment fills its rectangle,
+and that every slot and tab is a square of one color with a gap around
+it.
+
+### Drawing sprites: what a sheet must obey
+
+A sheet may be one of the purchased images or one of Travis's own in
+`art/`, saved from Aseprite as it is, indexed color or full color.
+
+- Cells are 16 pixels square, counted from the sheet's top left corner.
+- Every pixel is exactly a palette color, or wholly see-through.
+- **See-through means see-through, and black means black.** The game
+  always draws the floor first and then whatever stands on it. So
+  anything that stands on the floor (a mushroom, a rock, a torch, a
+  ladder, a person) must have a see-through background, or it will paint
+  a black square over the floor. A black outline around such a thing is
+  a good idea: it keeps it readable on any floor.
+- Floors and walls fill their whole tile, and their background may be
+  solid.
+
+### Characters
+
+A character is six cells in a row: two of it walking sideways **facing
+left**, two walking away from the player, two walking toward the player. The game turns
+the sideways pair over for walking right, and stands the character in
+the first picture of each pair. `"player"` in `game.json` says where the
+player's six begin:
+
+    "player": { "sheet": "wizard", "cell": [0, 0] }
+
 ## palette.json
 
 The game shows a fixed set of colors, and every pixel of every sprite is
@@ -367,9 +480,14 @@ one of them.
 
 `colors` lists them. **The order matters**: converted art stores each
 pixel as a position in this list, so add new colors at the end, and
-rebuild the atlases after any change. Ten of the names are used by the
-game's own interface and must stay: ink, night, slate, rust, ash, leaf,
-mint, amber, peach, bone.
+rebuild the atlases after any change. Some of the names are used by the
+game's own interface and must stay; the game says which if one goes.
+
+The list is two palettes end to end. First the colors of the purchased
+art. Then the 32 colors of carp32, Travis's own palette, named
+`carp_black`, `carp_parchment`, and so on, in the order of
+`art/carp32.png`. The game frame is drawn in carp32, and in time every
+sprite will be.
 
 When new art brings a new color, the atlas tool refuses it and reports
 the color and how many pixels use it. If it is a real color of the art,
@@ -385,8 +503,9 @@ it was meant to be without touching the artist's file:
 
     {
       "maps": ["cave.txt", "dungeon.txt"],
-      "scripts": ["travel.whtl", "mining.whtl", "smithing.whtl"],
-      "starting_items": ["bronze_pickaxe"]
+      "scripts": ["travel.whtl", "mining.whtl", "smithing.whtl", "harl.whtl"],
+      "starting_items": ["bronze_pickaxe"],
+      "player": { "sheet": "wizard", "cell": [0, 0] }
     }
 
 Every map and script file must be listed here to be part of the game. A
@@ -394,22 +513,166 @@ new game begins at the `@` of the first map.
 
 ## Maps
 
-A map is a text file in `maps/`:
+A map is a text file in `maps/`, and that file is the only form the map
+ever has. People edit it as text or in the map editor, AIs write it as
+text, and the editor reads and writes this same file.
 
     !name Copper Cave
     !tileset cave
 
+    !define 1 point from_dungeon
+    !define H npc harl
+
+    !map
        ################
-       #.L............#
+       #.L1...........#
        #..c........m..#
-       #......@.......#
+       #......@....H..#
        ################
 
-The lines beginning with `!` are settings: the place's name, and which
-tileset of `tiles.json` it uses. Everything after them is the map, one
-character per tile. Rows may be different lengths. Every map needs exactly
-one `@`.
+The lines beginning with `!` are settings. After `!map` comes the grid,
+one character per tile, to the end of the file. Rows may be different
+lengths. A map is kept with no empty space around it: the first row and
+the first column each have something in them.
+
+**Everything that is anywhere is in the grid.** Nothing is placed by
+coordinates, so a map can be checked by looking at it: if a person is in
+the wrong room, the grid shows them there.
+
+| Setting | Meaning |
+| ------- | ------- |
+| `!name` | What the place is called |
+| `!tileset` | Which tileset of `tiles.json` gives its characters their meaning |
+| `!define` | Gives a character a meaning for this map only. See below |
+| `!map` | On a line by itself. Everything after it is the grid |
+
+A character in the grid is, in this order: a space (nothing at all, and
+solid); `@` (where a new game begins, and where `travel` arrives; every
+map needs exactly one); a symbol this map defines; or a wall, floor, or
+thing of the tileset.
 
 Walls are one tile thick and join up with their neighbors, so draw rooms
-as outlines. Saved games record the map by its file name, so renaming a
-map file strands anyone saved there at the first map's start.
+as outlines.
+
+### The map editor
+
+A desktop program for painting maps. Start it with the **Map Editor**
+run configuration, or
+
+    mvn test-compile exec:java@editor
+
+from the project's root folder. It opens the first map; File > Open
+lists the rest. It shows the map as the game will draw it, because it
+draws with the game's own code from the same data files.
+
+- **Painting.** Pick something from the lists on the left and paint with
+  the left mouse button. The Pencil paints tile by tile as you drag. The
+  Rectangle fills the area you drag over. The right mouse button picks
+  up whatever is under it.
+- **What can be painted.** "Ground" is nothing, the tileset's floors,
+  and its walls. "Things" is everything else `tiles.json` offers this
+  tileset. "This map" is the player's start and the symbols this map
+  defines; the buttons under it add a person from `npcs.json`, a named
+  point, or a thing on a chosen floor, and remove one.
+- **The start and points move.** Painting `@` or a point somewhere new
+  takes it from where it was.
+- **Moving the view.** Drag with the middle mouse button, or use the
+  scroll bars. The mouse wheel zooms in and out.
+- **Size.** The map lies in a wide field of empty space and can be
+  painted outward in any direction; the yellow line marks its extent.
+  The empty space is the editor's alone. A map is saved with none
+  around it, so there is nothing to crop or to make room for by hand.
+- **Fast strokes leave no gaps.** The pencil fills in every tile between
+  where the pointer was and where it is.
+- **Undo.** Ctrl+Z and Ctrl+Y, a whole drag at a time.
+- **The bottom lines.** The first says what is under the pointer and its
+  column and row. The second, in red, says what stops the game using the
+  map as it stands, such as a symbol defined but not placed.
+- **Saving.** Ctrl+S writes the file in the tidy layout and redraws its
+  picture in `docs/maps/`. If the map has grown or shrunk at its left or
+  top since it was last saved, every tile's column or row has changed;
+  the bottom line says by how much, because a game saved on the map
+  will then have the player and mined-out rocks out of place. A map with a problem can be saved, after a
+  warning, so that work is not lost; the game will not start until it is
+  put right.
+- **A new map** (File > New map) starts as a small walled room. The
+  game does not know of it until its file is added to `"maps"` in
+  `game.json`, and the player cannot reach it until a script sends them
+  to a point on it.
+
+The editor changes map files only. New kinds of rock, people, floors,
+and so on are still added in the JSON files; restart the editor to see
+them. It cannot open a map with a mistake the game could not draw past,
+such as an unknown symbol; fix that in a text editor first.
+
+### Symbols a map defines for itself
+
+`tiles.json` says what a rock or a barrel looks like everywhere. A
+`!define` is for what belongs to one map or needs saying per map. The
+symbol must be one the tileset does not already use; digits are a good
+choice. Each kind of thing has one home: a rock is always a `tiles.json`
+symbol, a person is always a define.
+
+| Define | Meaning |
+| ------ | ------- |
+| `!define H npc harl` | A person from `npcs.json`. May be on the map more than once |
+| `!define 1 point from_cave` | A named spot. Open floor to the player; scripts send the player there with `travel_to("cave.txt", "from_cave")`. On the map exactly once |
+| `!define 2 like r` | A copy of the tileset's thing `r`. Only useful with `on` |
+
+More kinds will come as the game grows: monster spawns with a range to
+wander in, fishing spots, and so on. Each will be a define with its
+settings on its line.
+
+### What floor is under a thing
+
+A rock, a person, a point, or the `@` takes up its tile's one character,
+so the map does not say what floor it stands on. The game works it out:
+whichever floor most of the four tiles beside it are. On a tie, the floor
+listed earlier in the tileset; if none of the four is floor, the
+tileset's first floor.
+
+That is right nearly always. Where it is not, say so with `on` and a
+floor's symbol at the end of any define:
+
+    !define 2 like r on ,
+    !define H npc harl on .
+
+### After changing a map: tidy it and look at it
+
+Run the **Build Maps** run configuration, or
+
+    mvn test-compile exec:java@maps
+
+It does two things. It rewrites every map file in one fixed layout
+(settings, defines in order, `!map`, rows with no trailing spaces and no
+empty space around the map), which
+`mvn verify` insists on, so that a file is the same whoever wrote it. And
+it draws each map to `docs/maps/` as a picture, drawn by the game's own
+code, with column and row numbers and each defined symbol marked.
+
+**If you are an AI: always do this, and always open the picture, before
+calling a map change done.** Counting characters in a grid goes wrong by
+one more easily than it seems. Check in the picture that each thing you
+placed is in the room you meant, on the floor you meant, that doors line
+up with corridors, and that nothing blocks the way to anything. The
+pictures are committed, so a reviewer sees the change too.
+
+### What the build checks
+
+`mvn verify`, and the game at startup, refuse a map with: an unknown
+setting or kind of define; a symbol that means nothing; a define the
+tileset already uses, or that is nowhere on the map; an npc, thing, or
+floor that does not exist; a point on the map twice or two points of one
+name; no `@` or more than one; a tab; or a layout that is not the tidy
+one. Each is explained in words that name the file.
+
+It does not yet check that every place can be reached, or that a point a
+script names exists; the second shows only when the script runs.
+
+### Saved games and maps
+
+Saved games record the map by its file name, so renaming a map file
+strands anyone saved there at the first map's start. They record the
+player and emptied rocks by column and row, so a map that grows or
+shrinks at its top or left moves a saved player; one who lands in a wall
+is put at the `@`.

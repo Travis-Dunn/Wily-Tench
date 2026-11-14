@@ -7,8 +7,7 @@ import static com.alchemysoftware.wilytench.Fixture.Check;
  * and what the skill tooltips say. Nothing here draws.
  */
 public class PanelTest {
-    private static final int PANEL_X = 256, PANEL_W = 128;
-    private static final int SCREEN_W = 384, SCREEN_H = 360;
+    private static final int SCREEN_W = 384, SCREEN_H = 216;
     /* Far enough inside a button, slot, or skill to be clearly on it. */
     private static final int IN = 5;
 
@@ -123,12 +122,12 @@ public class PanelTest {
         Fixture.Start(0);
         s = Fixture.session;
         Font font = Font.Load("small.fnt");
-        panel = new SidePanel(font, font, font, PANEL_X, 0, PANEL_W,
-                SCREEN_H, SCREEN_W, SCREEN_H, s.inventory, s.skills);
+        panel = new SidePanel(font, font, SCREEN_W, SCREEN_H, s.inventory,
+                s.skills);
     }
 
     private void PointAtTab(int tab) {
-        panel.Input(panel.TabX(tab) + IN, panel.TabY() + IN);
+        panel.Input(panel.TabX(tab) + IN, panel.TabY(tab) + IN);
     }
 
     private void PointAtSkill(int skill) {

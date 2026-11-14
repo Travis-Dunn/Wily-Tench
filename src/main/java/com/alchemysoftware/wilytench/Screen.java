@@ -24,30 +24,14 @@ import com.alchemysoftware.whitetail.window.Window;
  * turns them into real colors through Palette and shows the result,
  * scaled by a whole number so that every game pixel stays square.
  *
- * The game pixel grid is chosen from PRESETS to suit the desktop: the
- * one that covers the most of the screen wins. Each preset reserves a
- * side panel PANEL_W wide on the right for the interface and a chat
- * box CHAT_H tall along the bottom; the rest is the viewport onto the
- * world.
+ * The picture is the size data/layout.json gives, 384 by 216 game
+ * pixels, and is shown as large as the desktop allows at a whole
+ * number of screen pixels to each game pixel. The view of the world
+ * is the part of it the layout names; the game frame is drawn over
+ * the rest.
  */
 final class Screen {
     static final String TITLE = "Wily Tench";
-
-    /** Width in game pixels of the interface panel right of the world. */
-    static final int PANEL_W = 128;
-
-    /** Height in game pixels of the chat box below the world. */
-    static final int CHAT_H = 88;
-
-    /*
-     * 512x384 doubles to exactly 1024x768, the usual laptop panel of
-     * the Windows 98 years.
-     * 640x360 fits 720p, 1080p, 1440p and 4K exactly, and 640x400 does
-     * the same for 16:10 displays.
-     */
-    private static final int[][] PRESET_SIZES = {
-        { 512, 384 }, { 640, 360 }, { 640, 400 }
-    };
 
     /*
      * Version 1.0 is not a floor. It is the one request LWJGL 2 makes
@@ -79,14 +63,11 @@ final class Screen {
         int desktopH = Window.GetDesktopHeight();
         if (desktopH <= 0) return false;
 
-        FramebufferPreset[] presets =
-                new FramebufferPreset[PRESET_SIZES.length];
-        for (int i = 0; i < presets.length; i++) {
-            int w = PRESET_SIZES[i][0], h = PRESET_SIZES[i][1];
-            presets[i] = FramebufferPreset.Create(w, h, 0, 0,
-                    w - PANEL_W, h - CHAT_H);
-            if (presets[i] == null) return false;
-        }
+        FramebufferPreset[] presets = {
+            FramebufferPreset.Create(Layout.pictureW, Layout.pictureH,
+                    Layout.viewX, Layout.viewY, Layout.viewW, Layout.viewH)
+        };
+        if (presets[0] == null) return false;
 
         layout = DisplayLayoutBuilder.Resolve(presets,
                 new ResolutionMapping[0], true, desktopW, desktopH,

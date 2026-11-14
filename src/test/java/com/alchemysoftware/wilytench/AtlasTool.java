@@ -21,7 +21,6 @@ import java.util.TreeMap;
 import javax.imageio.ImageIO;
 
 import com.alchemysoftware.whitetail.image.Image;
-import com.alchemysoftware.whitetail.image.ImageBuilder;
 import com.alchemysoftware.whitetail.sprite.SpriteAssetWriter;
 import com.alchemysoftware.whitetail.sprite.SpriteAtlas;
 
@@ -114,26 +113,46 @@ public final class AtlasTool {
                 " atlas" + (atlases == 1 ? "" : "es") + ".");
     }
 
+    /*
+     * The part of an image that has anything drawn in it, from its
+     * top left corner, rounded out to whole cells. A sheet drawn in
+     * the corner of a larger canvas needs no "region" for that reason.
+     */
+    private static int[] Used(Image img) {
+        int right = 0, bottom = 0;
+
+        for (int y = 0; y < img.height; y++) {
+            for (int x = 0; x < img.width; x++) {
+                if (img.data[(y * img.width + x) * 4 + 3] == 0) continue;
+                right = Math.max(right, x + 1);
+                bottom = Math.max(bottom, y + 1);
+            }
+        }
+        return new int[] {
+            0, 0, Math.min((right + CELL - 1) / CELL * CELL, img.width),
+            Math.min((bottom + CELL - 1) / CELL * CELL, img.height)
+        };
+    }
+
     /* Loads a sheet's image and turns its pixels into palette indices. */
     private static Job Read(DataNode node) throws Exception {
         Job job = new Job();
         job.id = node.Str("id");
         job.source = node.Str("source");
 
-        Image img;
-        InputStream in = new FileInputStream(job.source);
+        Image img = null;
         try {
-            img = ImageBuilder.FromPNG(in);
-        } finally {
-            in.close();
+            img = Bitmap.Decode(Bitmap.ReadAll(
+                    new FileInputStream(job.source)), job.source);
+        } catch (DataError e) {
+            Fail(job.id, e.getMessage());
         }
         if (img == null) Fail(job.id, job.source + " could not be decoded");
         if (img.format != Image.FORMAT_RGBA_8)
             Fail(job.id, job.source + " is not an 8-bit RGBA PNG");
 
         int[] region = node.OptInts("region", 4);
-        if (region == null)
-            region = new int[] { 0, 0, img.width, img.height };
+        if (region == null) region = Used(img);
         int w = region[2], h = region[3];
         job.x0 = region[0];
         job.y0 = region[1];

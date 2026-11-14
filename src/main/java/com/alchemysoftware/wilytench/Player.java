@@ -14,16 +14,41 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  * A walk may have a "target": a tile the character is heading for in
  * order to do something to it, such as a rock to mine. The character
  * stops beside a target rather than on it.
+ *
+ * A character's pictures are six cells in a row on a sprite sheet:
+ * two of it walking sideways, facing left; two of it walking away
+ * from the player; two of it walking toward the player. Facing right is the sideways
+ * pair turned over. Standing still is the first of the pair for the
+ * way it faces. data/game.json says where the player's six are.
+ *
+ * There are no pictures of working yet, so swinging a tool is shown
+ * as stepping on the spot, quickly.
  */
 final class Player {
+    /** How many pictures a character has. */
+    static final int PICTURES = 6;
+
     private static final int TILE = Sprites.TILE;
-    private static final int IDLE_FRAME_MS = 250;
-    private static final int WORK_FRAME_MS = 200;
+    /* Two walking pictures to a step of one tick. */
+    private static final int WALK_FRAME_MS = 300;
+    private static final int WORK_FRAME_MS = 150;
+
+    /* Where in a character's six pictures each pair begins. */
+    private static final int SIDE = 0, BACK = 2, FRONT = 4;
+
+    private static final int STAND = 0, WALK = 1, WORK = 2;
+    private static final int UNSET = -1;
 
     private final Mover mover;
     private final int sprite;
     private final SpriteAnimation anim;
-    private final SpriteAnimationDefinition idleDef, workDef;
+    /* Indexed by where the pair begins: SIDE, FRONT, or BACK. */
+    private final SpriteAnimationDefinition[] walkDefs, workDefs;
+    private final int[] standFrames;
+
+    /* What the sprite was last set to show, to change it only when
+       that changes. */
+    private int shownMode = UNSET, shownPair = UNSET;
 
     private boolean working;
 
@@ -31,48 +56,57 @@ final class Player {
     private int targetX, targetY;
 
     private Player(World world, int sprite, SpriteAnimation anim,
-                   SpriteAnimationDefinition idleDef,
-                   SpriteAnimationDefinition workDef) {
+                   SpriteAnimationDefinition[] walkDefs,
+                   SpriteAnimationDefinition[] workDefs,
+                   int[] standFrames) {
         this.sprite = sprite;
         this.anim = anim;
-        this.idleDef = idleDef;
-        this.workDef = workDef;
+        this.walkDefs = walkDefs;
+        this.workDefs = workDefs;
+        this.standFrames = standFrames;
         mover = new Mover(world, world.startX, world.startY);
     }
 
     /**
      * Creates the character at the map's start. The sprite renderer
-     * must be initialized with the heroes atlas installed.
+     * must be initialized with the atlases installed, and Content
+     * loaded.
      *
      * @return the player, or null after a fatal error has been reported
      */
     static Player Create(World world) {
-        char[] idle = {
-            (char) Sprites.Hero(0, 0), (char) Sprites.Hero(1, 0),
-            (char) Sprites.Hero(2, 0)
-        };
-        /* The art's "anger" pose, arms flung wide, is the nearest thing
-           it has to swinging a tool. */
-        char[] work = {
-            (char) Sprites.Hero(0, 0), (char) Sprites.Hero(0, 8),
-            (char) Sprites.Hero(1, 8), (char) Sprites.Hero(2, 8)
-        };
-        SpriteAnimationDefinition idleDef =
-                SpriteAnimationDefinition.Create(idle, IDLE_FRAME_MS, true);
-        SpriteAnimationDefinition workDef =
-                SpriteAnimationDefinition.Create(work, WORK_FRAME_MS, true);
-        if (idleDef == null || workDef == null) return null;
+        int[] pictures = Content.PlayerPictures();
+        SpriteAnimationDefinition[] walkDefs =
+                new SpriteAnimationDefinition[PICTURES];
+        SpriteAnimationDefinition[] workDefs =
+                new SpriteAnimationDefinition[PICTURES];
+        int[] standFrames = new int[PICTURES];
 
-        SpriteAnimation anim = SpriteAnimation.Create(idleDef);
+        for (int pair = 0; pair < PICTURES; pair += 2) {
+            char[] frames = {
+                (char) Sprites.FrameOf(pictures[pair]),
+                (char) Sprites.FrameOf(pictures[pair + 1])
+            };
+            walkDefs[pair] = SpriteAnimationDefinition.Create(frames,
+                    WALK_FRAME_MS, true);
+            workDefs[pair] = SpriteAnimationDefinition.Create(frames,
+                    WORK_FRAME_MS, true);
+            if (walkDefs[pair] == null || workDefs[pair] == null)
+                return null;
+            standFrames[pair] = frames[0];
+        }
+
+        SpriteAnimation anim = SpriteAnimation.Create(walkDefs[FRONT]);
         if (anim == null) return null;
 
         int sprite = SpriteRenderer.CreateSprite(world.startX * TILE,
-                world.startY * TILE, Sprites.HeroAtlas(), idle[0],
-                Sprites.LAYER_ACTOR, Sprites.COLOR_MAP_NONE, false, false,
-                true);
+                world.startY * TILE, Sprites.AtlasOf(pictures[0]),
+                standFrames[FRONT], Sprites.LAYER_ACTOR,
+                Sprites.COLOR_MAP_NONE, false, false, true);
         if (sprite == SpriteRenderer.INVALID_HANDLE) return null;
 
-        return new Player(world, sprite, anim, idleDef, workDef);
+        return new Player(world, sprite, anim, walkDefs, workDefs,
+                standFrames);
     }
 
     /**
@@ -115,15 +149,14 @@ final class Player {
                 Math.abs(targetY - mover.Y()) == 1;
     }
 
-    /** Turns the character to face its target, if that is to one side. */
-    void FaceTarget() { mover.Face(targetX); }
+    /** Turns the character to face its target. */
+    void FaceTarget() { mover.Face(targetX, targetY); }
 
-    /** Switches between the idle and the tool-swinging animation. */
-    void SetWorking(boolean working) {
-        if (working == this.working) return;
-        this.working = working;
-        anim.setDefinition(sprite, working ? workDef : idleDef);
-    }
+    /** Starts or stops showing the character at work with a tool. */
+    void SetWorking(boolean working) { this.working = working; }
+
+    /** @return which way the character faces: a Mover.FACING_ value */
+    int Facing() { return mover.Facing(); }
 
     /** @return the tile column the character is on */
     int X() { return mover.X(); }
@@ -160,10 +193,27 @@ final class Player {
      * @param deltaMs whole milliseconds since the previous frame
      */
     void Animate(double tickFraction, int deltaMs) {
+        int facing = mover.Facing();
+        int pair = facing == Mover.FACING_DOWN ? FRONT :
+                facing == Mover.FACING_UP ? BACK : SIDE;
+        int mode = mover.Moving() ? WALK : working ? WORK : STAND;
+
         SpriteRenderer.SetPosition(sprite, PixelX(tickFraction),
                 PixelY(tickFraction));
-        SpriteRenderer.SetFlip(sprite, mover.FacingLeft(), false);
-        anim.update(sprite, deltaMs);
+        /* The sideways pictures face left. */
+        SpriteRenderer.SetFlip(sprite, facing == Mover.FACING_RIGHT, false);
+
+        if (mode != shownMode || pair != shownPair) {
+            shownMode = mode;
+            shownPair = pair;
+            if (mode == STAND) {
+                SpriteRenderer.SetFrame(sprite, standFrames[pair]);
+            } else {
+                anim.setDefinition(sprite,
+                        mode == WALK ? walkDefs[pair] : workDefs[pair]);
+            }
+        }
+        if (mode != STAND) anim.update(sprite, deltaMs);
     }
 
     /** @return the map pixel of the sprite's left edge */

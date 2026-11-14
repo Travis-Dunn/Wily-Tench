@@ -12,9 +12,11 @@ import com.alchemysoftware.whitetail.error.ErrorHandler;
  *   sprites.json   the sprite sheets and color maps
  *   items.json     the things that can be carried
  *   skills.json    the skills
- *   interface.json the pictures on the interface's buttons
+ *   interface.json the pictures on the interface's tabs and
+ *                  widgets
  *   recipes.json   what can be made from what
  *   locs.json      the things on a map that can be used
+ *   npcs.json      the people
  *   tiles.json     what each character in a map file stands for
  *
  * docs/content.md explains each file for someone editing it. A mistake
@@ -23,11 +25,15 @@ import com.alchemysoftware.whitetail.error.ErrorHandler;
  */
 final class Content {
     private static final String[] GAME_KEYS = {
-        "maps", "scripts", "starting_items"
+        "maps", "scripts", "starting_items", "player"
     };
+    private static final String[] PLAYER_KEYS = { "sheet", "cell" };
+
+    private static final String[] INTERFACE_KEYS = { "tabs", "widgets" };
 
     private static String[] maps, scripts;
     private static int[] startingItems;
+    private static int[] playerPictures;
 
     private Content() {}
 
@@ -62,9 +68,13 @@ final class Content {
         Sprites.Load(DataNode.Load("sprites.json"));
         Item.Load(DataNode.Load("items.json"));
         Skills.Load(DataNode.Load("skills.json"));
-        SidePanel.Load(DataNode.Load("interface.json"));
+        DataNode ui = DataNode.Load("interface.json");
+        ui.Only(INTERFACE_KEYS);
+        SidePanel.Load(ui);
+        Skin.Load(ui.Obj("widgets"));
         Recipes.Load(DataNode.Load("recipes.json"));
         Loc.Load(DataNode.Load("locs.json"));
+        Npc.Load(DataNode.Load("npcs.json"));
         Tiles.Load(DataNode.Load("tiles.json"));
 
         DataNode game = DataNode.Load("game.json");
@@ -72,6 +82,15 @@ final class Content {
         maps = game.Strs("maps");
         scripts = game.Strs("scripts");
         if (maps.length == 0) throw game.Fail("[maps] lists no maps.");
+
+        DataNode player = game.Obj("player");
+        player.Only(PLAYER_KEYS);
+        int[] cell = player.Ints("cell", 2);
+        playerPictures = new int[Player.PICTURES];
+        for (int i = 0; i < Player.PICTURES; i++) {
+            playerPictures[i] = Sprites.Picture(player, player.Str("sheet"),
+                    new int[] { cell[0] + i, cell[1] });
+        }
 
         String[] starting = game.Strs("starting_items");
         startingItems = new int[starting.length];
@@ -91,8 +110,10 @@ final class Content {
 
     static void Shutdown() {
         Tiles.Shutdown();
+        Npc.Shutdown();
         Loc.Shutdown();
         Recipes.Shutdown();
+        Skin.Shutdown();
         SidePanel.Shutdown();
         Skills.Shutdown();
         Item.Shutdown();
@@ -107,6 +128,12 @@ final class Content {
 
     /** @return the game's script files */
     static String[] ScriptFiles() { return scripts; }
+
+    /**
+     * @return the player character's six pictures, in the order
+     *         Player describes
+     */
+    static int[] PlayerPictures() { return playerPictures; }
 
     /** @return the items a new player begins with */
     static int[] StartingItems() { return startingItems; }

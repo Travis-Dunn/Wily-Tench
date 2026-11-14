@@ -12,7 +12,8 @@ package com.alchemysoftware.wilytench;
  * A tile of the map offers, in this order:
  *
  *   the loc's own verb     "Mine Copper rocks", if a loc with a script
- *                          stands there
+ *                          stands there; or "Talk-to Harl", if a
+ *                          person with one does
  *   Walk here              always
  *   Examine                if anything stands there
  *   Cancel                 always
@@ -29,7 +30,7 @@ package com.alchemysoftware.wilytench;
 final class Actions {
     /** Walks to the tile in the option's two values. */
     static final int WALK = 1;
-    /** Uses the loc on that tile. */
+    /** Uses the loc on that tile, or talks to the person there. */
     static final int USE_LOC = 2;
     static final int EXAMINE_TILE = 3;
     /** Selects the item in the slot in the option's first value. */
@@ -92,13 +93,16 @@ final class Actions {
                     tileX, tileY);
         }
         if (session.Usable(tileX, tileY)) {
-            menu.Add(world.LocAt(tileX, tileY).verb, name, Palette.MINT,
-                    USE_LOC, tileX, tileY);
+            Loc loc = world.LocAt(tileX, tileY);
+            menu.Add(loc != null ? loc.verb : Npc.VERB, name,
+                    loc != null ? Palette.MINT : Palette.AMBER, USE_LOC,
+                    tileX, tileY);
         }
         menu.Add(VERB_WALK, null, 0, WALK, tileX, tileY);
         if (name != null) {
-            menu.Add(VERB_EXAMINE, name, Palette.MINT, EXAMINE_TILE, tileX,
-                    tileY);
+            menu.Add(VERB_EXAMINE, name,
+                    world.NpcAt(tileX, tileY) != null ? Palette.AMBER :
+                    Palette.MINT, EXAMINE_TILE, tileX, tileY);
         }
         menu.Add(VERB_CANCEL, null, 0, CANCEL, 0, 0);
     }
@@ -130,7 +134,7 @@ final class Actions {
         switch (menu.Action(option)) {
             case WALK:
                 if (!session.WalkTo(a, b))
-                    session.chat.Add(MSG_CANT_REACH, Palette.BONE);
+                    session.chat.Add(MSG_CANT_REACH, Palette.TEXT);
                 break;
             case USE_LOC:
                 session.Use(a, b);

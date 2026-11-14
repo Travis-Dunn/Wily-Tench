@@ -13,5 +13,21 @@
       "sheet": "ui_icons",
       "cell": [0, 12]
     }
-  ]
+  ],
+
+  "widgets": {
+    "note": "Pieces of the purchased interface art that Skin.java assembles. docs/content.md says what each cell must hold.",
+    "button": {
+      "sheet": "ui_inputs",
+      "normal": [19, 0],
+      "hover": [19, 4],
+      "pressed": [19, 6],
+      "pressed_drop": 3
+    },
+    "checkbox": { "sheet": "ui_inputs", "off": [19, 24], "on": [21, 24] },
+    "radio": { "sheet": "ui_inputs", "off": [26, 24], "on": [28, 24] },
+    "slider": { "sheet": "ui_bars_sliders_scrollbars", "track": [24, 18] },
+    "slider_knob": { "sheet": "ui_inputs", "cell": [20, 20] },
+    "frame": { "sheet": "ui_frames", "block": [30, 8], "margin": 6 }
+  }
 }

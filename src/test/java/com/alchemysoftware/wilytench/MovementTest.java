@@ -30,6 +30,65 @@ public class MovementTest {
         Fixture.Finish();
     }
 
+    public void testACharacterFacesTheWayItWalks() {
+        Fixture.Start(0);
+        Session s = Fixture.session;        /* at (1,1) of the test map */
+
+        Check("faces the player to begin with",
+                s.player.Facing() == Mover.FACING_DOWN);
+        s.WalkTo(2, 1);
+        Fixture.Run(1);
+        Check("right", s.player.Facing() == Mover.FACING_RIGHT);
+        s.WalkTo(2, 2);
+        Fixture.Run(1);
+        Check("down", s.player.Facing() == Mover.FACING_DOWN);
+        s.WalkTo(4, 2);
+        Fixture.Run(2);
+        s.WalkTo(3, 2);
+        Fixture.Run(1);
+        Check("left", s.player.Facing() == Mover.FACING_LEFT);
+        s.WalkTo(2, 2);
+        Fixture.Run(1);
+        s.WalkTo(2, 1);
+        Fixture.Run(1);
+        Check("up", s.player.Facing() == Mover.FACING_UP);
+        Fixture.Run(3);
+        Check("and goes on facing that way once stopped",
+                s.player.Facing() == Mover.FACING_UP);
+        Fixture.Finish();
+    }
+
+    public void testACharacterTurnsToWhatItUses() {
+        Fixture.Start(0);
+        Session s = Fixture.session;
+        s.inventory.Add(Fixture.Item("bronze_pickaxe"));
+
+        s.player.Place(3, 2);               /* under the copper rock */
+        s.Use(3, 1);
+        Fixture.Run(1);
+        Check("up at the rock above", s.player.Facing() == Mover.FACING_UP);
+
+        s.player.Place(2, 1);               /* left of it */
+        s.Use(3, 1);
+        Fixture.Run(1);
+        Check("right at the rock beside",
+                s.player.Facing() == Mover.FACING_RIGHT);
+
+        Mover mover = new Mover(s.Here(), 2, 2);
+        mover.Face(5, 1);
+        Check("mostly across counts as across",
+                mover.Facing() == Mover.FACING_RIGHT);
+        mover.Face(1, 0);
+        Check("mostly up counts as up", mover.Facing() == Mover.FACING_UP);
+        mover.Face(1, 3);
+        Check("a tie goes across", mover.Facing() == Mover.FACING_LEFT);
+        mover.Face(2, 2);
+        Check("facing where it stands changes nothing",
+                mover.Facing() == Mover.FACING_LEFT);
+        Check("standing still", !mover.Moving());
+        Fixture.Finish();
+    }
+
     public void testSteadyStyleEasesOnlyAtTheEndsOfAWalk() {
         Fixture.Start(0);
         Mover.SetStyle(Mover.STYLE_STEADY);

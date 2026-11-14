@@ -1,0 +1,12 @@
+{
+  "npcs": [
+    {
+      "id": "harl",
+      "note": "harl.whtl holds what he says, and the small quest he gives.",
+      "name": "Harl",
+      "examine": "An old smith. His hands have seen a lot of work.",
+      "sheet": "interior_people",
+      "cell": [0, 3]
+    }
+  ]
+}

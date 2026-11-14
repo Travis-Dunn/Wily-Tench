@@ -25,6 +25,12 @@ import com.alchemysoftware.whitetail.script.ScriptState;
  * Held(): new orders are ignored until it ends. An order given while
  * merely busy cancels the script.
  *
+ * A script may also stop for talk: something said, by the person the
+ * script is about or by the player's character, which stays up until
+ * ContinueTalk(); or a choice of things to say, which stays up until
+ * ChooseTalk(). TalkKind() says which, if either. Like everything
+ * else, an order that cancels the script ends the talk.
+ *
  * A script may stop to ask what the player wants made. OpenMake()
  * then names the list of recipes to show, and nothing more happens
  * until ChooseMake() or CloseMake(), or an order that cancels the
@@ -35,6 +41,18 @@ import com.alchemysoftware.whitetail.script.ScriptState;
  * about, and the item being used on that loc, if one is.
  */
 final class Session {
+    /* What TalkKind() answers. */
+    static final int TALK_NONE = 0;
+    /** The person being talked to is saying something. */
+    static final int TALK_NPC = 1;
+    /** The player's character is saying something. */
+    static final int TALK_PLAYER = 2;
+    /** The player is being offered things to say. */
+    static final int TALK_CHOICE = 3;
+
+    /** What the player's character is called, until it has a name. */
+    static final String PLAYER_NAME = "You";
+
     final World[] worlds;
     final Player player;
     final Skills skills = new Skills();
@@ -55,6 +73,13 @@ final class Session {
     private String scriptTrigger, scriptSubject;
     private int usedItem = Item.NONE;
     private Loc usedLoc;
+    private Npc usedNpc;
+
+    /* The talk on show, if any, and the last choice made. */
+    private int talkKind = TALK_NONE;
+    private String talkText;
+    private String[] talkOptions = new String[0];
+    private int talkChosen;
     private World usedWorld;
     private int usedX, usedY;
 
@@ -135,7 +160,8 @@ final class Session {
      */
     boolean Usable(int tileX, int tileY) {
         return Scripts.Subject(Scripts.TRIGGER_USE,
-                Here().LocAt(tileX, tileY)) != null;
+                Here().LocAt(tileX, tileY)) != null ||
+                Scripts.TalkSubject(Here().NpcAt(tileX, tileY)) != null;
     }
 
     /**
@@ -175,7 +201,7 @@ final class Session {
 
         if (Scripts.Subject(Scripts.TRIGGER_USE_ITEM,
                 Here().LocAt(tileX, tileY)) == null) {
-            chat.Add(MSG_NOTHING_HAPPENS, Palette.BONE);
+            chat.Add(MSG_NOTHING_HAPPENS, Palette.TEXT);
             return;
         }
         targetItem = item;
@@ -189,7 +215,47 @@ final class Session {
     void UseItemOnItem(int slot, int otherSlot) {
         if (inventory.At(slot) != Item.NONE &&
                 inventory.At(otherSlot) != Item.NONE)
-            chat.Add(MSG_NOTHING_HAPPENS, Palette.BONE);
+            chat.Add(MSG_NOTHING_HAPPENS, Palette.TEXT);
+    }
+
+    /** @return which kind of talk is on show: one of the TALK_ values */
+    int TalkKind() { return talkKind; }
+
+    /** @return what is being said */
+    String TalkText() { return talkText; }
+
+    /** @return the name of whoever is saying it */
+    String TalkSpeaker() {
+        return talkKind == TALK_NPC ? usedNpc.name : PLAYER_NAME;
+    }
+
+    /** @return how many things the player is being offered to say */
+    int TalkOptions() {
+        return talkKind == TALK_CHOICE ? talkOptions.length : 0;
+    }
+
+    /** @param option counted from zero */
+    String TalkOption(int option) { return talkOptions[option]; }
+
+    /** Has the player read what was said; the script carries on. */
+    void ContinueTalk() {
+        if (talkKind != TALK_NPC && talkKind != TALK_PLAYER) return;
+        talkKind = TALK_NONE;
+        ResumeScript();
+    }
+
+    /**
+     * Picks one of the things offered to say; the script carries on.
+     *
+     * @param option counted from zero; anything not on offer is
+     *               ignored
+     */
+    void ChooseTalk(int option) {
+        if (talkKind != TALK_CHOICE || option < 0 ||
+                option >= talkOptions.length) return;
+        talkChosen = option + 1;
+        talkKind = TALK_NONE;
+        ResumeScript();
     }
 
     /**
@@ -208,8 +274,7 @@ final class Session {
         madeList = openMake;
         madeRecipe = recipe;
         openMake = Recipes.NONE;
-        script = Scripts.Resume(script);
-        if (script == null) AfterRun();
+        ResumeScript();
     }
 
     /** Declines to pick, which ends the script that asked. */
@@ -223,13 +288,13 @@ final class Session {
      */
     void ExamineTile(int tileX, int tileY) {
         String text = Here().Examine(tileX, tileY);
-        if (text != null) chat.Add(text, Palette.ASH);
+        if (text != null) chat.Add(text, Palette.TEXT_DIM);
     }
 
     /** Looks closely at the item in an inventory slot. */
     void ExamineItem(int slot) {
         int item = inventory.At(slot);
-        if (item != Item.NONE) chat.Add(Item.Examine(item), Palette.ASH);
+        if (item != Item.NONE) chat.Add(Item.Examine(item), Palette.TEXT_DIM);
     }
 
     /**
@@ -240,7 +305,7 @@ final class Session {
         int item = inventory.Remove(slot);
         if (item == Item.NONE) return;
         chat.Add("You drop the " + Item.LowerName(item) + ".",
-                Palette.BONE);
+                Palette.TEXT);
     }
 
     /**
@@ -250,7 +315,18 @@ final class Session {
     void Travel(int mapIndex) {
         Arrive(mapIndex, worlds[mapIndex].startX, worlds[mapIndex].startY);
         Here().Tick(tick);
-        chat.Add("You arrive in the " + Here().name + ".", Palette.BONE);
+        chat.Add("You arrive in the " + Here().name + ".", Palette.TEXT);
+    }
+
+    /**
+     * Moves the player to a tile of a map at once, as Travel() does to
+     * its start. Scripts do this through their travel_to command, for
+     * arriving beside the ladder that was climbed.
+     */
+    void TravelTo(int mapIndex, int tileX, int tileY) {
+        Arrive(mapIndex, tileX, tileY);
+        Here().Tick(tick);
+        chat.Add("You arrive in the " + Here().name + ".", Palette.TEXT);
     }
 
     /**
@@ -263,7 +339,7 @@ final class Session {
         String name = Skills.Name(skill);
         chat.Add("Congratulations, you just advanced a " + name +
                 " level! Your " + name + " level is now " +
-                skills.Level(skill) + ".", Palette.AMBER);
+                skills.Level(skill) + ".", Palette.TEXT_NEWS);
     }
 
     /** Advances the whole game by one tick. */
@@ -298,6 +374,23 @@ final class Session {
 
     void ScriptOpenMake(int list) { openMake = list; }
 
+    /** @param kind TALK_NPC or TALK_PLAYER */
+    void ScriptSay(int kind, String text) {
+        talkKind = kind;
+        talkText = text;
+    }
+
+    void ScriptAsk(String[] options) {
+        talkKind = TALK_CHOICE;
+        talkOptions = options;
+    }
+
+    /** @return the last thing picked with ChooseTalk(), from 1 */
+    int TalkChosen() { return talkChosen; }
+
+    /** @return the person the script in progress is about, or null */
+    Npc UsedNpc() { return usedNpc; }
+
     /** @return the list last picked from, or Recipes.NONE */
     int MadeList() { return madeList; }
 
@@ -324,19 +417,24 @@ final class Session {
 
         int x = player.TargetX(), y = player.TargetY();
         Loc loc = Here().LocAt(x, y);
+        Npc npc = Here().NpcAt(x, y);
         String trigger = targetItem == Item.NONE ?
                 Scripts.TRIGGER_USE : Scripts.TRIGGER_USE_ITEM;
         String subject = Scripts.Subject(trigger, loc);
         boolean beside = player.BesideTarget();
         if (targetItem != Item.NONE && !inventory.Has(targetItem))
             subject = null;
+        if (npc != null && targetItem == Item.NONE) {
+            trigger = Scripts.TRIGGER_TALK;
+            subject = Scripts.TalkSubject(npc);
+        }
 
         player.FaceTarget();
         player.ClearTarget();
 
         if (subject == null) return;
         if (!beside) {
-            chat.Add(MSG_CANT_REACH, Palette.BONE);
+            chat.Add(MSG_CANT_REACH, Palette.TEXT);
             return;
         }
 
@@ -344,6 +442,7 @@ final class Session {
         scriptSubject = subject;
         usedItem = targetItem;
         usedLoc = loc;
+        usedNpc = npc;
         usedWorld = Here();
         usedX = x;
         usedY = y;
@@ -373,8 +472,15 @@ final class Session {
     private void EndScript() {
         script = null;
         openMake = Recipes.NONE;
+        talkKind = TALK_NONE;
         interruptible = againAsked = repeating = false;
         player.SetWorking(false);
+    }
+
+    /* Lets a script that was waiting on the player carry on. */
+    private void ResumeScript() {
+        script = Scripts.Resume(script);
+        if (script == null) AfterRun();
     }
 
     private void Arrive(int mapIndex, int tileX, int tileY) {

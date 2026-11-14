@@ -60,7 +60,13 @@ run on Windows of any age.
 | C27 | `data/game.json` lists every script and map file by name |
 | C28 | `Session.java` reruns a script that called the game's `again()` command |
 | C29 | `Scripts.java` registers `join` and `str` commands for building messages |
-| C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, with the pick kept in `Session` |
+| C41 | `Settings.java` keeps the settings' live values and rewrites `config.ini` itself |
+| C42 | `Assets.java` loads what every scene needs before any scene starts |
+| C43 | `Assets.DiscardTicks()` throws ticks away in scenes where the world stands still |
+| C44 | `OptionsScene.java` asks for a relaunch and calls `JOptionPane` itself |
+| C47 | `IndexedPng.java` reads indexed-color PNGs |
+| C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, and `choiceN` and `chosen`, with the pick kept in `Session` |
+| C45 | `Scripts.java` registers `choice2`, `choice3`, and `choice4` |
 | C38 | `Scripts.java` registers `inv_del_n` because a script cannot count |
 | C31, C32, C33, C34 | `DataNode.java` wraps `comp-json` with checked, typed reading; data files use lists with ids and a `note` convention |
 
@@ -525,6 +531,14 @@ but not for adding one. A classpath `List()` is hard in general; a
 manifest convention, such as `LoadScriptsListedIn("scripts", "index.txt")`,
 would be enough.
 
+The map tool met the other side of this. A development tool has to find
+every map, rewrite some, and read them back as they now stand, and the
+resolver in classpath mode can do none of the three, so `MapTool` reads
+and writes the source folder with `java.io` and hands the text to the
+same parser the game uses. That is fine for a tool, but it means the
+tool and the game do not open files the same way, and the map editor
+will be the same.
+
 **C28. With no loops, anything repeated needs the host's help.**
 *(Hit)*  
 Status: open. Partly by design.
@@ -640,9 +654,10 @@ registered key to an existing `config.ini`, it leaves a blank line before
 it, so a file that has grown over several releases ends up unevenly
 spaced.
 
-**C35. Conditions cannot be combined, and there is no `else if`.**
+**C39. Conditions cannot be combined, and there is no `else if`.**
 *(Hit)*  
-Status: open. Partly by design.
+Status: open. Partly by design. (First written down as a second "C35"
+by mistake; C35 is the `comp-math` entry.)
 A condition is one comparison. "The item is neither copper ore nor tin
 ore" is two nested `if`s, and "the player has both ores" is two blocks,
 each with its own copy of what to do otherwise; the smelting script
@@ -652,8 +667,9 @@ recipes, and without `else if` each further case nests one level deeper,
 against a nesting cap of 64. `and` and `or` in conditions, and
 `else if`, would shorten real scripts more than anything else has so far.
 
-**C36. Two trigger blocks cannot share code.** *(Hit)*  
-Status: open.
+**C40. Two trigger blocks cannot share code.** *(Hit)*  
+Status: open. (First written down as a second "C36" by mistake; C36 is
+the entry about settings with a few allowed words.)
 The furnace has two ways in: an ore used on it (`[oplocu,furnace]`) and
 a plain click (`[oploc,furnace]`). It would be natural for both to smelt.
 There are no procedures and one block cannot run another, so that would
@@ -680,6 +696,9 @@ command reads a stale answer. `Resume(state, value)`, supplying the
 suspended command's return value, would let it be one line:
 `def_string $item = make_choose($list)`.
 
+Dialogue made the same pair a second time: `choice2("Yes", "No")` and
+then `chosen()`.
+
 **C38. Scripts cannot do arithmetic.** *(Hit)*  
 Status: open. Partly by design.
 An expression is a literal, a variable, or a command call; there is no
@@ -690,6 +709,113 @@ written in a script at all without the host counting for it. The game
 could register `add(a, b)` and `sub(a, b)` commands, as it did `join`
 (C29), but a script language without sums will surprise everyone who
 writes content.
+
+**C41. The config system can read settings but not change them.**
+*(Hit)*  
+Status: open.
+`ConfigFileParser` has `Init()` and four `Get` methods, and no way to
+set a value or write the file. An options screen is the obvious second
+user of a settings file, and it could use none of the component beyond
+the first read: the game now copies every value out at startup, keeps
+them itself, and rewrites `config.ini` by hand, preserving comments and
+unknown lines (`Settings.Save()` and `Settings.Merge()`), about eighty
+lines. It also had to learn the file's name and format from the source,
+since both are private to the parser. `Set...()` for each type, checked
+against the entry's bounds like a line of the file is, and a `Save()`,
+would let the component own its file. Related: `Init()` can be called
+only once (C22), so none of this can be tested through the component.
+
+**C42. Scenes are initialized in no particular order.** *(Hit)*  
+Status: open.
+`SceneManager` keeps its scenes in a `HashMap`, and `InitScenes()` walks
+its values, so the order of `onInit()` calls is whatever the hash of the
+keys gives, not the order of `RegisterScene()`. With one scene that was
+invisible. With three, the two menu scenes need the fonts, the sprite
+renderer, and the data files that the world scene used to load in its
+own `onInit()`, and nothing guarantees that it runs first. The game
+moved all shared loading out of the scenes (`Assets.java`), which is
+probably where it belonged anyway, but registration order is what anyone
+would assume. A `LinkedHashMap` would make it true; the readme should
+say either way.
+
+**C43. `Timer` cannot be paused.** *(Hit)*  
+Status: open.
+The fixed-tick accumulator fills whenever `Update()` is called, which
+the main loop does every frame. While the main menu is up nothing wants
+those ticks, and if they are left, the world runs through minutes of
+them in one frame when the player returns. So every scene in which the
+world stands still drains and discards them each frame
+(`Assets.DiscardTicks()`), and a new such scene that forgets will show a
+confusing bug much later. `Timer.SetTicking(false)`, or a
+`DiscardTicks()`, would say what is meant. The same will be wanted for a
+pause, and after a modal dialog, which stalls the loop for as long as it
+is up.
+
+**C44. Fullscreen is decided once, and only fatal errors get a message
+box.** *(Hit)*  
+Status: open. Two small gaps met together.
+`Window` has no way to change between a window and fullscreen after
+`Init()`, and `Screen` could not simply shut the window down and make
+another without rebuilding everything that holds the picture. So a
+change to that one setting waits for a relaunch, and the game says so.
+For saying so, Travis asked for the system's message box. Whitetail
+shows one only as part of `ErrorHandler`'s fatal path, so the game
+calls `JOptionPane` directly, which is the first Swing import in the
+game. An `ErrorHandler`-style `Notify(message)` would keep that in one
+place, and matters for Windows 98, where whether Swing dialogs behave
+over an LWJGL window is one more thing to find out.
+
+**C45. A command takes a fixed number of arguments.** *(Hit)*  
+Status: open. Minor.
+Offering the player two, three, or four things to say is one idea and
+three commands, `choice2`, `choice3`, `choice4`, because a signature is
+a fixed list of types and names cannot be overloaded. (The tutorial's
+answer is one string split on `|`, which loses the compiler's check that
+each option is text and makes a `|` in an option a bug.) `join` has the
+same limit (C29). Allowing a command to be registered with a last
+parameter that repeats would cover both.
+
+**C46. A long piece of text has to be one long line.** *(Hit)*  
+Status: open.
+String literals are single-line and there is nothing to join two of
+them at compile time, so every speech in a dialogue script is one line
+of the file, commonly 150 characters. Dialogue is where most of a
+game's text will live, and those files will not fit in any editor
+window or diff. Letting adjacent literals run together, as C does
+(`"first half " "second half"`), would fix it with no run-time cost.
+
+Related, and more the game's problem than Whitetail's: the game cannot
+see a script's text until the line runs, so it cannot check at startup
+that every speech fits the talk box. A way to walk the string constants
+of a compiled script, with the command each is an argument of, would let
+a host check its content the way `mvn verify` checks the data files.
+
+**C47. `ImageBuilder.FromPNG()` does not read indexed-color PNGs.**
+*(Hit)*  
+Status: open.
+It reads color types 0, 2, and 6 (grey, RGB, RGBA) and reports type 3 as
+unsupported. Type 3, a palette in the file and one index per pixel, is
+what Aseprite and every other pixel-art program writes for a picture in
+indexed mode, which is the natural mode for art made in a fixed palette.
+The first picture Travis drew for this game was one, and the game
+stopped at startup. The purchased sheets had all happened to be RGBA.
+
+It is also the one PNG kind that suits this renderer exactly: the game
+wants indices, the file holds indices, and going through RGBA and
+matching each pixel back to a palette color is a round trip. The game
+now reads type 3 itself (`IndexedPng.java`, about 150 lines: chunks,
+`java.util.zip.Inflater`, the five row filters, 1 to 8 bits) and leaves
+the other types to Whitetail. Supporting type 3 in `comp-image`, with
+the file's palette and transparency available as well as the expanded
+pixels, would let every palette-art game drop that.
+
+The atlas tool had the same trouble a day later, with the first sprite
+sheets Travis drew: it read sheets with `FromPNG()` and would have
+refused them. It now decodes through the game's `Bitmap.Decode()`.
+
+Related: `FromPNG()` takes a stream and decides the kind inside, so a
+caller who needs to know the kind first must read the whole stream into
+memory and look at the header byte itself, as `Bitmap.Load()` does.
 
 ### D. Things that went well
 
@@ -737,6 +863,38 @@ Worth recording, so they are not "fixed" by accident.
   trigger types are just names, `HasTrigger()` answered whether a loc
   takes items, and the smelting script compiled and ran first time.
   String locals and string comparison did what the readme says.
+- `SpriteRenderer` with a one-tile dummy buffer was enough to load the
+  whole game's data outside the game, and the game's own drawing then
+  rendered full maps into a plain array for the map tool to save as
+  pictures. Software drawing into memory you own makes tools like this
+  nearly free.
+  The map editor is the same trick kept running: it redraws the whole
+  map through the game's code after every stroke, and on these maps
+  that is instant. The one awkwardness is that everything is a static
+  singleton. The game's drawing writes to one buffer set by an `Init()`,
+  so a tool must point it at each picture in turn and could never draw
+  two at once; that is the game's `Gfx` here, but `SpriteRenderer` is
+  built the same way and a tool that used it for drawing would meet the
+  same wall (C22 is the testing side of this).
+- Shrinking the picture to 384 by 216 and moving the view to a hole
+  inside it was one `FramebufferPreset` with different numbers.
+  `comp-display-layout` chose scale 4 on a 1080p desktop, mouse
+  positions kept converting correctly, and the sprite renderer clipped
+  the world to the new viewport without a change. Drawing the frame
+  over the world needed nothing from Whitetail, since the game owns the
+  index buffer and the order it writes to it.
+- Dialogue needed nothing new from the script system. `suspend()` and
+  `Resume()`, already used for the make menu, carried a whole
+  conversation: nine commands' worth of talk, a choice, and a quest, with
+  the script reading top to bottom like the conversation it is. Player
+  variables declared in the script were saved and restored by code
+  written months before quests existed. The quest's eleven tests passed
+  the first time they ran.
+- Three scenes and the transitions between them worked first time:
+  `TransitionTo()` from inside `onInput()`, `onEnter()` for resetting a
+  scene's widgets. `Window.SetVSyncEnabled()` took effect at once from
+  the options screen. `InputSys.IsDown()`, `WasPressed()`, and
+  `WasReleased()` were all a slider and a push button needed.
 - `suspend()` and `Resume()` worked first time and exactly as the
   tutorial describes. A script that stops at a menu for as long as the
   player likes needed no change to how the game ticks scripts, because

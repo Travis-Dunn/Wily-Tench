@@ -1,9 +1,10 @@
 {
   "note": "Written by AtlasTool. Do not edit; change data/sprites.json and rebuild the atlases.",
-  "palette": "160d13 31293e 432142 56212a 2f3d3a 5f575e 4d6660 904b41 ad4030 9b4c63 a69998 d1935f 95b666 8eb89e ef9e4e e79b7c f6f2c3 271528 657d43 b7abaa aa8c94 6e516a ae7032 17111a>1 7a716e>6",
+  "palette": "160d13 31293e 432142 56212a 2f3d3a 5f575e 4d6660 904b41 ad4030 9b4c63 a69998 d1935f 95b666 8eb89e ef9e4e e79b7c f6f2c3 271528 657d43 b7abaa aa8c94 6e516a ae7032 0 4e4e4e a2a2a2 ffffff 35075a 9d854b 5c613d f3edaa 21269a 454101 ecb186 facab1 2d5ee3 6d6c00 e27654 f7a2b3 6b8ffb a2a602 b82525 e271ad 94b7fd d2e16a 852b2d 9c4f8a b4dbf6 d9f5b1 644245 69526f cdfcea 7dc090 37846f 385658 17111a>1 7a716e>6",
   "atlases": ["atlas0.wsa", "atlas1.wsa"],
   "sheets": [
-    { "id": "cave", "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Cave.png", "region": [0, 0, 160, 304], "atlas": 1, "at": [60, 43] },
+    { "id": "cave", "source": "art/cave.png", "region": [0, 0, 160, 304], "atlas": 1, "at": [60, 43] },
+    { "id": "wizard", "source": "art/wizard.png", "region": [0, 0, 96, 16], "atlas": 0, "at": [107, 119] },
     { "id": "dungeon", "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Dungeon.png", "region": [0, 0, 192, 400], "atlas": 0, "at": [65, 88] },
     { "id": "heroes", "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Heroes.png", "region": [0, 0, 368, 1408], "atlas": 0, "at": [0, 0] },
     { "id": "items", "source": "DD-core/Demonic-Dungeon-16x16/No-Background/Items.png", "region": [0, 0, 368, 608], "atlas": 1, "at": [59, 0] },

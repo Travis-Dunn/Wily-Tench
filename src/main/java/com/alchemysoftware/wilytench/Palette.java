@@ -24,6 +24,33 @@ final class Palette {
     static final int BACKGROUND = 0;
 
     static int INK, NIGHT, SLATE, RUST, ASH, LEAF, MINT, AMBER, PEACH, BONE;
+    static int MAROON, TAN;
+
+    /*
+     * Colors of carp32, the palette the game frame is drawn in, by
+     * what the interface uses them for. Writing on the frame's
+     * parchment is dark; writing on its dark squares is light.
+     */
+    /** Ordinary writing on parchment. */
+    static int TEXT;
+    /** Writing on parchment that matters less. */
+    static int TEXT_DIM;
+    /** Good news: a level gained, a quest done. Also names in talk. */
+    static int TEXT_NEWS;
+    /** Something gone wrong. */
+    static int TEXT_WARN;
+    /** What the player has said. */
+    static int TEXT_SAID;
+    /** Writing on the frame's dark squares. */
+    static int TEXT_LIGHT;
+    /** An outline that marks the square the pointer is on. */
+    static int MARK;
+    /** An outline that marks a square as chosen. */
+    static int CHOSEN;
+    /** The frame's dark squares, and the dark of its empty spaces. */
+    static int SQUARE, VOID;
+    /** A stand-in portrait's face and edge. */
+    static int PORTRAIT, PORTRAIT_EDGE;
 
     private static final int FIRST = 1;
     private static final int RGB_DIGITS = 6;
@@ -110,6 +137,21 @@ final class Palette {
         AMBER = Need(root, "amber");
         PEACH = Need(root, "peach");
         BONE = Need(root, "bone");
+        MAROON = Need(root, "maroon");
+        TAN = Need(root, "tan");
+
+        TEXT = Need(root, "carp_black");
+        TEXT_DIM = Need(root, "carp_grey");
+        TEXT_NEWS = Need(root, "carp_wine");
+        TEXT_WARN = Need(root, "carp_red");
+        TEXT_SAID = Need(root, "carp_navy");
+        TEXT_LIGHT = Need(root, "carp_cream");
+        MARK = Need(root, "carp_parchment");
+        CHOSEN = Need(root, "carp_white");
+        SQUARE = Need(root, "carp_umber");
+        VOID = Need(root, "carp_black");
+        PORTRAIT = Need(root, "carp_blush");
+        PORTRAIT_EDGE = Need(root, "carp_umber");
     }
 
     static void Shutdown() {

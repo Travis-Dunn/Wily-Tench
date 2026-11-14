@@ -4,7 +4,6 @@ import java.util.Random;
 
 import com.alchemysoftware.whitetail.display.DisplayLayout;
 import com.alchemysoftware.whitetail.error.ErrorHandler;
-import com.alchemysoftware.whitetail.error.RunFlag;
 import com.alchemysoftware.whitetail.event.Event;
 import com.alchemysoftware.whitetail.input.Button;
 import com.alchemysoftware.whitetail.input.InputSys;
@@ -17,6 +16,13 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * character, and the interface around them, and passes on what the
  * player asks for.
  *
+ * A frame is drawn in this order. The world, into the view. The marks
+ * on the world: the walk marker, the outline and label of what the
+ * pointer is over. Then the game frame, one picture the size of the
+ * whole screen with a hole where the view is. Then the interface, on
+ * the frame: the chat box or talk, and the side panel. Last, whatever
+ * floats over everything: menus and tooltips.
+ *
  * Whatever the mouse is over, in the view of the world or in the
  * inventory, has a list of things that can be done to it. A left click
  * does the first; a right click opens the list as a menu. The label at
@@ -27,13 +33,17 @@ import com.alchemysoftware.whitetail.timer.Timer;
  * choices in the middle of the view and has the mouse to itself until
  * one is picked or it is dismissed.
  *
+ * Talk with someone is shown by DialogueBox in place of the chat box,
+ * and nothing can be typed while it is up.
+ *
  * The buttons above the inventory switch the side panel between the
  * inventory and the skills; a click on one goes no further.
  *
  * The view follows the character, trailing a little behind. Typing
  * goes to the chat box. Escape closes the menu if one is open, lets
- * go of the selected item if there is one, and otherwise closes the
- * game.
+ * go of the selected item if there is one, and otherwise goes back to
+ * the main menu, where the world stands still until Play is chosen
+ * again.
  *
  * After every game tick the game is saved, if the tick changed
  * anything worth saving.
@@ -41,15 +51,18 @@ import com.alchemysoftware.whitetail.timer.Timer;
 final class WorldScene extends Scene {
     private static final int TILE = Sprites.TILE;
 
-    /* Sprites beyond the map view: the player, with room to spare for
-       the creatures and effects to come. */
-    private static final int SPARE_SPRITES = 256;
-
     private static final int ANIM_STEP_MS = 150;
     private static final int MARKER_ARM = 4;
     private static final int NOWHERE = -1;
 
-    private static final int HOVER_TEXT_X = 4, HOVER_TEXT_Y = 3;
+    /* Clear of the frame's rounded corner. */
+    private static final int HOVER_TEXT_X = 6, HOVER_TEXT_Y = 4;
+
+    /* The keys that pick the first, second, third, and fourth thing
+       offered to say. */
+    private static final int[] CHOICE_KEYS = {
+        Button.KEY_1, Button.KEY_2, Button.KEY_3, Button.KEY_4
+    };
 
     private static final String MSG_WELCOME =
             "Welcome to " + Screen.TITLE + ".";
@@ -70,7 +83,6 @@ final class WorldScene extends Scene {
     private int w, h;
     private int viewPortX, viewPortY, viewW, viewH;
 
-    private boolean spritesInit;
     private Session session;
     private SaveState save;
     private TileView tiles;
@@ -80,6 +92,7 @@ final class WorldScene extends Scene {
     private SidePanel panel;
     private ContextMenu menu;
     private MakeMenu makeMenu;
+    private DialogueBox dialogue;
     private Actions actions;
 
     /* The pointer in picture pixels, negative when outside it. */
@@ -106,7 +119,6 @@ final class WorldScene extends Scene {
     @Override
     public void onInit() {
         DisplayLayout layout = Screen.GetLayout();
-        byte[] buf = Screen.GetIndexBuf();
 
         w = Screen.GetW();
         h = Screen.GetH();
@@ -115,24 +127,12 @@ final class WorldScene extends Scene {
         viewW = layout.viewportWidth;
         viewH = layout.viewportHeight;
 
-        Gfx.Init(buf, w, h);
+        smallFont = Assets.small;
+        boldFont = Assets.bold;
+        titleFont = Assets.title;
 
-        if ((smallFont = Font.Load("small.fnt")) == null) return;
-        if ((boldFont = Font.Load("bold.fnt")) == null) return;
-        if ((titleFont = Font.Load("title.fnt")) == null) return;
-
-        if (!SpriteRenderer.Init(buf, w, h, viewPortX, viewPortY, viewW,
-                viewH, TileView.SpritesNeeded(viewW, viewH) +
-                SPARE_SPRITES)) return;
-        spritesInit = true;
-
-        /* Maps are made of what the data files define, so those
-           come first. */
-        if (!Content.Load()) return;
-
-        int panelX = viewPortX + viewW;
-        chat = new ChatBox(smallFont, viewPortX, viewPortY + viewH, viewW,
-                h - viewPortY - viewH);
+        chat = new ChatBox(smallFont, Layout.chatX, Layout.chatY,
+                Layout.chatW, Layout.chatH);
 
         session = Session.Create(Content.Maps(), Content.ScriptFiles(),
                 chat, new Random());
@@ -142,11 +142,13 @@ final class WorldScene extends Scene {
             ErrorHandler.LogFatalAndStop(ERR_STR_SPRITES);
             return;
         }
-        panel = new SidePanel(smallFont, boldFont, titleFont, panelX, 0,
-                w - panelX, h, w, h, session.inventory, session.skills);
+        panel = new SidePanel(smallFont, boldFont, w, h, session.inventory,
+                session.skills);
         menu = new ContextMenu(smallFont, w, h);
         makeMenu = new MakeMenu(smallFont, session, viewPortX, viewPortY,
                 viewW, viewH);
+        dialogue = new DialogueBox(smallFont, boldFont, session,
+                Layout.chatX, Layout.chatY, Layout.chatW, Layout.chatH);
         actions = new Actions(session);
 
         save = new SaveState(session);
@@ -161,12 +163,12 @@ final class WorldScene extends Scene {
         }
 
         chat.Add(SaveGame.Loaded() != null ? MSG_WELCOME_BACK : MSG_WELCOME,
-                Palette.BONE);
-        chat.Add(MSG_HOW_TO, Palette.ASH);
+                Palette.TEXT);
+        chat.Add(MSG_HOW_TO, Palette.TEXT_DIM);
         if (loadOutcome == SaveGame.LOAD_OLDER)
-            chat.Add(MSG_LOADED_OLDER, Palette.PEACH);
+            chat.Add(MSG_LOADED_OLDER, Palette.TEXT_WARN);
         else if (loadOutcome == SaveGame.LOAD_UNREADABLE)
-            chat.Add(MSG_UNREADABLE, Palette.PEACH);
+            chat.Add(MSG_UNREADABLE, Palette.TEXT_WARN);
     }
 
     @Override
@@ -185,7 +187,7 @@ final class WorldScene extends Scene {
             else if (menu.IsOpen()) menu.Close();
             else if (actions.SelectedSlot() != Actions.NO_SLOT)
                 actions.Deselect();
-            else RunFlag.Stop();
+            else Game.GoTo(Game.SCENE_MENU);
         }
 
         DisplayLayout layout = Screen.GetLayout();
@@ -200,7 +202,14 @@ final class WorldScene extends Scene {
             mouseX = mouseY = NOWHERE;
         }
 
-        chat.Input(pointerX, pointerY);
+        if (session.TalkKind() != Session.TALK_NONE) {
+            /* Talk stands where the chat box does and takes its
+               clicks and keys. A click anywhere else is an order like
+               any other, and ends the talk if it cancels the script. */
+            if (TalkInput(left)) return;
+        } else {
+            chat.Input(pointerX, pointerY);
+        }
 
         if (session.OpenMake() != Recipes.NONE) {
             /* The window asking what to make has the mouse to itself.
@@ -255,7 +264,8 @@ final class WorldScene extends Scene {
             session.Advance();
             if (save.Changed()) SaveGame.Queue(save.Capture());
         }
-        if (SaveGame.TakeFailure()) chat.Add(MSG_SAVE_FAILED, Palette.PEACH);
+        if (SaveGame.TakeFailure())
+            chat.Add(MSG_SAVE_FAILED, Palette.TEXT_WARN);
 
         boolean arrived = shown != session.Here();
         if (arrived) {
@@ -310,7 +320,13 @@ final class WorldScene extends Scene {
         if (session.OpenMake() == Recipes.NONE) DrawHover();
         Gfx.ClearClip();
 
-        chat.Draw();
+        /* The frame goes over the world, its rounded corners covering
+           the view's square ones, and the interface is drawn on it. */
+        Gfx.DrawBitmap(Assets.frame, 0, 0);
+
+        if (session.TalkKind() != Session.TALK_NONE)
+            dialogue.Draw(pointerX, pointerY);
+        else chat.Draw();
         panel.Select(actions.SelectedSlot());
         panel.Draw();
         if (session.OpenMake() != Recipes.NONE) {
@@ -325,11 +341,7 @@ final class WorldScene extends Scene {
 
     @Override
     public void onDestroy() {
-        if (spritesInit) SpriteRenderer.Shutdown();
-        spritesInit = false;
         Session.Close();
-        Content.Shutdown();
-        Gfx.Shutdown();
         session = null;
         save = null;
         tiles = null;
@@ -338,12 +350,36 @@ final class WorldScene extends Scene {
         panel = null;
         menu = null;
         makeMenu = null;
+        dialogue = null;
         actions = null;
         smallFont = boldFont = titleFont = null;
     }
 
     @Override
     public boolean handleEvent(Event e) { return false; }
+
+    /*
+     * Passes on the player's answer to the talk on show: Space, or a
+     * click on the box, reads on; a number key, or a click on one of
+     * the things offered to say, picks it.
+     *
+     * Returns whether a click was on the box, and so is used up.
+     */
+    private boolean TalkInput(boolean left) {
+        boolean onBox = dialogue.Contains(pointerX, pointerY);
+
+        if (session.TalkKind() == Session.TALK_CHOICE) {
+            int option = left ? dialogue.OptionAt(pointerX, pointerY) :
+                    DialogueBox.NO_OPTION;
+            for (int i = 0; i < CHOICE_KEYS.length; i++)
+                if (InputSys.WasPressed(CHOICE_KEYS[i])) option = i;
+            if (option != DialogueBox.NO_OPTION) session.ChooseTalk(option);
+        } else if ((left && onBox) ||
+                InputSys.WasPressed(Button.KEY_SPACE)) {
+            session.ContinueTalk();
+        }
+        return onBox;
+    }
 
     /*
      * Fills the option list for whatever the pointer is over: an item

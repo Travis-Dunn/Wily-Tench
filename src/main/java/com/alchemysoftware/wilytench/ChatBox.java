@@ -20,9 +20,11 @@ final class ChatBox {
     private static final int INPUT_MAX = 80;
 
     private static final int PAD = 4;
-    /* Space left above the top row and below the bottom one. */
-    private static final int HISTORY_MARGIN = 2;
-    private static final int LINE_GAP = 1;
+    /* Space left above the top row and under the typing row. */
+    private static final int EDGE = 1;
+    /* Rows are packed a pixel closer than the font's own line height,
+       which is what lets five and a typing row onto the parchment. */
+    private static final int LINE_GAP = -1;
     private static final int SCROLLBAR_W = 2;
 
     private static final String PROMPT = "You: ";
@@ -60,9 +62,9 @@ final class ChatBox {
         this.h = h;
 
         rowH = font.lineH + LINE_GAP;
-        inputY = y + h - PAD - font.lineH;
-        ruleY = inputY - PAD;
-        rows = (ruleY - y - 2 * HISTORY_MARGIN) / rowH;
+        inputY = y + h - EDGE - font.lineH;
+        ruleY = inputY - 1;
+        rows = (ruleY - y - EDGE) / rowH;
         textW = w - 2 * PAD - SCROLLBAR_W - PAD;
     }
 
@@ -115,7 +117,7 @@ final class ChatBox {
             if (button == Button.KEY_ENTER ||
                     button == Button.KEY_NUMPAD_ENTER) {
                 if (input.length() > 0) {
-                    Add(PROMPT + input, Palette.MINT);
+                    Add(PROMPT + input, Palette.TEXT_SAID);
                     input.setLength(0);
                 }
             } else if (button == Button.KEY_BACKSPACE) {
@@ -138,12 +140,11 @@ final class ChatBox {
 
     void Draw() {
         int stored = Math.min(added, HISTORY);
-        int textX = x + PAD, bottomRowY = ruleY - HISTORY_MARGIN - rowH;
+        int textX = x + PAD, bottomRowY = ruleY - rowH;
 
+        /* The background is the frame's parchment, already drawn. */
         Gfx.SetClip(x, y, w, h);
-        Gfx.FillRect(x, y, w, h, Palette.NIGHT);
-        Gfx.FillRect(x, y, w, 1, Palette.SLATE);
-        Gfx.FillRect(x + PAD, ruleY, w - 2 * PAD, 1, Palette.SLATE);
+        Gfx.FillRect(x + PAD, ruleY, w - 2 * PAD, 1, Palette.SQUARE);
 
         for (int row = 0; row < rows; row++) {
             int back = scroll + row;
@@ -152,7 +153,7 @@ final class ChatBox {
             int slot = (added - 1 - back) % HISTORY;
             String line = lines[slot];
             Text.Draw(font, line, 0, line.length(), textX,
-                    bottomRowY - row * rowH + LINE_GAP, colors[slot]);
+                    bottomRowY - row * rowH, colors[slot]);
         }
 
         if (stored > rows) {
@@ -161,20 +162,20 @@ final class ChatBox {
             int barY = trackY + (trackH - barH) *
                     (stored - rows - scroll) / (stored - rows);
             Gfx.FillRect(x + w - PAD - SCROLLBAR_W, barY, SCROLLBAR_W, barH,
-                    Palette.SLATE);
+                    Palette.SQUARE);
         }
 
         /* When the typed text outgrows the row, show its tail. */
         int promptEnd = Text.Draw(font, PROMPT, 0, PROMPT.length(), textX,
-                inputY, Palette.ASH);
+                inputY, Palette.TEXT_DIM);
         int room = x + w - PAD - promptEnd -
                 font.Width(CARET, 0, CARET.length());
         int from = 0, len = input.length();
         while (font.Width(input, from, len) > room) from++;
         int caretX = Text.Draw(font, input, from, len, promptEnd, inputY,
-                Palette.BONE);
+                Palette.TEXT);
         Text.Draw(font, CARET, 0, CARET.length(), caretX, inputY,
-                Palette.AMBER);
+                Palette.TEXT_NEWS);
 
         Gfx.ClearClip();
     }
