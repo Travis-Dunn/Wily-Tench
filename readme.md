@@ -257,7 +257,9 @@ script that was paused when the game closed is not saved.
 ## How the game is put together
 
 The game draws everything itself as 8-bit palette indices and hands
-OpenGL one finished picture per frame. The art has only seventeen colors,
+OpenGL two pictures per frame, the world and the interface that goes
+over it, which are put together on the screen. That is so the view can
+glide by single screen pixels while every game pixel stays whole. The art has only seventeen colors,
 which is what makes that practical.
 
 | File | What it does |
@@ -268,7 +270,7 @@ which is what makes that practical.
 | `Skin` | The widgets' pictures, assembled from cells of the interface art named in `interface.json` |
 | `PushButton`, `Buttons`, `Toggle`, `Slider` | The widgets: push buttons and the clicking of them, checkboxes and option buttons, sliders |
 | `DataDir`, `Settings`, `Natives` | The per-user folder, the settings and the writing of `config.ini`, LWJGL's native libraries |
-| `Screen`, `Palette` | The window, the picture's size, and its colors, from `palette.json` |
+| `Screen`, `Palette` | The window, the picture's size, and its colors, from `palette.json`. `Screen` shows two layers, the world and the interface over it, and can slide the world by less than a game pixel |
 | `Layout` | Where things are on the game frame, from `layout.json` |
 | `Bitmap`, `IndexedPng` | Whole pictures of any size, such as the game frame, read from PNG files |
 | `Content`, `DataNode`, `DataError` | Loading the data files, strictly, with explanations of mistakes |
@@ -280,7 +282,7 @@ which is what makes that practical.
 | `TileView` | Draws the visible part of the map |
 | `Pathfinder`, `Mover` | Finding a four-way route and walking it, one tile per tick, eased according to the `walkStyle` setting. Anything that walks has a `Mover` |
 | `Player` | The player's character: a `Mover`, its sprite, and what it is heading for |
-| `Camera` | Which part of the map is in view; trails the player by a steady whole number of pixels |
+| `Camera` | Which part of the map is in view; trails the player by a steady amount, counted in screen pixels |
 | `Scripts` | The bridge to the script system: the commands scripts can call and the triggers the game fires |
 | `WorldScene` | The window onto a `Session`: input, drawing, and saving after each tick |
 | `Gfx` | Rectangles and outlines drawn straight into the picture |

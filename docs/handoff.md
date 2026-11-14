@@ -1,7 +1,7 @@
 # Handoff
 
 Written for whoever picks the project up next, and last brought up to
-date at the end of the second long working session. It holds what the other documents do not: where
+date during the third working session. It holds what the other documents do not: where
 things stand, what was decided and why, how Travis works, and what comes
 next. Keep it current, or delete what has gone stale; a wrong handoff is
 worse than none.
@@ -37,7 +37,7 @@ before starting. Travis opens and merges the pull requests himself; once
 one is merged, restart the working branch from `master` rather than
 stacking on it.
 
-**Tests.** `mvn verify` runs 142 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 145 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -166,6 +166,36 @@ drawing by Travis, `images/frame.png`, laid over the view of the world.
   read; `art/carp32.png` is the palette as a picture. What the game
   reads is under `src/main/resources`.
 
+**Two layers.** Since the third session the picture is no longer
+finished by the game. `Screen` keeps two index buffers and puts them
+together on the screen with OpenGL 1.1:
+
+- **The world layer**, the view and one pixel more to the right and
+  below. The sprite renderer draws into it, and `WorldScene` points
+  `Gfx` at it for the marks that belong to tiles (the destination
+  corners, the hover outline).
+- **The picture**, 384 by 216 as before: the frame, the interface,
+  menus, the hover label. Wherever it is left at `Palette.BACKGROUND`
+  (index 0) the world shows through, in a frame where the scene called
+  `Screen.ShowWorld()`; in the menu scenes, which do not, index 0 is
+  the background color as it always was. So nothing drawn over the
+  world may use index 0 to mean black.
+- **The slide.** `ShowWorld(fineX, fineY)` says how many screen pixels
+  up and left to shift the world layer, less than one game pixel.
+  `Camera` is made with a grain, the screen pixels to a game pixel,
+  and gives `X()`, `Y()` in game pixels and `FineX()`, `FineY()` in
+  screen pixels. At a grain of one, which is what a small screen
+  gives, everything is as it was before.
+- This was agreed with Travis as the seam for what comes later: the
+  game hands over two layers and an offset, and what shows them can
+  differ by machine. Today there is one presenter, fixed-function
+  OpenGL 1.1, which is meant to suit the ThinkPad too. The CRT filter
+  would be a second, a shader sampling both layers. If LWJGL cannot
+  open a window on Windows 98 (feedback A2), a third would put the
+  layers together in memory and ignore the slide. The mouse still
+  reads the world in whole game pixels, so a click can be off by less
+  than one.
+
 **Travis's own sprites have begun to arrive**, in `art/`, in carp32:
 
 - `art/cave.png` is the purchased cave sheet redrawn, cell for cell, and
@@ -285,13 +315,28 @@ Known limits of step 1:
 
 ## Known rough edges
 
-- **Movement still looks slightly "gritty"** to Travis, after one round
-  of fixing. The camera no longer makes the character shiver; what
-  remains is most likely whole-pixel stepping at low speed, possibly
-  frame pacing if vsync is not taking effect on his machine (`maxFps` in
-  `config.ini` set to the refresh rate would test that). He expects the
-  planned CRT filter to soften it. Motion cannot be judged from still
-  frames; say so rather than claim it is fixed.
+- **Movement.** Two things were done in the third session, and
+  Travis confirmed the first by eye.
+  *A judder on starting, turning, and stopping* in steady mode: the
+  camera trails the character by a whole amount, and whenever that
+  grew on a frame in which the character's picture had not itself
+  moved, the whole world scrolled backwards for that frame. `Camera`
+  now holds a change to what leaves the view still or moving the way
+  the camera is travelling; its opening comment has the reasoning.
+  *The chunkiness that was left*, the view and the character shifting
+  against each other a whole game pixel at a time while the trail
+  changes: the trail is now counted in screen pixels, and the world is
+  slid by the part of a game pixel left over when it is put on screen
+  (see "Two layers" below). Checked by arithmetic and by looking at
+  still frames, in which the world sits at offsets that are not whole
+  game pixels; **whether it looks smooth in motion is for Travis to
+  say.** What it does not do: the character still steps a whole game
+  pixel at a time, and in a steady walk the world steps with it. A
+  growing trail grows only on the frames where the character's picture
+  steps, so setting off is less smooth than stopping. An about-face at
+  full speed can still pull the view back a little. Making walking
+  itself smooth would mean drawing each moving thing at a part of a
+  pixel, on its own quad; not built, and Travis has not asked for it.
 - The apostrophe in the small font sits wide: "can't" has a gap.
 - Dropped items vanish; there are no items on the ground.
 - Using one item on another does nothing yet; only item on loc has a
@@ -417,7 +462,13 @@ chosen something not on the list, so treat this as a menu.
 These applied to the session that wrote this; check they still hold.
 
 - Each repository is cloned under `/home/user`. Whitetail is read-only in
-  practice: nothing has ever been committed to it from here.
+  practice: nothing has ever been committed to it from here. A session
+  may start without it; Travis can ask for it to be cloned, to
+  `/home/user/whitetail`.
+- Maven's downloads fail here when made several at once ("Could not
+  find artifact" for things that plainly exist). Add `-U
+  -Daether.connector.basic.threads=1` the first time; after that `-o`
+  works.
 - The game needs Whitetail installed in the local Maven repository:
   `mvn -q install` in the Whitetail checkout. That needs a JDK 8
   (`apt-get install openjdk-8-jdk`) and a `~/.m2/toolchains.xml` naming
@@ -437,7 +488,7 @@ These applied to the session that wrote this; check they still hold.
   There is no window manager, so it cannot be seen maximized.
 - A system message box (the options screen's, or a fatal error's) blocks
   the game until it is clicked.
-- The next free feedback ID is C48.
+- The next free feedback ID is C49.
 - A fatal error opens a modal dialog and the run hangs. Read
   `fatal.log` and `session.log` in the data directory.
 - Clicking by screen coordinates is error-prone because the view moves.
