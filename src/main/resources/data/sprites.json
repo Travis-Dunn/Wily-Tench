@@ -7,7 +7,7 @@
     },
     {
       "id": "wizard",
-      "note": "The player's character. Six cells: walking sideways (facing left), toward the player, and away, two of each.",
+      "note": "The player's character. Six cells: walking sideways (facing left), away from the player, and toward the player, two of each.",
       "source": "art/wizard.png"
     },
     {

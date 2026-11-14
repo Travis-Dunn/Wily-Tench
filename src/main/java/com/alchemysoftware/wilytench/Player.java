@@ -16,8 +16,8 @@ import com.alchemysoftware.whitetail.sprite.SpriteRenderer;
  * stops beside a target rather than on it.
  *
  * A character's pictures are six cells in a row on a sprite sheet:
- * two of it walking sideways, facing left; two of it walking toward
- * the player; two of it walking away. Facing right is the sideways
+ * two of it walking sideways, facing left; two of it walking away
+ * from the player; two of it walking toward the player. Facing right is the sideways
  * pair turned over. Standing still is the first of the pair for the
  * way it faces. data/game.json says where the player's six are.
  *
@@ -34,7 +34,7 @@ final class Player {
     private static final int WORK_FRAME_MS = 150;
 
     /* Where in a character's six pictures each pair begins. */
-    private static final int SIDE = 0, FRONT = 2, BACK = 4;
+    private static final int SIDE = 0, BACK = 2, FRONT = 4;
 
     private static final int STAND = 0, WALK = 1, WORK = 2;
     private static final int UNSET = -1;

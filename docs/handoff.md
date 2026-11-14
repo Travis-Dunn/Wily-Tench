@@ -1,7 +1,7 @@
 # Handoff
 
-Written at the end of the first long working session, for whoever picks
-the project up next. It holds what the other documents do not: where
+Written for whoever picks the project up next, and last brought up to
+date at the end of the second long working session. It holds what the other documents do not: where
 things stand, what was decided and why, how Travis works, and what comes
 next. Keep it current, or delete what has gone stale; a wrong handoff is
 worse than none.
@@ -28,15 +28,14 @@ Harl, and he gives one small quest.
 `readme.md` "Current state" has the full list.
 
 **Unmerged work.** At the time of writing, the branch
-`claude/gallant-brown-i8k7px` is six commits ahead of `master`, none yet
-merged: all the art and atlas packing, the palette file, movement easing
-and the camera, four-way pathfinding, and the right-click menu. The
-branch `claude/relaxed-ride-n5sh5i` was started from its tip, not from
-`master`, and adds the tabbed side panel, the skill list in data, using
-an item on a loc, tin, smelting, and the anvil with its menu. Check
-`git log origin/master..HEAD` before starting. Travis opens and merges
-the pull requests himself; once one is merged, restart the branch from
-`master` rather than stacking on it.
+`claude/relaxed-ride-n5sh5i` is eleven commits ahead of `master` and
+waiting for Travis to merge it: the main menu and options, dialogue and
+the first quest, the map file format, the map tools and editor, the 384
+by 216 picture and game frame, and Travis's first sprites. Everything in
+this file describes that branch. Check `git log origin/master..HEAD`
+before starting. Travis opens and merges the pull requests himself; once
+one is merged, restart the working branch from `master` rather than
+stacking on it.
 
 **Tests.** `mvn verify` runs 142 tests of the rules, with no window. All
 pass.
@@ -85,16 +84,17 @@ been run on Windows of any age.
   `[oploc,_ore_rock]` and differs only in data. The script language has
   no loops, so a repeated action reruns its script with `again()`.
 - **Art is addressed by its own sheet and cell everywhere.** The atlas
-  tool packs 36 sheets into 2 atlases and the game reads an index; no
+  tool packs 37 sheets into 2 atlases and the game reads an index; no
   content knows about atlases. After changing `sprites.json`,
   `palette.json`, or a source image, the atlases must be rebuilt, and the
   game says so if they are stale.
 - **Item ids are in saved games.** Rename an item by giving it a new id
   and listing the old under `"was"`.
 - **Anything that walks owns a `Mover`**, so that every character moves
-  alike. The sprite and animation half of a character is still inside
-  `Player`; it should be pulled out the same way when the first NPC
-  arrives.
+  alike, and a `Mover` knows which of four ways it faces. The sprite and
+  animation half of a character is still inside `Player`; it should be
+  pulled out the same way when the first NPC walks. The six-picture
+  layout of a character is already general.
 
 - **A menu is three parts: data, Java, script.** Travis asked whether
   the smithing menu should "just be Java". The answer built: what can be
@@ -124,9 +124,8 @@ been run on Windows of any age.
   with the game like any other. There is no notion of a quest in Java.
   A journal will want a list of quests in data, each naming its
   variable.
-- **Menus are laid out for 384 by 216** and centered on whatever the
-  picture is, so they will not need redoing when the picture shrinks.
-  The world scene's interface is still laid out for the larger picture.
+- **The main menu and options screen are laid out inside 384 by 216**,
+  which is now the whole picture.
 - **Widgets are whole cells of the purchased interface art**, assembled
   by `Skin.java` from cells named in `interface.json`: buttons, a frame,
   checkboxes, a slider. Anything new on a menu should be built from
@@ -176,8 +175,9 @@ drawing by Travis, `images/frame.png`, laid over the view of the world.
   is in `docs/content.md`: see-through for anything that stands on the
   floor. Nothing in the tools works around it.
 - `art/wizard.png` is the player's character, in the six-picture layout
-  `Player.java` describes: sideways (facing left), toward, away, two
-  walking pictures each. Travis wants characters at about the level of
+  `Player.java` describes: sideways (facing left), away, toward, two
+  walking pictures each. (The last two pairs were first wired the wrong
+  way round; Travis caught it.) Travis wants characters at about the level of
   Final Fantasy III or IV, and never liked the purchased heroes, which
   can serve as monsters. There are no pictures of working with a tool,
   so mining and smithing show the walk pictures, fast. NPCs will use
@@ -310,8 +310,9 @@ Known limits of step 1:
   proper mined-out pictures in copper, grey, and gold; the others could
   move to those.
 - A script paused in a `delay` is not saved.
-- Player animations and the menu's option lists are still in Java, not
-  data. The skill list moved to `data/skills.json`.
+- The menu's option lists are still in Java, not data. Where the
+  player's pictures are is in `game.json`; how fast they change is in
+  `Player.java`.
 - **Skill and tab icons are stand-ins.** Mining shows a pickaxe and
   Smithing a hammer from the item art; the tabs show coins and a star.
   Travis will draw real ones; they are not in the asset pack. A skill
@@ -370,21 +371,46 @@ Known limits of step 1:
 - Music from OpenGameArt, with permissive licenses. Whitetail's audio
   loads WAV only, and its OpenAL library needs Windows XP or later.
 
+## What Travis has asked for and is not built
+
+Gathered from the second session, roughly in the order he raised them:
+
+- **Above the tabs:** a map button that brings up a static "paper" map
+  in place of the view; hitpoint and prayer gauges; perhaps a tick
+  indicator that turns once a game tick. There will be no minimap.
+- **Up to eight tabs**, four above the inventory and four below. Two
+  exist. A quest journal or quest tab is wanted, explicitly not yet.
+- **Real dialogue portraits**, and real skill and tab icons, which he
+  will draw.
+- **Several characters to play**, how not yet decided.
+- **See-through backgrounds on the cave sheet's things**, which is his
+  to draw, and every remaining sprite redrawn in carp32.
+- **Working pictures for characters**, at about the level of Final
+  Fantasy III or IV.
+- **A steady stream of map editor changes**, and step 3 of the map
+  plan, "play from here".
+- He has doubts about the map format's limits (about ninety symbols a
+  map; no home for areas) and said to cross that bridge when it comes.
+
 ## Candidate next steps
 
-None is agreed; they are in rough order of how well they fit what
-exists.
+None is agreed. Travis has more than once asked what to do next and then
+chosen something not on the list, so treat this as a menu.
 
-1. (Done: the 384 by 216 picture and the game frame.)
-2. Items on the ground: drop, pick up, despawn, saved per map. It fits
-   the tick-stamped map state already there.
-3. Option lists from data, with "Use item on thing".
-4. More Smithing: iron smelting, which means making the furnace's
-   script as data-driven as the anvil's; more metals and items. The
-   Magma Maze item art has a grey and a gold bar besides the one used
-   for bronze.
-5. The first NPC or monster, which forces the character sprite out of
-   `Player`.
+1. NPCs that walk: pull the sprite out of `Player`, give Harl the
+   six-picture layout when Travis draws him, then monsters, spawns as
+   map defines, and combat. This is what gives mining and smithing a
+   purpose.
+2. Wearing and wielding the smithed items.
+3. Items on the ground: drop, pick up, despawn, saved per map. It fits
+   the tick-stamped map state already there, and monster drops need it.
+4. "Play from here" in the map editor, and the editor features listed
+   above.
+5. The widgets above the tabs, once there is something for them to
+   show.
+6. Option lists from data. More Smithing: iron, which means making the
+   furnace's script as data-driven as the anvil's.
+7. A quest journal, with quests listed in data.
 
 ## Working in the cloud environment
 
@@ -402,7 +428,16 @@ These applied to the session that wrote this; check they still hold.
   run `java -ea -jar target/wily-tench.jar` with `DISPLAY=:77`, drive it
   with `xdotool`, and capture with ImageMagick's `import -window root`.
   Set `XDG_DATA_HOME` to a scratch directory so the save and logs go
-  there. The window is 1280 by 720 at the screen's center, at scale 2.
+  there. The window is 1536 by 864 at the screen's center, at scale 4,
+  so game pixel (x, y) is screen pixel (192 + 4x, 108 + 4y). The game
+  opens on the main menu; Play is at about game pixel (192, 88).
+- To see the map editor: the same display, and `java -cp
+  "target/classes:target/test-classes:target/lib/*"
+  com.alchemysoftware.wilytench.MapEditor cave.txt` after `mvn verify`.
+  There is no window manager, so it cannot be seen maximized.
+- A system message box (the options screen's, or a fatal error's) blocks
+  the game until it is clicked.
+- The next free feedback ID is C48.
 - A fatal error opens a modal dialog and the run hangs. Read
   `fatal.log` and `session.log` in the data directory.
 - Clicking by screen coordinates is error-prone because the view moves.

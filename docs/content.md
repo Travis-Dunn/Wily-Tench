@@ -464,7 +464,7 @@ A sheet may be one of the purchased images or one of Travis's own in
 ### Characters
 
 A character is six cells in a row: two of it walking sideways **facing
-left**, two walking toward the player, two walking away. The game turns
+left**, two walking away from the player, two walking toward the player. The game turns
 the sideways pair over for walking right, and stands the character in
 the first picture of each pair. `"player"` in `game.json` says where the
 player's six begin:
