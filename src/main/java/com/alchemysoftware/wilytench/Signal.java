@@ -33,6 +33,9 @@ package com.alchemysoftware.wilytench;
  * did from field to field, whatever rate the game is drawing at. A
  * picture that has not changed, with no noise, is not sent again: the
  * two pictures it comes out as, one for each phase, are kept.
+ *
+ * How the signal and the set are adjusted comes from Tuning, and is
+ * taken up again whenever a knob there is turned.
  */
 final class Signal {
     /** The settings: no cable at all, S-Video, or composite video. */
@@ -44,7 +47,9 @@ final class Signal {
     private static final long NS_PER_FIELD = 1000000000L / 60;
     private static final int PHASES = 2;
 
-    private final int mode, noise;
+    private final int mode;
+    private int noise, tuned = -1;
+    private boolean flips;
     private final int pictureW, rows, viewX, viewY, viewH, worldW, across;
 
     private final Ntsc ntsc;
@@ -64,8 +69,6 @@ final class Signal {
 
     /**
      * @param mode SVIDEO or COMPOSITE
-     * @param noise how much noise is on the cable, as Ntsc.Decode()
-     *              counts it
      * @param pictureW the width of the picture in game pixels
      * @param rows its height
      * @param viewX the left edge of the view of the world on it
@@ -74,10 +77,9 @@ final class Signal {
      * @param worldW the width of the world layer in game pixels
      * @param scale how many screen pixels there are to a game pixel
      */
-    Signal(int mode, int noise, int pictureW, int rows, int viewX,
-           int viewY, int viewH, int worldW, int scale) {
+    Signal(int mode, int pictureW, int rows, int viewX, int viewY,
+           int viewH, int worldW, int scale) {
         this.mode = mode;
-        this.noise = noise;
         this.pictureW = pictureW;
         this.rows = rows;
         this.viewX = viewX;
@@ -115,7 +117,10 @@ final class Signal {
      *         object's own and is good until the next call.
      */
     int[] Run(int[] picture, int[] world, int fineX) {
-        int phase = (int) (System.nanoTime() / NS_PER_FIELD & 1);
+        if (tuned != Tuning.Version()) Tune();
+
+        int phase = flips ?
+                (int) (System.nanoTime() / NS_PER_FIELD & 1) : 0;
 
         Compose(picture, world, fineX);
 
@@ -132,6 +137,30 @@ final class Signal {
             kept[phase] = noise == 0;
         }
         return shown[phase];
+    }
+
+    /* Takes the knobs' settings, and forgets the pictures kept, which
+       were made with the old ones. */
+    private void Tune() {
+        boolean two = mode == SVIDEO;
+
+        tuned = Tuning.Version();
+        noise = Tuning.Int(Tuning.NOISE);
+        flips = Tuning.Int(Tuning.FLIP) != 0;
+        ntsc.SetBands(Band(Tuning.LUMA_BAND), Band(Tuning.COLOR_BAND_I),
+                Band(Tuning.COLOR_BAND_Q));
+        ntsc.Set(Tuning.Int(Tuning.COMB),
+                Tuning.Int(two ? Tuning.SHARP_2 : Tuning.SHARP),
+                Tuning.Int(two ? Tuning.SATURATION_2 : Tuning.SATURATION),
+                Tuning.Int(two ? Tuning.CONTRAST_2 : Tuning.CONTRAST),
+                Tuning.Int(two ? Tuning.BRIGHTNESS_2 : Tuning.BRIGHTNESS),
+                Tuning.Int(Tuning.HUE));
+        kept[0] = kept[1] = false;
+    }
+
+    /* A knob in megahertz as Ntsc counts bands. */
+    private static int Band(int knob) {
+        return (int) Math.round(Tuning.Get(knob) * 100000.0);
     }
 
     /* Puts the two layers together, a sample at a time. */

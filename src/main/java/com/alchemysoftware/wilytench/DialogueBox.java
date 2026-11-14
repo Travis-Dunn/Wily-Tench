@@ -30,7 +30,7 @@ final class DialogueBox {
        that a name, four lines, and the way on fit the parchment. */
     private static final int LINE_GAP = -1;
     private static final int MAX_LINES = 4;
-    private static final int CONTINUE_PAD = 1;
+    private static final int CONTINUE_PAD = 1, CONTINUE_REACH = 2;
     private static final int HEADING_Y = 2;
 
     private static final String CONTINUE = "Click here to continue";
@@ -61,6 +61,21 @@ final class DialogueBox {
     /** @return whether a point is on the box */
     boolean Contains(int px, int py) {
         return px >= x && px < x + w && py >= y && py < y + h;
+    }
+
+    /**
+     * @return whether a point is on "Click here to continue", or
+     *         within a pixel or two of it: the only part of the box
+     *         that a click reads on from
+     */
+    boolean OnContinue(int px, int py) {
+        int width = font.Width(CONTINUE, 0, CONTINUE.length());
+        int left = x + (w - width) / 2;
+        int top = y + h - CONTINUE_PAD - font.lineH;
+
+        return px >= left - CONTINUE_REACH &&
+                px < left + width + CONTINUE_REACH &&
+                py >= top - CONTINUE_REACH && py < y + h;
     }
 
     /**
@@ -140,7 +155,7 @@ final class DialogueBox {
         Text.Draw(font, CONTINUE, 0, CONTINUE.length(),
                 x + (w - font.Width(CONTINUE, 0, CONTINUE.length())) / 2,
                 y + h - CONTINUE_PAD - font.lineH,
-                Contains(mouseX, mouseY) ? Palette.TEXT_WARN :
+                OnContinue(mouseX, mouseY) ? Palette.TEXT_WARN :
                 Palette.TEXT_NEWS);
     }
 

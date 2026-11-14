@@ -37,8 +37,7 @@
  * game pixel. When the picture has come down a video cable (Signal) it
  * is one layer with no holes, and finer across than game pixels.
  *
- * The numbers under "To taste" are the look, and are meant to be
- * changed.
+ * The numbers that are the look are knobs, below.
  */
 
 uniform sampler2D picture;
@@ -52,34 +51,46 @@ uniform vec2 slide;             /* how far the world is slid left and up */
 uniform float scale;            /* screen pixels to a game pixel */
 uniform float across;           /* picture texels to a game pixel, across */
 
-/* To taste. */
+/*
+ * The look. These are knobs: Tuning has their names, ranges, and the
+ * settings they start at, and they can be turned while the game runs.
+ */
 
 /* How wide a scanline's glow is, as a share of the distance between
    scanlines. Smaller is thinner lines with darker gaps. */
-const float SCAN_WIDTH = 0.30;
+uniform float scanWidth;
 /* How much of the scanlines is applied: 0 none, 1 all. */
-const float SCAN_DEPTH = 0.60;
+uniform float scanDepth;
 /* How much of the shadow mask is applied: 0 none, 1 all. At 1 a pixel
    under a red stripe shows no green or blue at all. */
-const float MASK_DEPTH = 0.30;
+uniform float maskDepth;
+/* How many red-green-blue triads of the mask there are to a game
+   pixel, across. */
+uniform float maskPitch;
+/* How wide each stripe of the mask is, as a share of a triad. A third
+   leaves no gaps between them. */
+uniform float stripeWidth;
+/* How much of a mask cell's height is lit; the rest is the gap under
+   it. At 1 the stripes run unbroken from top to bottom, as on an
+   aperture grille. */
+uniform float cellLit;
+/* How far down every other column of cells is set, as a share of a
+   cell: 0 for a plain grid, a half for bricks. */
+uniform float cellStagger;
 /* How much of the light is spread about as glow, and how far, in
-   game pixels. */
-const float GLOW = 0.22;
-const float GLOW_SPREAD = 0.75;
+   game pixels. This glow moves light and adds none. */
+uniform float glow;
+uniform float glowSpread;
+/* How much of the same blurred picture is added on top, which does
+   make the picture brighter, bright areas most. */
+uniform float bloom;
 /* How many screen pixels the change from one game pixel to the next
    takes along a scanline. */
-const float BEAM_BLUR = 1.5;
+uniform float beamBlur;
 
-/* The shadow mask, in tenths of a game pixel across and sixths down:
-   where each stripe starts and ends, and where a cell's gap starts. */
+/* Where in a triad each stripe starts: red, green, blue, the blue a
+   little apart from the others, as Bisqwit has them. */
 const vec3 STRIPE_START = vec3(0.0, 0.3, 0.6);
-const vec3 STRIPE_END = vec3(0.2, 0.5, 0.8);
-const float CELL_LIT = 5.0 / 6.0;
-const float CELL_STAGGER = 0.5;
-
-/* The share of the mask that is lit, and the average height of a
-   scanline's glow, used to keep the picture as bright as it was. */
-const float MASK_MEAN = 0.2 * CELL_LIT;
 
 /* How bright the eye finds red, green, and blue light. */
 const vec3 LUMA = vec3(0.2126, 0.7152, 0.0722);
@@ -98,7 +109,7 @@ vec4 Texel(sampler2D layer, vec2 texels, vec2 size, vec2 cell)
 vec4 Beam(sampler2D layer, vec2 texels, vec2 size, vec2 p, float grid)
 {
     float x = p.x * grid - 0.5, left = floor(x), row = floor(p.y);
-    float along = clamp((x - left - 0.5) * scale / (grid * BEAM_BLUR) +
+    float along = clamp((x - left - 0.5) * scale / (grid * beamBlur) +
             0.5, 0.0, 1.0);
 
     return mix(Texel(layer, texels, size, vec2(left, row)),
@@ -122,30 +133,39 @@ float Overlap(float a, float b, float lo, float hi)
     return max(0.0, min(b, hi) - max(a, lo));
 }
 
-/* How much of this screen pixel each color's stripe covers. */
+/* The same for a pattern that repeats every 1: a stretch that runs
+   off one end comes back on at the other. */
+float Wrapped(float a, float b, float lo, float hi)
+{
+    return Overlap(a, b, lo, hi) + Overlap(a + 1.0, b + 1.0, lo, hi) +
+            Overlap(a - 1.0, b - 1.0, lo, hi);
+}
+
+/* How much of this screen pixel each color's stripe covers. Across,
+   places are counted in triads; down, in cells, which are a scanline
+   tall. */
 vec3 Mask(vec2 p)
 {
-    float reach = 0.5 / scale;
-    float x = fract(p.x);
-    float y = fract(p.y + CELL_STAGGER * mod(floor(p.x), 2.0));
-    float x0 = x - reach, x1 = x + reach;
-    float y0 = y - reach, y1 = y + reach;
+    float across_px = 0.5 * maskPitch / scale, down_px = 0.5 / scale;
+    float triad = p.x * maskPitch;
+    float x = fract(triad);
+    float y = fract(p.y + cellStagger * mod(floor(triad), 2.0));
+    float x0 = x - across_px, x1 = x + across_px;
+    float y0 = y - down_px, y1 = y + down_px;
 
-    vec3 across = vec3(
-            Overlap(x0, x1, STRIPE_START.r, STRIPE_END.r),
-            Overlap(x0, x1, STRIPE_START.g, STRIPE_END.g),
-            Overlap(x0, x1, STRIPE_START.b, STRIPE_END.b));
-    float gap = Overlap(y0, y1, CELL_LIT, 1.0) +
-            Overlap(y0 + 1.0, y1 + 1.0, CELL_LIT, 1.0) +
-            Overlap(y0 - 1.0, y1 - 1.0, CELL_LIT, 1.0);
+    vec3 lit = vec3(
+            Wrapped(x0, x1, STRIPE_START.r, STRIPE_START.r + stripeWidth),
+            Wrapped(x0, x1, STRIPE_START.g, STRIPE_START.g + stripeWidth),
+            Wrapped(x0, x1, STRIPE_START.b, STRIPE_START.b + stripeWidth));
+    float gap = Wrapped(y0, y1, cellLit, 1.0);
 
-    return across * scale * (1.0 - gap * scale);
+    return lit / (x1 - x0) * (1.0 - gap / (y1 - y0));
 }
 
 /* A scanline's brightness at a height through it, 0 to 1. */
 float Scanline(float n)
 {
-    float d = (n - 0.5) / SCAN_WIDTH;
+    float d = (n - 0.5) / scanWidth;
     return exp(-0.5 * d * d);
 }
 
@@ -170,36 +190,41 @@ void main()
             p - viewOrigin + slide, 1.0);
     vec3 light = over.rgb + (1.0 - over.a) * under.rgb;
 
-    /* The average of Scanline() over a line, by the four screen rows
-       of a typical one. */
+    /* The share of the mask that is lit, and the average of
+       Scanline() over a line, by the four screen rows of a typical
+       one: what the two are divided by to keep the picture as bright
+       as it was. */
+    float maskMean = stripeWidth * cellLit;
     float scanMean = 0.25 * (Scanline(0.125) + Scanline(0.375) +
             Scanline(0.625) + Scanline(0.875));
-    float scan = mix(1.0, Scanline(fract(p.y)) / scanMean, SCAN_DEPTH);
-    vec3 mask = mix(vec3(1.0), Mask(p) / MASK_MEAN, MASK_DEPTH);
+    float scan = mix(1.0, Scanline(fract(p.y)) / scanMean, scanDepth);
+    vec3 mask = mix(vec3(1.0), Mask(p) / maskMean, maskDepth);
 
     /* By how much the two brighten the luckiest screen pixel, and so
        how much of them each channel of this color has room for. */
-    float most = mix(1.0, 1.0 / scanMean, SCAN_DEPTH) * mix(1.0,
-            min(STRIPE_END.r * scale, 1.0) / MASK_MEAN, MASK_DEPTH);
+    float most = mix(1.0, 1.0 / scanMean, scanDepth) * mix(1.0,
+            min(stripeWidth * scale / maskPitch, 1.0) / maskMean,
+            maskDepth);
     vec3 room = clamp((1.0 / max(light, vec3(0.001)) - 1.0) /
-            (most - 1.0), 0.0, 1.0);
+            max(most - 1.0, 0.001), 0.0, 1.0);
 
-    vec3 glow = vec3(0.0);
+    vec3 spread = vec3(0.0);
     float weights = 0.0;
     vec2 cell = floor(p);
     for (int dy = -1; dy <= 1; dy++) {
         for (int dx = -1; dx <= 1; dx++) {
             vec2 at = cell + vec2(float(dx), float(dy));
-            vec2 d = (at + 0.5 - p) / GLOW_SPREAD;
+            vec2 d = (at + 0.5 - p) / glowSpread;
             float w = exp(-0.5 * dot(d, d));
-            glow += w * Both(at);
+            spread += w * Both(at);
             weights += w;
         }
     }
 
     /* The glow is taken out of the picture before it is put back
        spread, so it too moves light and adds none. */
-    light = (1.0 - GLOW) * light * mix(vec3(1.0), scan * mask, room) +
-            GLOW * glow / weights;
+    spread /= weights;
+    light = (1.0 - glow) * light * mix(vec3(1.0), scan * mask, room) +
+            (glow + bloom) * spread;
     gl_FragColor = vec4(sqrt(Pale(light)), 1.0);
 }

@@ -12,12 +12,13 @@ package com.alchemysoftware.wilytench;
  * standard NTSC system at four samples to a cycle of the color
  * carrier, without its bloom, with the settings this game uses fixed:
  * a picture given one sample to a sample and one row to a line
- * ("raw"), in color, progressive, always the even field. With the two
- * departures named at COMB undone, and given the same picture and the
- * same settings of the set's controls, Encode() and Decode() produce
- * the same bytes as the C does, with noise and without; that was
- * checked when the port was made and again after COMB was added, and
- * anything changed here should be checked the same way.
+ * ("raw"), in color, progressive, always the even field. As it is
+ * made, before Set() or SetBands() is called, and likewise with the
+ * C's own controls set to match Set()'s, Encode() and Decode()
+ * produce the same bytes for composite video as the C does, with
+ * noise and without. That was checked when the port was made and
+ * after each thing added, and anything changed here should be checked
+ * the same way.
  *
  * What it does to a picture is what a composite cable did. Brightness
  * and color share one wire, color riding on a carrier wave, so each
@@ -26,12 +27,12 @@ package com.alchemysoftware.wilytench;
  * wire than brightness, so it smears sideways. None of it happens up
  * and down, since each line is sent on its own.
  *
- * Three things are added to the original, all to make a picture this
- * small easier on the eye. S-Video, where brightness and color travel
- * on two wires: color still smears, but nothing leaks, and the
+ * Two things are added to the original, to make a picture this small
+ * easier on the eye. S-Video, where brightness and color travel on
+ * two wires: color still smears, but nothing leaks, and the
  * brightness can be left sharper since there is no carrier to filter
- * out of it. A set that can partly tell color from brightness on one
- * wire (COMB). And equal room for both parts of color (Q_FREQ).
+ * out of it. And a set that can partly tell color from brightness on
+ * one wire, with a comb filter: see Set().
  *
  * The signal is HRES samples to a line and VRES lines to a field,
  * most of them picture and the rest the pulses a set finds its place
@@ -82,28 +83,7 @@ final class Ntsc {
     private static final int L_FREQ = 1431818;
     private static final int Y_FREQ = 420000;
     private static final int I_FREQ = 150000;
-    private static final int Q_FREQ = 150000;
-
-    /*
-     * Two things here are not as in the original, and with them put
-     * back (Q_FREQ to 55000, COMB to 0) composite video is the
-     * original's to the byte.
-     *
-     * Q_FREQ. Broadcast NTSC gives one part of color a third of the
-     * room of the other, which smears some colors, blues and greens
-     * above all, across six or seven of this game's pixels. Consoles
-     * did not bother with the difference and nor does this.
-     *
-     * COMB. Out of 256, how much of the color the set manages to tell
-     * apart from the brightness on one wire, as better sets did with
-     * a comb filter. At 0 it cannot at all: every fine detail is
-     * taken for color, and writing as small as this game's becomes a
-     * rainbow. At 256 nothing leaks and composite is S-Video with a
-     * softer picture. This does not model how a comb filter works,
-     * only how well: the set is simply told the color that was sent,
-     * and uses that much of the knowledge.
-     */
-    private static final int COMB = 176;
+    private static final int Q_FREQ = 55000;
 
     /* Signal levels, in IRE units. */
     private static final int WHITE_LEVEL = 100, BURST_LEVEL = 20;
@@ -111,20 +91,6 @@ final class Ntsc {
     private static final int SYNC_LEVEL = -40;
     private static final int MOST_IRE = 110;
 
-    /*
-     * The set's own controls. The original leaves saturation at 10,
-     * contrast at 180, and brightness at 0, which shows this game's
-     * colors paler and lighter than they are. These are the settings,
-     * for each kind of cable, at which the 32 colors of the game's
-     * palette come back nearest to themselves: found by trying them
-     * all, as one turns the knobs on a real set until the picture
-     * looks right.
-     */
-    private static final int HUE = 0;
-    private static final int SATURATION = 16, CONTRAST = 170;
-    private static final int BRIGHTNESS = 0;
-    private static final int SATURATION_2 = 15, CONTRAST_2 = 162;
-    private static final int BRIGHTNESS_2 = 2;
     private static final int BLACK_POINT = 0, WHITE_POINT = 100;
 
     /* How far the decoder looks to one side of where it found the
@@ -152,7 +118,7 @@ final class Ntsc {
     private final byte[] got = new byte[INPUT_SIZE + 2 * HRES];
     private final byte[] gotColor = new byte[INPUT_SIZE + 2 * HRES];
 
-    /* The color that was sent, by itself, for COMB to draw on. */
+    /* The color that was sent, by itself, for the comb filter to draw on. */
     private final byte[] known = new byte[INPUT_SIZE + 2 * HRES];
     private boolean twoWires;
 
@@ -161,8 +127,17 @@ final class Ntsc {
     private int hsync, vsync;
     private int seed = 194;
 
-    private final Lowpass limitY, limitI, limitQ;
+    private Lowpass limitY, limitI, limitQ;
     private final Equalizer eqY, eqI, eqQ;
+
+    /*
+     * The set's controls, and the things about the signal that can be
+     * changed: see Set() and SetBands(). They start as the original
+     * has them, at which composite video is the original's to the
+     * byte.
+     */
+    private int comb, sharp, hue;
+    private int saturation = 10, contrast = 180, brightness;
 
     /* One decoded line, before it is fitted to the picture's width. */
     private final int[] lineY = new int[AV_LEN + 1];
@@ -177,13 +152,58 @@ final class Ntsc {
         this.rows = rows;
         this.outW = outW;
 
-        limitY = new Lowpass(L_FREQ, Y_FREQ);
-        limitI = new Lowpass(L_FREQ, I_FREQ);
-        limitQ = new Lowpass(L_FREQ, Q_FREQ);
+        SetBands(Y_FREQ, I_FREQ, Q_FREQ);
 
         eqY = new Equalizer(Khz(1500), Khz(3000), HRES, 65536, 8192, 9175);
         eqI = new Equalizer(Khz(80), Khz(1150), HRES, 65536, 65536, 1311);
         eqQ = new Equalizer(Khz(80), Khz(1000), HRES, 65536, 65536, 0);
+    }
+
+    /**
+     * Sets how much room on the wire brightness and the two parts of
+     * color are given, in units of 10 Hz: 420000 is 4.2 MHz. Less room
+     * is more smear. The original gives brightness 4.2 MHz, one part
+     * of color 1.5, and the other 0.55, as broadcast NTSC does;
+     * consoles gave the two parts of color the same.
+     */
+    void SetBands(int brightnessBand, int colorBandI, int colorBandQ) {
+        limitY = new Lowpass(L_FREQ, brightnessBand);
+        limitI = new Lowpass(L_FREQ, colorBandI);
+        limitQ = new Lowpass(L_FREQ, colorBandQ);
+    }
+
+    /**
+     * Sets the controls of the set the signal is shown on.
+     *
+     * @param comb out of 256, how much of the color the set manages
+     *             to tell apart from the brightness on one wire, as
+     *             better sets did with a comb filter. At 0, the
+     *             original, it cannot at all: every fine detail is
+     *             taken for color, and small writing becomes a
+     *             rainbow. At 256 nothing leaks and composite is
+     *             S-Video with a softer picture. This does not model
+     *             how a comb filter works, only how well: the set is
+     *             simply told the color that was sent, and uses that
+     *             much of the knowledge. With any comb at all the
+     *             brightness goes through a sharper filter than the
+     *             original's. It does nothing on two wires.
+     * @param sharp out of 256, how much of that filter's softening,
+     *              or of S-Video's, is undone. It does nothing to
+     *              composite with no comb.
+     * @param saturation how strong the colors are; the original's
+     *                   is 10
+     * @param contrast the original's is 180
+     * @param brightness the original's is 0
+     * @param hue in degrees; the original's is 0
+     */
+    void Set(int comb, int sharp, int saturation, int contrast,
+             int brightness, int hue) {
+        this.comb = comb;
+        this.sharp = sharp;
+        this.saturation = saturation;
+        this.contrast = contrast;
+        this.brightness = brightness;
+        this.hue = hue;
     }
 
     /**
@@ -206,7 +226,7 @@ final class Ntsc {
         this.twoWires = twoWires;
 
         for (x = 0; x < CC_SAMPLES; x++) {
-            n = HUE + x * (360 / CC_SAMPLES);
+            n = x * (360 / CC_SAMPLES);
             ccBurst[x] = Sin((n + 33) * 8192 / 180) >> 10;
             ccModI[x] = Sin(n * 8192 / 180) >> 10;
             ccModQ[x] = Sin((n - 90) * 8192 / 180) >> 10;
@@ -322,17 +342,14 @@ final class Ntsc {
     void Decode(int[] out, int noise) {
         byte[] sigY = got, sigC = twoWires ? gotColor : got;
         Equalizer luma = eqY;
-        int comb = twoWires ? 0 : COMB;
+        int comb = twoWires ? 0 : this.comb;
         int[] wave = new int[CC_SAMPLES];
         int i, j = 0, line = 0, s;
-        int saturation = twoWires ? SATURATION_2 : SATURATION;
-        int contrast = twoWires ? CONTRAST_2 : CONTRAST;
-        int bright = (twoWires ? BRIGHTNESS_2 : BRIGHTNESS) -
-                (BLACK_LEVEL + BLACK_POINT);
+        int bright = brightness - (BLACK_LEVEL + BLACK_POINT);
         int rn = seed;
 
-        int hueSn = Sin(((HUE % 360) + 33) * 8192 / 180) >> 11;
-        int hueCs = Cos(((HUE % 360) + 33) * 8192 / 180) >> 11;
+        int hueSn = Sin(((hue % 360) + 33) * 8192 / 180) >> 11;
+        int hueCs = Cos(((hue % 360) + 33) * 8192 / 180) >> 11;
 
         /* The signal as it arrives: what was sent, and noise. */
         for (i = 0; i < INPUT_SIZE; i++) {
@@ -430,20 +447,22 @@ final class Ntsc {
                 d2 = d1;
                 d1 = d0;
                 d0 = v + bright;
-                if (twoWires) {
+                if (twoWires || comb > 0) {
                     /* Brightness with a wire to itself has no carrier
                        to be filtered out of it, so it is only
-                       softened a touch, and held back three samples
-                       to arrive when the color does. */
-                    lineY[i] = (d2 + 2 * d3 + d4) << 2;
-                } else if (comb > 0) {
-                    /* A set with a comb filter can afford a sharper
-                       picture. Five samples weighed 1 2 2 2 1 let
-                       nothing through at the carrier's own pitch,
-                       which is one of the filters the original
-                       offers in place of its equalizer; held back
-                       three samples likewise. */
-                    lineY[i] = (d1 + 2 * (d2 + d3 + d4) + d5) << 1;
+                       softened a touch: three samples weighed 1 2 1.
+                       A set with a comb filter can afford a sharper
+                       picture than the original's too: five samples
+                       weighed 1 2 2 2 1 let nothing through at the
+                       carrier's own pitch, and that is one of the
+                       filters the original offers in place of its
+                       equalizer. Either way the middle sample is the
+                       one from three back, so that brightness arrives
+                       when the color does. */
+                    int soft = twoWires ? (d2 + 2 * d3 + d4) << 2 :
+                            (d1 + 2 * (d2 + d3 + d4) + d5) << 1;
+
+                    lineY[i] = soft + (sharp * ((d3 << 4) - soft) >> 8);
                 } else {
                     lineY[i] = luma.Step(d0) << 4;
                 }

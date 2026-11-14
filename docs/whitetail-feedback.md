@@ -661,6 +661,12 @@ out-of-range numbers, with a good log line naming the offending text. A
 `TYPE_CHOICE` taking a list of allowed strings would give choices the
 same treatment.
 
+The tuning knobs (`Tuning.java`) are a third thing the config system
+could not hold: 26 numbers changed while the game runs and written back
+(C41), with steps as well as bounds, so they have a file and a reader
+of their own, `tuning.ini`. A config component that could set and save
+would have taken them as they are.
+
 `signal` (`rgb`, `svideo`, or `composite`) is now a second setting of
 this kind, with a second copy of the same check and warning
 (`Settings.ReadSignal()`).

@@ -54,7 +54,7 @@ public class SignalTest {
         int one = MostColor(Send(stripes, false, 0));
         int two = MostColor(Send(stripes, true, 0));
         /* Less than a plain set would show, since this one has a comb
-           filter (Ntsc.COMB), but still plainly color. */
+           filter (Tuning.COMB), but still plainly color. */
         Check("colored on composite: " + one, one >= 20);
         Check("grey on S-Video: " + two, two <= 10);
     }
@@ -95,7 +95,7 @@ public class SignalTest {
     public void testTheWorldShowsThroughTheHoleAndSlidesByLessThanAPixel() {
         final int W = 96, H = 8, VIEW_X = 8, VIEW_Y = 2, VIEW_H = 4;
         final int WORLD_W = 81, SCALE = 4, EDGE = 40;
-        Signal signal = new Signal(Signal.SVIDEO, 0, W, H, VIEW_X, VIEW_Y,
+        Signal signal = new Signal(Signal.SVIDEO, W, H, VIEW_X, VIEW_Y,
                 VIEW_H, WORLD_W, SCALE);
         int[] picture = new int[W * H], world = new int[WORLD_W * 5];
 
@@ -126,7 +126,7 @@ public class SignalTest {
 
     public void testEveryColumnOfThePictureCarriesTheSameWeight() {
         final int W = 384, H = 4, SCALE = 4, SPAN = 8;
-        Signal signal = new Signal(Signal.SVIDEO, 0, W, H, 0, 0, H, W + 1,
+        Signal signal = new Signal(Signal.SVIDEO, W, H, 0, 0, H, W + 1,
                 SCALE);
         int[] picture = new int[W * H], world = new int[(W + 1) * H];
 
@@ -158,6 +158,18 @@ public class SignalTest {
     private static int[] Send(int[] picture, boolean twoWires, int noise) {
         Ntsc ntsc = new Ntsc(ROWS, OUT_W);
         int[] out = new int[OUT_W * ROWS];
+
+        /* Set up as the game sets it up, with every knob where it
+           starts. */
+        Tuning.ResetAll();
+        ntsc.SetBands((int) Math.round(Tuning.Get(Tuning.LUMA_BAND) * 1e5),
+                (int) Math.round(Tuning.Get(Tuning.COLOR_BAND_I) * 1e5),
+                (int) Math.round(Tuning.Get(Tuning.COLOR_BAND_Q) * 1e5));
+        ntsc.Set(Tuning.Int(Tuning.COMB), 0, Tuning.Int(twoWires ?
+                Tuning.SATURATION_2 : Tuning.SATURATION),
+                Tuning.Int(twoWires ? Tuning.CONTRAST_2 : Tuning.CONTRAST),
+                Tuning.Int(twoWires ? Tuning.BRIGHTNESS_2 :
+                Tuning.BRIGHTNESS), 0);
 
         for (int frame = 0; frame < 4; frame++) {
             ntsc.Encode(picture, twoWires, frame);

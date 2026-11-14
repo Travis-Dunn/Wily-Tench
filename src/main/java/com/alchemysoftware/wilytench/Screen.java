@@ -91,6 +91,7 @@ final class Screen {
        texture for showing what comes out when the CRT filter is not
        there to show it. */
     private static Signal signal;
+    private static int cableInUse = Signal.RGB;
     private static IntBuffer wideUpload;
     private static int wideW, wideTex;
     private static float wideU, wideV;
@@ -105,11 +106,10 @@ final class Screen {
      * @param cable how the picture is to reach the screen: Signal.RGB
      *              for directly, or Signal.SVIDEO or Signal.COMPOSITE,
      *              if this machine can
-     * @param noise how much noise is on that cable
      * @return false after a fatal error has been reported
      */
     static boolean Init(boolean fullscreen, boolean vSync,
-                        boolean wantCrt, int cable, int noise) {
+                        boolean wantCrt, int cable) {
         /* Each query reports its own fatal error, so stop at the first
            rather than show the player two dialogs for one problem. */
         int desktopW = Window.GetDesktopWidth();
@@ -164,7 +164,7 @@ final class Screen {
         }
 
         if (!InitWorld()) return false;
-        if (cable != Signal.RGB && !InitSignal(cable, noise)) return false;
+        if (cable != Signal.RGB && !InitSignal(cable)) return false;
         crt = wantCrt && Crt.Init(layout, srcLayout, worldTex, worldW,
                 worldH, worldTexW, worldTexH,
                 signal == null ? 1 : signal.Across());
@@ -224,7 +224,7 @@ final class Screen {
      * through. Where the machine cannot do it the game carries on
      * without, and that is not a failure; false is for a fatal error.
      */
-    private static boolean InitSignal(int cable, int noise) {
+    private static boolean InitSignal(int cable) {
         int texW = 1, texH = 1;
 
         wideW = layout.framebufferWidth * layout.pixelScale;
@@ -242,7 +242,7 @@ final class Screen {
         }
 
         try {
-            signal = new Signal(cable, noise, layout.framebufferWidth,
+            signal = new Signal(cable, layout.framebufferWidth,
                     layout.framebufferHeight, layout.viewportX,
                     layout.viewportY, layout.viewportHeight, worldW,
                     layout.pixelScale);
@@ -274,6 +274,7 @@ final class Screen {
             ErrorHandler.LogFatalAndStop(ErrStrWorldTex(glErr));
             return false;
         }
+        cableInUse = cable;
         Logger.LogSession(LogLevel.DEBUG, cable == Signal.SVIDEO ?
                 LOG_STR_SVIDEO : LOG_STR_COMPOSITE);
         return true;
@@ -285,6 +286,7 @@ final class Screen {
         if (windowInit && worldTex != 0) GL11.glDeleteTextures(worldTex);
         if (windowInit && wideTex != 0) GL11.glDeleteTextures(wideTex);
         signal = null;
+        cableInUse = Signal.RGB;
         wideUpload = null;
         wideTex = wideW = 0;
         if (fbInit) GL12SoftwareFramebuffer.Shutdown();
@@ -524,6 +526,12 @@ final class Screen {
 
     /** @return whether the picture is sent down a video cable */
     static boolean SignalInUse() { return signal != null; }
+
+    /**
+     * @return which cable the picture is in fact sent down:
+     *         Signal.RGB for none
+     */
+    static int Cable() { return cableInUse; }
 
     /** @return whether the picture is shown through the CRT filter */
     static boolean CrtInUse() { return crt; }

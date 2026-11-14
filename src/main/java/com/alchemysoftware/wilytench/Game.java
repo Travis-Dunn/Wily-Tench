@@ -81,6 +81,7 @@ final class Game {
 
         if (!Settings.Init(dataDir)) return false;
         Mover.SetStyle(Settings.WalkStyle());
+        Tuning.Init(dataDir);
         if (!Natives.Install(dataDir)) return false;
 
         /* Art and maps are read from inside the game's own jar. */
@@ -94,8 +95,7 @@ final class Game {
         stage = STAGE_GC_PRIEST;
 
         boolean screenOk = Screen.Init(Settings.Fullscreen(),
-                Settings.VSync(), Settings.Crt(), Settings.Signal(),
-                Settings.SignalNoise());
+                Settings.VSync(), Settings.Crt(), Settings.Signal());
         /* Screen cleans up after itself even when only half started. */
         stage = STAGE_SCREEN;
         if (!screenOk) return false;

@@ -37,7 +37,7 @@ before starting. Travis opens and merges the pull requests himself; once
 one is merged, restart the working branch from `master` rather than
 stacking on it.
 
-**Tests.** `mvn verify` runs 153 tests of the rules, with no window. All
+**Tests.** `mvn verify` runs 158 tests of the rules, with no window. All
 pass.
 
 **Tested on Linux only**: Java 8 and Java 21, software OpenGL, a virtual
@@ -296,18 +296,52 @@ picture, which is then shown the plain way or through the filter.
   - *S-Video brightness* is now three samples weighed 1 2 1. An
     equalizer cut off higher was tried first and is unstable above
     about 2.4 MHz at this sample rate; do not try it again.
-  With `COMB` at 0 and `Q_FREQ` at 55000 the port still matches the C
-  byte for byte, checked again. These numbers were chosen from still
-  frames by whether the chat box could be read; Travis has not yet
-  seen them.
-- **Suggested to Travis and not built**: a tuning mode, keys that
-  change the filter's and the signal's numbers while the game runs
-  with the values written on screen, since he has the eye for it and
-  the numbers are otherwise a rebuild or a relaunch each. That means
-  making the shader's constants uniforms. Also raised: a bolder or
-  larger font would survive a cable better than 8 pixel Helvetica
-  with strokes one pixel wide.
+  These became knobs afterwards (next section), and `Ntsc` as it is
+  made is EMMIR's exactly; the game's settings are applied by
+  `Signal.Tune()`. Travis's verdict on these settings: "helped a lot,
+  pretty good as is".
+- A bolder or larger font would survive a cable better than 8 pixel
+  Helvetica with strokes one pixel wide. Travis's answer is a bigger
+  picture; see "A 480 by 270 picture" below.
 - PAL (EMMIR's PAL-CRT) was not looked at.
+
+**Tuning.** Travis asked for "all the knobs" and expects to spend
+hours with them. `Tuning.java` is the list: 26 knobs, each with a key,
+a name, a range, a step, and a default, for the CRT filter (they are
+the shader's uniforms now), the signal, and the set for each cable.
+
+- **F1 in the world opens `TuningPanel`**: Up and Down choose, Left and
+  Right turn and repeat when held, Shift is ten steps, Delete resets
+  one knob, F2 all. Only the knobs of what was switched on at launch
+  are listed. Changes show at once.
+- **Settings that differ from the defaults are saved to `tuning.ini`**
+  in the data directory when the panel closes. **When Travis has a
+  look he likes, he sends that file and its numbers become the
+  defaults in `Tuning.java`**; that is the point of it. The defaults
+  now are the numbers chosen from still frames.
+- `signalNoise` in `config.ini` is gone; noise is a knob.
+- The panel is drawn on the picture and so goes through the filter and
+  the cable like everything else. At extreme settings it may be hard
+  to read; deleting `tuning.ini` puts everything back.
+- Not built: switching the CRT filter and the cable on and off from
+  the panel. They are still decided at launch.
+- The mask knobs changed the shader's mask a little: its geometry is
+  now worked out from the knobs, and a cell is 0.83 lit where it was
+  five sixths.
+
+**A 480 by 270 picture.** Travis proposed it at the end of the third
+session and is drawing a frame for it: a bigger picture gives room for
+a larger font, at the cost of fewer screen pixels to a game pixel for
+the CRT filter (1080p gives 4 at 384 by 216 and would give 4 at 480 by
+270 only fullscreen; in a window 3). `comp-display-layout` takes
+several presets and picks one, which is what he wrote it for; the game
+passes it one. Nothing is built. What it will touch: `layout.json`
+(one per frame, or a list), `Screen.Init()`'s preset array, the menu
+scenes' fixed 384 by 216 layout, and the fonts.
+
+**"Click here to continue"** reads on only from a click on the words,
+give or take two pixels, and lights only there. It used to be the
+whole talk box, which Travis took for the highlight not working.
 
 **Travis's own sprites have begun to arrive**, in `art/`, in carp32:
 
@@ -450,13 +484,9 @@ Known limits of step 1:
   full speed can still pull the view back a little. Making walking
   itself smooth would mean drawing each moving thing at a part of a
   pixel, on its own quad; not built, and Travis has not asked for it.
-- **"Click here to continue" not lighting under the pointer**, on some
-  screens of talk, reported by Travis in the third session and **not
-  reproduced**: driven on a virtual display through Harl's first
-  conversation, every prompt lit, and `DialogueTest` now draws every
-  speech and checks. The lit and plain colors (`carp_red`, `carp_wine`)
-  are close, which may be part of it. Ask which speech and where the
-  pointer was.
+- **The lit and plain colors of "Click here to continue"**
+  (`carp_red`, `carp_wine`) are close. Travis is to choose dialogue
+  colors after looking at the palette and at RuneScape's.
 - The apostrophe in the small font sits wide: "can't" has a gap.
 - Dropped items vanish; there are no items on the ground.
 - Using one item on another does nothing yet; only item on loc has a

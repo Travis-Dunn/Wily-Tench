@@ -249,7 +249,7 @@ public class DialogueTest {
         Fixture.Finish();
     }
 
-    public void testTheContinuePromptIsLitUnderThePointerEveryTime() {
+    public void testTheContinuePromptIsLitOnlyWithThePointerOnIt() {
         final int W = 384, H = 216, X = 5, Y = 153, BOX_W = 298, BOX_H = 58;
         byte[] buf = new byte[W * H];
         Font font = Font.Load("small.fnt"), bold = Font.Load("bold.fnt");
@@ -266,19 +266,26 @@ public class DialogueTest {
             }
             speeches++;
 
-            /* The prompt is the bottom line of the box. Whatever the
-               speech above it, it is in the lit color with the pointer
-               on the box and the plain one with it off. */
+            /* The prompt is the bottom line of the box, in the
+               middle. Whatever the speech above it, it is in the lit
+               color with the pointer on it, and the plain one with
+               the pointer anywhere else, the rest of the box
+               included. */
             int row0 = Y + BOX_H - font.lineH - 1;
+            int onX = X + BOX_W / 2, onY = Y + BOX_H - 4;
+
             java.util.Arrays.fill(buf, (byte) 0);
-            box.Draw(X + 20, Y + 20);
+            box.Draw(onX, onY);
             Check("lit, speech " + speeches + ": " + s.TalkText(),
+                    box.OnContinue(onX, onY) &&
                     Has(buf, W, row0, Y + BOX_H, Palette.TEXT_WARN) &&
                     !Has(buf, W, row0, Y + BOX_H, Palette.TEXT_NEWS));
 
             java.util.Arrays.fill(buf, (byte) 0);
-            box.Draw(X + 20, Y - 20);
-            Check("plain, speech " + speeches,
+            box.Draw(X + 20, Y + 20);
+            Check("plain with the pointer elsewhere on the box, speech " +
+                    speeches, !box.OnContinue(X + 20, Y + 20) &&
+                    !box.OnContinue(X + 20, onY) &&
                     Has(buf, W, row0, Y + BOX_H, Palette.TEXT_NEWS) &&
                     !Has(buf, W, row0, Y + BOX_H, Palette.TEXT_WARN));
             s.ContinueTalk();

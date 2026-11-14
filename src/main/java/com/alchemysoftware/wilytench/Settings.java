@@ -33,14 +33,12 @@ final class Settings {
     static final String KEY_WALK_STYLE = "walkStyle";
     static final String KEY_CRT = "crt";
     static final String KEY_SIGNAL = "signal";
-    static final String KEY_SIGNAL_NOISE = "signalNoise";
 
     /* The values signal may have, in the order of Signal's numbers. */
     private static final String[] SIGNALS = {
         "rgb", "svideo", "composite"
     };
     private static final int SIGNAL_MAX_LEN = 16;
-    private static final int NOISE_MAX = 100;
 
     /* The values walkStyle may have. */
     static final String WALK_STEADY = "steady";
@@ -56,7 +54,7 @@ final class Settings {
     private static File file;
     private static boolean fullscreen, launchedFullscreen, vSync;
     private static boolean crt, launchedCrt;
-    private static int signal, launchedSignal, signalNoise;
+    private static int signal, launchedSignal;
     private static int maxFps = MAX_FPS_DEFAULT;
     private static int walkStyle = Mover.STYLE_STEADY;
 
@@ -87,9 +85,6 @@ final class Settings {
         entries.add(new ConfigEntry(KEY_SIGNAL, ConfigEntry.TYPE_STR,
                 Integer.valueOf(1), Integer.valueOf(SIGNAL_MAX_LEN),
                 SIGNALS[Signal.RGB]));
-        entries.add(new ConfigEntry(KEY_SIGNAL_NOISE, ConfigEntry.TYPE_INT,
-                Integer.valueOf(0), Integer.valueOf(NOISE_MAX),
-                Integer.valueOf(0)));
 
         if (!ConfigFileParser.Init(dataDir, entries)) return false;
 
@@ -103,7 +98,6 @@ final class Settings {
         launchedCrt = crt;
         signal = ReadSignal(ConfigFileParser.GetStr(KEY_SIGNAL));
         launchedSignal = signal;
-        signalNoise = ConfigFileParser.GetInt(KEY_SIGNAL_NOISE);
         return true;
     }
 
@@ -146,12 +140,6 @@ final class Settings {
     /** @param mode Signal.RGB, Signal.SVIDEO, or Signal.COMPOSITE */
     static void SetSignal(int mode) { signal = mode; }
 
-    /**
-     * @return how much noise is on the video cable. There is no widget
-     *         for it; it is set in the file.
-     */
-    static int SignalNoise() { return signalNoise; }
-
     static void SetFullscreen(boolean on) { fullscreen = on; }
 
     static void SetVSync(boolean on) { vSync = on; }
@@ -188,16 +176,14 @@ final class Settings {
             String[] merged = Merge(lines.toArray(new String[lines.size()]),
                     new String[] {
                         KEY_FULLSCREEN, KEY_VSYNC, KEY_MAX_FPS,
-                        KEY_WALK_STYLE, KEY_CRT, KEY_SIGNAL,
-                        KEY_SIGNAL_NOISE
+                        KEY_WALK_STYLE, KEY_CRT, KEY_SIGNAL
                     },
                     new String[] {
                         String.valueOf(fullscreen), String.valueOf(vSync),
                         String.valueOf(maxFps),
                         walkStyle == Mover.STYLE_PULSE ?
                         WALK_PULSE : WALK_STEADY,
-                        String.valueOf(crt), SIGNALS[signal],
-                        String.valueOf(signalNoise)
+                        String.valueOf(crt), SIGNALS[signal]
                     });
 
             writer = new PrintWriter(new FileWriter(file));

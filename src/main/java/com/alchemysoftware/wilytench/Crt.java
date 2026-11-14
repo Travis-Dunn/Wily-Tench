@@ -23,7 +23,8 @@ import com.alchemysoftware.whitetail.resource.ResourceStreamResolver;
  * It is a setting, off unless the player turns it on, and decided when
  * the game starts. The look is all in shaders/crt.frag, whose opening
  * comment describes it; this class compiles that program, gives it the
- * two layers as textures, and draws one rectangle with it.
+ * two layers as textures and the settings of Tuning's knobs, and draws
+ * one rectangle with it.
  *
  * It needs OpenGL 2.0, for shaders at all, and at least MIN_SCALE
  * screen pixels to a game pixel, since the scanlines and the shadow
@@ -49,6 +50,20 @@ final class Crt {
     private static int pictureW, pictureH;
     private static IntBuffer upload;
     private static int slideAt;
+
+    /* The knobs of Tuning that are the filter's, the name each goes
+       by in the program, and where the program keeps it. */
+    private static final int[] KNOBS = {
+        Tuning.SCAN_WIDTH, Tuning.SCAN_DEPTH, Tuning.MASK_DEPTH,
+        Tuning.MASK_PITCH, Tuning.STRIPE_WIDTH, Tuning.CELL_LIT,
+        Tuning.CELL_STAGGER, Tuning.GLOW, Tuning.GLOW_SPREAD,
+        Tuning.BLOOM, Tuning.BEAM_BLUR
+    };
+    private static final String[] KNOB_NAMES = {
+        "scanWidth", "scanDepth", "maskDepth", "maskPitch", "stripeWidth",
+        "cellLit", "cellStagger", "glow", "glowSpread", "bloom", "beamBlur"
+    };
+    private static final int[] knobAt = new int[KNOBS.length];
 
     private Crt() {}
 
@@ -123,6 +138,8 @@ final class Crt {
         GL20.glUniform1f(At("scale"), layout.pixelScale);
         GL20.glUniform1f(At("across"), across);
         slideAt = At("slide");
+        for (int i = 0; i < KNOBS.length; i++)
+            knobAt[i] = At(KNOB_NAMES[i]);
         GL20.glUseProgram(0);
 
         int glErr = GL11.glGetError();
@@ -179,6 +196,8 @@ final class Crt {
 
         GL20.glUseProgram(program);
         GL20.glUniform2f(slideAt, fineX / scale, fineY / scale);
+        for (int i = 0; i < KNOBS.length; i++)
+            GL20.glUniform1f(knobAt[i], (float) Tuning.Get(KNOBS[i]));
 
         GL11.glMatrixMode(GL11.GL_PROJECTION);
         GL11.glPushMatrix();

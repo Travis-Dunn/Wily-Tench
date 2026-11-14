@@ -94,6 +94,7 @@ final class WorldScene extends Scene {
     private MakeMenu makeMenu;
     private DialogueBox dialogue;
     private Actions actions;
+    private TuningPanel tuning;
 
     /* The pointer in picture pixels, negative when outside it. */
     private int pointerX = NOWHERE, pointerY = NOWHERE;
@@ -153,6 +154,7 @@ final class WorldScene extends Scene {
         dialogue = new DialogueBox(smallFont, boldFont, session,
                 Layout.chatX, Layout.chatY, Layout.chatW, Layout.chatH);
         actions = new Actions(session);
+        tuning = new TuningPanel(smallFont, viewPortX, viewPortY, viewH);
 
         save = new SaveState(session);
         int loadOutcome = SaveGame.Load();
@@ -185,8 +187,16 @@ final class WorldScene extends Scene {
         boolean left = InputSys.WasPressed(Button.MOUSE_LEFT);
         boolean right = InputSys.WasPressed(Button.MOUSE_RIGHT);
 
+        if (InputSys.WasPressed(Button.KEY_F1))
+            tuning.Toggle(Screen.CrtInUse(), Screen.Cable());
+        if (tuning.IsOpen()) tuning.Input();
+
         if (InputSys.WasPressed(Button.KEY_ESCAPE)) {
-            if (session.OpenMake() != Recipes.NONE) session.CloseMake();
+            if (tuning.IsOpen()) {
+                tuning.Toggle(Screen.CrtInUse(), Screen.Cable());
+            } else if (session.OpenMake() != Recipes.NONE) {
+                session.CloseMake();
+            }
             else if (menu.IsOpen()) menu.Close();
             else if (actions.SelectedSlot() != Actions.NO_SLOT)
                 actions.Deselect();
@@ -358,10 +368,14 @@ final class WorldScene extends Scene {
         } else {
             panel.DrawTip();
         }
+        tuning.Draw();
     }
 
     @Override
     public void onDestroy() {
+        /* The panel saves as it closes; closing the game with it open
+           must not lose what was turned. */
+        if (tuning != null && tuning.IsOpen()) Tuning.Save();
         Session.Close();
         session = null;
         save = null;
@@ -374,6 +388,7 @@ final class WorldScene extends Scene {
         makeMenu = null;
         dialogue = null;
         actions = null;
+        tuning = null;
         smallFont = boldFont = titleFont = null;
     }
 
@@ -382,8 +397,8 @@ final class WorldScene extends Scene {
 
     /*
      * Passes on the player's answer to the talk on show: Space, or a
-     * click on the box, reads on; a number key, or a click on one of
-     * the things offered to say, picks it.
+     * click on "Click here to continue", reads on; a number key, or a
+     * click on one of the things offered to say, picks it.
      *
      * Returns whether a click was on the box, and so is used up.
      */
@@ -396,7 +411,7 @@ final class WorldScene extends Scene {
             for (int i = 0; i < CHOICE_KEYS.length; i++)
                 if (InputSys.WasPressed(CHOICE_KEYS[i])) option = i;
             if (option != DialogueBox.NO_OPTION) session.ChooseTalk(option);
-        } else if ((left && onBox) ||
+        } else if ((left && dialogue.OnContinue(pointerX, pointerY)) ||
                 InputSys.WasPressed(Button.KEY_SPACE)) {
             session.ContinueTalk();
         }

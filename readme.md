@@ -105,8 +105,8 @@ into weapons and armor.
   and the character walks over and talks. Talk takes the place of the
   chat box: what is said, on parchment, under the speaker's name and
   beside a square standing in for their portrait, with the other person
-  on the left and your character on the right. Click the box, or press
-  Space, to read on. Sometimes you are offered things to say; click one,
+  on the left and your character on the right. Click "Click here to
+  continue", or press Space, to read on. Sometimes you are offered things to say; click one,
   or press its number. Doing anything else ends the talk.
 - **A first quest.** Harl asks for a bronze axe. Agree, and he gives you
   a pickaxe if you have none. Mine, smelt, and smith the axe, bring it
@@ -171,6 +171,12 @@ into weapons and armor.
   with the CRT filter or without. It is heavy work for the processor.
   The signal is a port of
   [NTSC-CRT by EMMIR](https://github.com/LMP88959/NTSC-CRT).
+- **Tuning.** With the CRT filter or a video signal on, F1 in the
+  world opens a list of everything about them that can be adjusted:
+  scanlines, the shadow mask, glow, noise on the cable, the set's
+  color controls, and more. Up and Down choose, Left and Right turn
+  (Shift for bigger steps), Delete puts one back, F2 all. What you
+  turn shows at once and is remembered.
 - **The CRT filter.** Off unless you turn it on. It shows the picture
   as a cathode ray tube would: scanlines, a shadow mask, a little glow.
   It needs a graphics driver with shaders and a screen big enough for
@@ -232,12 +238,13 @@ The game keeps a folder per user:
   - `maxFps` - frame rate cap, used when vsync is off or ignored.
   - `crt` - `true` or `false`: the CRT filter.
   - `signal` - `rgb`, `svideo`, or `composite`: the video signal.
-  - `signalNoise` - 0 to 100: noise on the video cable. There is no
-    widget for it. By about 40 the picture struggles to hold still.
   - `walkStyle` - `steady` or `pulse`. With `steady`, a walk eases away
     from a standstill, holds an even speed, and eases to a stop. With
     `pulse`, every tile is eased into and out of, so a long walk surges
     once per tile.
+- `tuning.ini` holds any settings of the CRT filter and the video
+  signal that have been changed from the tuning panel. Delete it to
+  put them all back.
 - `session.log` describes the most recent run, including which graphics
   driver was found and what size the picture ended up. Look here first when
   something is wrong.
@@ -290,6 +297,7 @@ which is what makes that practical.
 | `DataDir`, `Settings`, `Natives` | The per-user folder, the settings and the writing of `config.ini`, LWJGL's native libraries |
 | `Crt` | The CRT filter: shows the two layers through the shader in `shaders/crt.frag`, where the look is set |
 | `Ntsc` | A television signal: turns a picture into the voltage on an NTSC cable and back, as composite video or S-Video. A port of EMMIR's NTSC-CRT |
+| `Tuning`, `TuningPanel` | Every adjustable number of the CRT filter and the video signal, kept in `tuning.ini`, and the list on screen that turns them |
 | `Signal` | The video cable option: puts the two layers onto a signal and gives back the picture a set would show |
 | `Screen`, `Palette` | The window, the picture's size, and its colors, from `palette.json`. `Screen` shows two layers, the world and the interface over it, and can slide the world by less than a game pixel |
 | `Layout` | Where things are on the game frame, from `layout.json` |
