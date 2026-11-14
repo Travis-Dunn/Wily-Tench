@@ -22,8 +22,8 @@ import com.alchemysoftware.whitetail.log.Logger;
  * back. The file may also be edited by hand while the game is closed.
  *
  * Fullscreen and the CRT filter are fixed when the window is made, so
- * a change to either takes effect the next time the game starts. The others can be acted on at
- * once by whoever changes them.
+ * a change to either takes effect the next time the game starts. The
+ * others can be acted on at once by whoever changes them.
  */
 final class Settings {
     static final String KEY_FULLSCREEN = "fullscreen";
