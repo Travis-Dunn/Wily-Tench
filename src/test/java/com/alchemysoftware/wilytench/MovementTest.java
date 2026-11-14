@@ -222,7 +222,7 @@ public class MovementTest {
     }
 
     public void testTheCameraTrailsThenCatchesUp() {
-        Camera camera = new Camera(1);
+        Camera camera = new Camera(1, 1);
 
         camera.Snap(100, 50);
         Check("snaps exactly", camera.X() == 100 && camera.Y() == 50);
@@ -238,7 +238,7 @@ public class MovementTest {
     }
 
     public void testTheCameraMovesTheSameAtAnyFrameRate() {
-        Camera slow = new Camera(1), fast = new Camera(1);
+        Camera slow = new Camera(1, 1), fast = new Camera(1, 1);
 
         slow.Snap(0, 0);
         fast.Snap(0, 0);
@@ -251,7 +251,7 @@ public class MovementTest {
     }
 
     public void testTheCharacterDoesNotShiverOnScreenDuringASteadyWalk() {
-        Camera camera = new Camera(1);
+        Camera camera = new Camera(1, 1);
         double exact = 0, speed = TILE / 0.6;      /* a tile per tick */
         int changes = 0, reversals = 0, last = 0, lastDirection = 0;
 
@@ -281,7 +281,7 @@ public class MovementTest {
     }
 
     public void testTheWorldScrollsInStepWithTheCharacterOnceSettled() {
-        Camera camera = new Camera(1);
+        Camera camera = new Camera(1, 1);
         double exact = 0, speed = TILE / 0.6;
         int frame;
 
@@ -317,7 +317,7 @@ public class MovementTest {
     }
 
     public void testASteadyWalkStaysLockedAtAFineGrain() {
-        Camera camera = new Camera(4);
+        Camera camera = new Camera(4, 4);
         double exact = 0, speed = TILE / 0.6;
         int frame;
 
@@ -350,7 +350,7 @@ public class MovementTest {
      */
     private static int WalkACorner(int framesPerSecond, int grain) {
         final int EAST = 3, SOUTH = 4, TICKS = EAST + SOUTH + 3;
-        Camera camera = new Camera(grain);
+        Camera camera = new Camera(grain, grain);
         int frames = (int) (TICKS * 0.6 * framesPerSecond);
         int most = (framesPerSecond >= 60 ? 1 : 2) * grain;
         int pixelX = 0, pixelY = 0, parts = 0;

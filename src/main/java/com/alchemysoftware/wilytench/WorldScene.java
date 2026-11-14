@@ -138,7 +138,7 @@ final class WorldScene extends Scene {
         session = Session.Create(Content.Maps(), Content.ScriptFiles(),
                 chat, new Random());
         if (session == null) return;
-        camera = new Camera(Screen.Grain());
+        camera = new Camera(Screen.GrainX(), Screen.GrainY());
         tiles = TileView.Create(session.Here(), Screen.GetWorldW(),
                 Screen.GetWorldH());
         if (tiles == null) {

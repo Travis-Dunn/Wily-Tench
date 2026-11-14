@@ -8,7 +8,8 @@ package com.alchemysoftware.wilytench;
  * a little behind a walk and drifts to rest after the walk stops.
  *
  * Positions here are counted in fine pixels: the grain is how many of
- * them make a game pixel, and is how many screen pixels do. The
+ * them make a game pixel, and is by how small a step Screen can slide
+ * the world, which need not be the same across as up and down. The
  * character's picture is always drawn at a whole game pixel. The view
  * may sit at any fine pixel, because Screen can slide the picture of
  * the world by less than a game pixel. At a grain of one the two are
@@ -60,7 +61,7 @@ final class Camera {
      */
     private static final double TRAIL_LIMIT = 3.0;
 
-    private final int grain;
+    private final int grainX, grainY;
 
     /* Where the camera truly is, in game pixels. */
     private double x, y;
@@ -70,16 +71,21 @@ final class Camera {
     private int viewX, viewY;
 
     /**
-     * @param grain how many fine pixels make a game pixel: at least 1
+     * @param grainX how many fine pixels make a game pixel across: at
+     *               least 1
+     * @param grainY how many do up and down
      */
-    Camera(int grain) { this.grain = grain; }
+    Camera(int grainX, int grainY) {
+        this.grainX = grainX;
+        this.grainY = grainY;
+    }
 
     /** Jumps straight to a point, as after arriving somewhere new. */
     void Snap(int aimX, int aimY) {
         x = aimX;
         y = aimY;
-        viewX = aimX * grain;
-        viewY = aimY * grain;
+        viewX = aimX * grainX;
+        viewY = aimY * grainY;
         trailX = trailY = 0;
     }
 
@@ -102,31 +108,31 @@ final class Camera {
 
         /* With the trail left alone, the view moves as the picture
            did. */
-        trailX = Settle(trailX, (exactX - x) * grain,
-                pixelX * grain - trailX - viewX, travelX);
-        trailY = Settle(trailY, (exactY - y) * grain,
-                pixelY * grain - trailY - viewY, travelY);
-        viewX = pixelX * grain - trailX;
-        viewY = pixelY * grain - trailY;
+        trailX = Settle(trailX, (exactX - x) * grainX,
+                pixelX * grainX - trailX - viewX, travelX, grainX);
+        trailY = Settle(trailY, (exactY - y) * grainY,
+                pixelY * grainY - trailY - viewY, travelY, grainY);
+        viewX = pixelX * grainX - trailX;
+        viewY = pixelY * grainY - trailY;
     }
 
     /**
      * @return the map pixel at the left edge of the view: the game
      *         pixel the view is at or just past
      */
-    int X() { return TileView.FloorDiv(viewX, grain); }
+    int X() { return TileView.FloorDiv(viewX, grainX); }
 
     /** @return the map pixel at the top edge of the view, likewise */
-    int Y() { return TileView.FloorDiv(viewY, grain); }
+    int Y() { return TileView.FloorDiv(viewY, grainY); }
 
     /**
      * @return how many fine pixels the view is past X(): 0 to one
      *         less than the grain
      */
-    int FineX() { return viewX - X() * grain; }
+    int FineX() { return viewX - X() * grainX; }
 
     /** @return how many fine pixels the view is past Y(), likewise */
-    int FineY() { return viewY - Y() * grain; }
+    int FineY() { return viewY - Y() * grainY; }
 
     /*
      * Decides the trail for one frame, across or up and down, in fine
@@ -137,8 +143,10 @@ final class Camera {
      * held   - how far the view moves this frame if the trail is kept
      * travel - how far the camera truly moved this frame; only its
      *          direction is used
+     * grain  - how many fine pixels make a game pixel
      */
-    private int Settle(int trail, double exact, int held, double travel) {
+    private static int Settle(int trail, double exact, int held,
+                              double travel, int grain) {
         double off = Math.abs(exact - trail);
 
         if (off <= TRAIL_SLACK) return trail;

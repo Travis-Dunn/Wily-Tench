@@ -190,11 +190,45 @@ together on the screen with OpenGL 1.1:
   game hands over two layers and an offset, and what shows them can
   differ by machine. Today there is one presenter, fixed-function
   OpenGL 1.1, which is meant to suit the ThinkPad too. The CRT filter
-  would be a second, a shader sampling both layers. If LWJGL cannot
+  is the second, a shader sampling both layers (below). If LWJGL cannot
   open a window on Windows 98 (feedback A2), a third would put the
   layers together in memory and ignore the slide. The mouse still
   reads the world in whole game pixels, so a click can be off by less
   than one.
+
+**The CRT filter.** Built in the third session, as the second
+presenter. Travis has written such filters himself, owns CRTs, and
+named Bisqwit's write-up (github.com/bisqwit/crt-filter) as the best
+he knows; the filter follows that write-up's steps. That repository
+has no licence, so none of its code was used.
+
+- **It is an option, off by default**, `crt` in `config.ini` and a
+  checkbox on the options screen, decided at launch like fullscreen.
+  Travis was firm that it must be optional.
+- **`Crt.java` runs it; `shaders/crt.frag` is it.** One fragment
+  shader, GLSL 1.20, one pass, no framebuffer objects. The shader's
+  opening comment lists the steps, and the constants under "To taste"
+  are the look: scanline width and depth, mask depth, glow, beam blur.
+  Travis has not seen it yet and will have opinions; expect to tune.
+- **It needs OpenGL 2.0 and at least three screen pixels to a game
+  pixel.** Without either, the game logs why and carries on unfiltered,
+  and the options screen says "Not possible here" beside the checkbox.
+- **It moves light and adds none.** Measured on screenshots, every
+  flat area averages to the same linear color with the filter as
+  without, to three decimals. That took two departures from the
+  write-up, both explained in the shader: the scanlines and mask are
+  held back for colors with no headroom, and the glow is mixed in, not
+  added. A brighter, bloomier picture is a matter of changing that.
+- **No curvature, vignette, noise, or flicker**, deliberately: those
+  are what make such filters disliked, and curvature would bend the
+  mouse.
+- **Up and down, the world moves in whole game pixels with the filter
+  on** (`Screen.GrainY()` is 1): a row of game pixels is a scanline.
+  Across, it still slides by screen pixels. If that looks chunky on a
+  vertical walk, the alternative is to blend two rows of the world
+  into each scanline, at the cost of a soft world whenever the slide
+  is not zero.
+- **Only seen on Mesa's software OpenGL**, in still frames.
 
 **Travis's own sprites have begun to arrive**, in `art/`, in carp32:
 
@@ -403,11 +437,6 @@ Known limits of step 1:
 
 ## What Travis has said is coming
 
-- **A post-processing CRT filter** for modern machines, which is why the
-  picture was made small: it looks better the more real pixels there are
-  to a game pixel. Once the picture is presented through a shader, the
-  camera's leftover fraction of a pixel can be applied there, which is
-  the real cure for the grit.
 - **Menu options as properties of the thing**, in data. He said the
   drawing came first and the options would be ironed out later.
   `Actions.java` builds the lists today.
@@ -488,7 +517,7 @@ These applied to the session that wrote this; check they still hold.
   There is no window manager, so it cannot be seen maximized.
 - A system message box (the options screen's, or a fatal error's) blocks
   the game until it is clicked.
-- The next free feedback ID is C49.
+- The next free feedback ID is C50.
 - A fatal error opens a modal dialog and the run hangs. Read
   `fatal.log` and `session.log` in the data directory.
 - Clicking by screen coordinates is error-prone because the view moves.

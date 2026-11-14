@@ -65,7 +65,8 @@ run on Windows of any age.
 | C43 | `Assets.DiscardTicks()` throws ticks away in scenes where the world stands still |
 | C44 | `OptionsScene.java` asks for a relaunch and calls `JOptionPane` itself |
 | C47 | `IndexedPng.java` reads indexed-color PNGs |
-| C48 | `Screen.java` keeps a second texture for the world layer and draws it with `GL11` itself |
+| C48 | `Screen.java` keeps a second texture for the world layer and draws it with `GL11` itself; `Crt.java` keeps a third, for the picture |
+| C49 | `Crt.java` compiles and runs its shader with `GL20` calls of its own |
 | C37 | `Scripts.java` splits asking and answering into `make_open` and `make_item`, and `choiceN` and `chosen`, with the pick kept in `Session` |
 | C45 | `Scripts.java` registers `choice2`, `choice3`, and `choice4` |
 | C38 | `Scripts.java` registers `inv_del_n` because a script cannot count |
@@ -855,9 +856,37 @@ same two layers as shader inputs, so a framebuffer component that can
 hold several pictures and hand their textures to a later stage would
 serve both the old path and the new one.
 
+The CRT filter came next and could use none of the component. A shader
+needs the picture as a texture it can sample, and the component's
+texture is private, so with the filter on the game uploads the picture
+to a texture of its own as well (`Crt.java`) and
+`GL12SoftwareFramebuffer` only lends its `int[]`. A `GetTexture()`, or
+a `Upload()` separate from the drawing in `Present()`, would have been
+enough.
+
 A small one met on the way: the component's fatal checks and GL error
 strings (`CheckGlErrorInit`, `GlErrorString`) are private, so the game's
 second texture reports a bare error number.
+
+**C49. The shader support is for an OpenGL 3.3 core context only.**
+*(Read)*
+Status: open.
+`comp-renderer-gl33` has a `ShaderProgram`, but the component is written
+for a 3.3 core context, and this game cannot ask for one: it asks for
+1.0, the only request old drivers answer (A4), and takes whatever
+compatibility context comes back. The CRT filter is one fragment shader
+in GLSL 1.20 over fixed-function vertices, which any OpenGL 2.0 driver
+runs, so the game compiles, links, and sets uniforms with `GL20` calls
+of its own (`Crt.java`), a hundred lines every game with a
+post-processing effect on the software framebuffer will repeat. A small
+shader class with no assumptions about profile, or a framebuffer
+component that takes an optional fragment shader for its `Present()`,
+would cover it. Whether `ShaderProgram` would in fact work in a
+compatibility context was not tried.
+
+Related: `Window` reports nothing about what the driver can do. The
+game asks LWJGL directly (`GLContext.getCapabilities().OpenGL20`) to
+decide whether the filter can be offered.
 
 ### D. Things that went well
 

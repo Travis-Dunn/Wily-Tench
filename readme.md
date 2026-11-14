@@ -157,11 +157,16 @@ into weapons and armor.
   which. Options opens the options screen. Quit, or Escape, closes the
   game. From the world, Escape comes back here, and the world stands
   still until you press Play again.
-- **Options.** Fullscreen, vertical sync, the frame rate limit, and the
-  walking style, each with a widget. A change is acted on and written
-  to `config.ini` at once. Fullscreen alone waits for the next launch,
-  and the game says so with a system message box when you leave the
-  screen.
+- **Options.** Fullscreen, vertical sync, the frame rate limit, the
+  walking style, and the CRT filter, each with a widget. A change is
+  acted on and written to `config.ini` at once. Fullscreen and the CRT
+  filter wait for the next launch, and the game says so with a system
+  message box when you leave the screen.
+- **The CRT filter.** Off unless you turn it on. It shows the picture
+  as a cathode ray tube would: scanlines, a shadow mask, a little glow.
+  It needs a graphics driver with shaders and a screen big enough for
+  three screen pixels to each game pixel, as a 1920 by 1080 desktop
+  is; where it cannot be used the options screen says so.
 
 There are no monsters yet.
 
@@ -216,6 +221,7 @@ The game keeps a folder per user:
   - `fullscreen` - `true` or `false`.
   - `vsync` - `true` or `false`.
   - `maxFps` - frame rate cap, used when vsync is off or ignored.
+  - `crt` - `true` or `false`: the CRT filter.
   - `walkStyle` - `steady` or `pulse`. With `steady`, a walk eases away
     from a standstill, holds an even speed, and eases to a stop. With
     `pulse`, every tile is eased into and out of, so a long walk surges
@@ -270,6 +276,7 @@ which is what makes that practical.
 | `Skin` | The widgets' pictures, assembled from cells of the interface art named in `interface.json` |
 | `PushButton`, `Buttons`, `Toggle`, `Slider` | The widgets: push buttons and the clicking of them, checkboxes and option buttons, sliders |
 | `DataDir`, `Settings`, `Natives` | The per-user folder, the settings and the writing of `config.ini`, LWJGL's native libraries |
+| `Crt` | The CRT filter: shows the two layers through the shader in `shaders/crt.frag`, where the look is set |
 | `Screen`, `Palette` | The window, the picture's size, and its colors, from `palette.json`. `Screen` shows two layers, the world and the interface over it, and can slide the world by less than a game pixel |
 | `Layout` | Where things are on the game frame, from `layout.json` |
 | `Bitmap`, `IndexedPng` | Whole pictures of any size, such as the game frame, read from PNG files |

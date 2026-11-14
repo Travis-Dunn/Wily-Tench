@@ -44,9 +44,12 @@ import com.alchemysoftware.whitetail.window.Window;
  * pixel to a game pixel there is nothing to slide by, and the result
  * is what one layer would have shown.
  *
- * The picture goes through Whitetail's framebuffer. That draws one
- * texture in one place, so the world layer is a second texture kept
- * here, drawn with OpenGL 1.1 and nothing later.
+ * There are two ways of putting the layers on the screen. The plain
+ * one is here and needs OpenGL 1.1 and nothing later: the picture
+ * goes through Whitetail's framebuffer, which draws one texture in one
+ * place, and the world layer is a second texture kept here. The other
+ * is the CRT filter, in Crt, used when the player has asked for it and
+ * the machine can do it.
  */
 final class Screen {
     static final String TITLE = "Wily Tench";
@@ -64,7 +67,7 @@ final class Screen {
        down, so that sliding it uncovers nothing. */
     private static final int WORLD_SPARE = 1;
 
-    private static boolean windowInit, fbInit;
+    private static boolean windowInit, fbInit, crt;
 
     private static DisplayLayout layout;
     private static GLSourceTexelLayout srcLayout;
@@ -74,7 +77,7 @@ final class Screen {
     private static byte[] worldBuf;
     private static int[] worldPixels;
     private static IntBuffer worldUpload;
-    private static int worldW, worldH, worldTex;
+    private static int worldW, worldH, worldTexW, worldTexH, worldTex;
     private static float worldU, worldV;
     private static boolean worldShown;
     private static int worldFineX, worldFineY;
@@ -84,9 +87,12 @@ final class Screen {
     /**
      * Creates the window and its framebuffer.
      *
+     * @param wantCrt whether to show the picture through the CRT
+     *                filter, if this machine can
      * @return false after a fatal error has been reported
      */
-    static boolean Init(boolean fullscreen, boolean vSync) {
+    static boolean Init(boolean fullscreen, boolean vSync,
+                        boolean wantCrt) {
         /* Each query reports its own fatal error, so stop at the first
            rather than show the player two dialogs for one problem. */
         int desktopW = Window.GetDesktopWidth();
@@ -141,6 +147,8 @@ final class Screen {
         }
 
         if (!InitWorld()) return false;
+        crt = wantCrt && Crt.Init(layout, srcLayout, worldTex, worldW,
+                worldH, worldTexW, worldTexH);
 
         Logger.LogSession(LogLevel.DEBUG, LogStrLayout(desktopW, desktopH));
         return true;
@@ -154,6 +162,8 @@ final class Screen {
         worldH = layout.viewportHeight + WORLD_SPARE;
         while (texW < worldW) texW <<= 1;
         while (texH < worldH) texH <<= 1;
+        worldTexW = texW;
+        worldTexH = texH;
         worldU = (float) worldW / texW;
         worldV = (float) worldH / texH;
 
@@ -192,10 +202,11 @@ final class Screen {
 
     /** Safe to call after a failed or partial Init(). */
     static void Shutdown() {
+        if (windowInit) Crt.Shutdown();
         if (windowInit && worldTex != 0) GL11.glDeleteTextures(worldTex);
         if (fbInit) GL12SoftwareFramebuffer.Shutdown();
         if (windowInit) Window.Shutdown();
-        fbInit = windowInit = worldShown = false;
+        fbInit = windowInit = worldShown = crt = false;
         layout = null;
         srcLayout = null;
         indexBuf = null;
@@ -211,14 +222,14 @@ final class Screen {
      * picture, and how far to slide it. Lasts until the next
      * Present().
      *
-     * @param fineX how far left to slide it, in screen pixels: 0 to
-     *              one less than Grain()
-     * @param fineY how far up, likewise
+     * @param fineX how far left to slide it: 0 to one less than
+     *              GrainX(), in steps of that fineness
+     * @param fineY how far up, likewise, by GrainY()
      */
     static void ShowWorld(int fineX, int fineY) {
         worldShown = true;
-        worldFineX = fineX;
-        worldFineY = fineY;
+        worldFineX = fineX * (layout.pixelScale / GrainX());
+        worldFineY = fineY * (layout.pixelScale / GrainY());
     }
 
     /**
@@ -235,21 +246,28 @@ final class Screen {
         GL11.glClear(GL11.GL_COLOR_BUFFER_BIT);
 
         /* With the world beneath it, the picture's background is a
-           hole: a pixel with no alpha, which the alpha test drops. */
+           hole: a pixel with no alpha. */
         if (worldShown) {
-            PresentWorld();
+            UploadWorld();
             through = 0;
-            GL11.glAlphaFunc(GL11.GL_GREATER, 0.5f);
-            GL11.glEnable(GL11.GL_ALPHA_TEST);
         }
-
         for (int i = 0, n = src.length; i < n; i++) {
             int index = src[i] & 0xFF;
             dst[i] = index == Palette.BACKGROUND ? through : pal[index];
         }
-        GL12SoftwareFramebuffer.Present();
 
-        if (worldShown) GL11.glDisable(GL11.GL_ALPHA_TEST);
+        if (crt) {
+            Crt.Present(dst, worldFineX, worldFineY);
+        } else if (worldShown) {
+            /* The alpha test drops the hole's pixels. */
+            DrawWorld();
+            GL11.glAlphaFunc(GL11.GL_GREATER, 0.5f);
+            GL11.glEnable(GL11.GL_ALPHA_TEST);
+            GL12SoftwareFramebuffer.Present();
+            GL11.glDisable(GL11.GL_ALPHA_TEST);
+        } else {
+            GL12SoftwareFramebuffer.Present();
+        }
         worldShown = false;
 
         int glErr = GL11.glGetError();
@@ -257,21 +275,30 @@ final class Screen {
             ErrorHandler.LogFatalAndStop(ErrStrGl(glErr));
     }
 
-    /*
-     * Draws the world layer where the view is, slid up and to the left
-     * by the amount last given to ShowWorld(), and cut off at the
-     * view's own edges.
-     */
-    private static void PresentWorld() {
+    /* Colors the world layer and puts it in its texture. */
+    private static void UploadWorld() {
         byte[] src = worldBuf;
         int[] dst = worldPixels, pal = Palette.PIXELS;
-        int scale = layout.pixelScale;
 
         for (int i = 0, n = src.length; i < n; i++)
             dst[i] = pal[src[i] & 0xFF];
         worldUpload.clear();
         worldUpload.put(dst);
         worldUpload.flip();
+
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, worldTex);
+        GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, worldW, worldH,
+                srcLayout.glFormat, srcLayout.glType, worldUpload);
+        GL11.glBindTexture(GL11.GL_TEXTURE_2D, 0);
+    }
+
+    /*
+     * Draws the world layer where the view is, slid up and to the left
+     * by the amount last given to ShowWorld(), and cut off at the
+     * view's own edges.
+     */
+    private static void DrawWorld() {
+        int scale = layout.pixelScale;
 
         /* Window positions count up from the bottom of the window. */
         int viewLeft = layout.presentationX + layout.viewportX * scale;
@@ -287,8 +314,6 @@ final class Screen {
         GL11.glEnable(GL11.GL_SCISSOR_TEST);
 
         GL11.glBindTexture(GL11.GL_TEXTURE_2D, worldTex);
-        GL11.glTexSubImage2D(GL11.GL_TEXTURE_2D, 0, 0, 0, worldW, worldH,
-                srcLayout.glFormat, srcLayout.glType, worldUpload);
         GL11.glEnable(GL11.GL_TEXTURE_2D);
         GL11.glDisable(GL11.GL_DEPTH_TEST);
         GL11.glDisable(GL11.GL_BLEND);
@@ -343,8 +368,21 @@ final class Screen {
     /** @return the height of the world layer in game pixels */
     static int GetWorldH() { return worldH; }
 
-    /** @return how many screen pixels there are to a game pixel */
-    static int Grain() { return layout.pixelScale; }
+    /**
+     * @return by how small a step the world can be slid across: how
+     *         many of them make a game pixel
+     */
+    static int GrainX() { return layout.pixelScale; }
+
+    /**
+     * @return the same, up and down. Through the CRT filter that is
+     *         whole game pixels only: a row of game pixels is a
+     *         scanline, and a tube cannot draw between its scanlines.
+     */
+    static int GrainY() { return crt ? 1 : layout.pixelScale; }
+
+    /** @return whether the picture is shown through the CRT filter */
+    static boolean CrtInUse() { return crt; }
 
     /** @return the layout, for converting mouse positions */
     static DisplayLayout GetLayout() { return layout; }

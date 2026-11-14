@@ -17,10 +17,12 @@ import com.alchemysoftware.whitetail.window.Window;
  * A change is acted on and written to the file as it is made; there is
  * nothing to confirm. Back, or Escape, returns to the main menu.
  *
- * Fullscreen is the exception: the window is made once, when the game
- * starts, so that change waits for the next start. A line beside the
- * checkbox says so while the setting and the window disagree, and on
- * leaving the screen the system's own message box says so once more.
+ * Fullscreen and the CRT filter are the exceptions: the window is made
+ * once, when the game starts, so those changes wait for the next
+ * start. A line beside the checkbox says so while the setting and the
+ * window disagree, and on leaving the screen the system's own message
+ * box says so once more. The CRT filter's line also says when it is
+ * wanted but this machine cannot do it.
  *
  * The frame rate slider covers the rates worth choosing between. The
  * file allows more; a rate set there by hand that the slider cannot
@@ -30,7 +32,7 @@ final class OptionsScene extends Scene {
     private static final int FRAME_CELLS_W = 22, FRAME_CELLS_H = 12;
     private static final int TITLE_Y = 16;
     private static final int LABEL_X = 28, CONTROL_X = 144;
-    private static final int ROWS_Y = 46, ROW_DY = 24;
+    private static final int ROWS_Y = 44, ROW_DY = 20;
     private static final int NOTE_GAP = 8;
     private static final int RADIO_DX = 64;
     private static final int SLIDER_CELLS = 7;
@@ -39,20 +41,22 @@ final class OptionsScene extends Scene {
     private static final int FPS_MIN = 20, FPS_MAX = 300, FPS_STEP = 10;
 
     private static final int ROW_FULLSCREEN = 0, ROW_VSYNC = 1;
-    private static final int ROW_FPS = 2, ROW_WALK = 3;
+    private static final int ROW_FPS = 2, ROW_WALK = 3, ROW_CRT = 4;
     private static final int BACK = 0;
     private static final int STALE = -1;
 
     private static final String TITLE = "Options";
     private static final String[] LABELS = {
-        "Fullscreen", "Vertical sync", "Frame rate limit", "Walking"
+        "Fullscreen", "Vertical sync", "Frame rate limit", "Walking",
+        "CRT filter"
     };
     private static final String NOTE_RELAUNCH = "After a relaunch";
+    private static final String NOTE_NO_CRT = "Not possible here";
     private static final String NOTE_SAVE_FAILED =
             "The settings could not be saved. See session.log.";
 
     private int frameX, frameY;
-    private Toggle fullscreen, vSync, steady, pulse;
+    private Toggle fullscreen, vSync, steady, pulse, crt;
     private Slider fps;
     private Buttons buttons;
 
@@ -83,6 +87,7 @@ final class OptionsScene extends Scene {
         steady = new Toggle(small, "Steady", controlX, RowY(ROW_WALK), true);
         pulse = new Toggle(small, "Pulse", controlX + RADIO_DX,
                 RowY(ROW_WALK), true);
+        crt = new Toggle(small, "", controlX, RowY(ROW_CRT), false);
 
         buttons = new Buttons(small, new PushButton[] {
             new PushButton("Back",
@@ -122,6 +127,10 @@ final class OptionsScene extends Scene {
         if (fps.Input(pointerX, pointerY, pressed,
                 InputSys.IsDown(Button.MOUSE_LEFT))) {
             Settings.SetMaxFps(fps.Value());
+            changed = true;
+        }
+        if (pressed && crt.Contains(pointerX, pointerY)) {
+            Settings.SetCrt(!Settings.Crt());
             changed = true;
         }
         if (pressed && steady.Contains(pointerX, pointerY))
@@ -181,6 +190,16 @@ final class OptionsScene extends Scene {
         pulse.Draw(small, Settings.WalkStyle() == Mover.STYLE_PULSE,
                 pulse.Contains(pointerX, pointerY));
 
+        crt.Draw(small, Settings.Crt(), false);
+        String crtNote = Settings.Crt() != Settings.LaunchedCrt() ?
+                NOTE_RELAUNCH :
+                Settings.Crt() && !Screen.CrtInUse() ? NOTE_NO_CRT : null;
+        if (crtNote != null) {
+            Text.Draw(small, crtNote, 0, crtNote.length(),
+                    crt.x + Skin.CELL + NOTE_GAP, crt.y + textDy,
+                    Palette.ASH);
+        }
+
         buttons.Draw();
         if (saveFailed) {
             Text.Draw(small, NOTE_SAVE_FAILED, 0, NOTE_SAVE_FAILED.length(),
@@ -192,7 +211,7 @@ final class OptionsScene extends Scene {
 
     @Override
     public void onDestroy() {
-        fullscreen = vSync = steady = pulse = null;
+        fullscreen = vSync = steady = pulse = crt = null;
         fps = null;
         buttons = null;
     }
@@ -209,16 +228,30 @@ final class OptionsScene extends Scene {
         return true;
     }
 
-    /* Goes back to the main menu, first saying, if it is so, that the
-       fullscreen setting is waiting for a relaunch. */
+    /* Goes back to the main menu, first saying, if it is so, that a
+       setting is waiting for a relaunch. */
     private void Leave() {
+        boolean window = Settings.Fullscreen() !=
+                Settings.LaunchedFullscreen();
+        boolean filter = Settings.Crt() != Settings.LaunchedCrt();
+
         Game.GoTo(Game.SCENE_MENU);
-        if (Settings.Fullscreen() == Settings.LaunchedFullscreen()) return;
+        if (!window && !filter) return;
+
+        String message = "";
+        if (window) {
+            message = Settings.Fullscreen() ? MSG_RELAUNCH_FULLSCREEN :
+                    MSG_RELAUNCH_WINDOW;
+        }
+        if (window && filter) message += "\n";
+        if (filter) {
+            message += Settings.Crt() ? MSG_RELAUNCH_CRT :
+                    MSG_RELAUNCH_NO_CRT;
+        }
 
         try {
-            JOptionPane.showMessageDialog(null, Settings.Fullscreen() ?
-                    MSG_RELAUNCH_FULLSCREEN : MSG_RELAUNCH_WINDOW,
-                    Screen.TITLE, JOptionPane.INFORMATION_MESSAGE);
+            JOptionPane.showMessageDialog(null, message, Screen.TITLE,
+                    JOptionPane.INFORMATION_MESSAGE);
         } catch (RuntimeException e) {
             /* A machine with no way to show a message box. The line
                on the screen has already said it. */
@@ -230,6 +263,10 @@ final class OptionsScene extends Scene {
             " will be fullscreen the next time it is started.";
     private static final String MSG_RELAUNCH_WINDOW = Screen.TITLE +
             " will be in a window the next time it is started.";
+    private static final String MSG_RELAUNCH_CRT = "The CRT filter " +
+            "will be on the next time " + Screen.TITLE + " is started.";
+    private static final String MSG_RELAUNCH_NO_CRT = "The CRT filter " +
+            "will be off the next time " + Screen.TITLE + " is started.";
     private static final String ERR_STR_DIALOG = "OptionsScene failed " +
             "to show a message box because an exception was " +
             "encountered.\n";

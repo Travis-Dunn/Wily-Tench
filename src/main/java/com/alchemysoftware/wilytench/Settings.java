@@ -21,8 +21,8 @@ import com.alchemysoftware.whitetail.log.Logger;
  * here, where the options screen changes them, and Save() writes them
  * back. The file may also be edited by hand while the game is closed.
  *
- * Fullscreen is fixed when the window is made, so a change to it takes
- * effect the next time the game starts. The others can be acted on at
+ * Fullscreen and the CRT filter are fixed when the window is made, so
+ * a change to either takes effect the next time the game starts. The others can be acted on at
  * once by whoever changes them.
  */
 final class Settings {
@@ -30,6 +30,7 @@ final class Settings {
     static final String KEY_VSYNC = "vsync";
     static final String KEY_MAX_FPS = "maxFps";
     static final String KEY_WALK_STYLE = "walkStyle";
+    static final String KEY_CRT = "crt";
 
     /* The values walkStyle may have. */
     static final String WALK_STEADY = "steady";
@@ -44,6 +45,7 @@ final class Settings {
 
     private static File file;
     private static boolean fullscreen, launchedFullscreen, vSync;
+    private static boolean crt, launchedCrt;
     private static int maxFps = MAX_FPS_DEFAULT;
     private static int walkStyle = Mover.STYLE_STEADY;
 
@@ -68,6 +70,9 @@ final class Settings {
                 Integer.valueOf(1), Integer.valueOf(WALK_STYLE_MAX_LEN),
                 WALK_STEADY));
 
+        entries.add(new ConfigEntry(KEY_CRT, ConfigEntry.TYPE_BOOL,
+                null, null, Boolean.FALSE));
+
         if (!ConfigFileParser.Init(dataDir, entries)) return false;
 
         file = new File(dataDir, FILENAME);
@@ -76,6 +81,8 @@ final class Settings {
         vSync = ConfigFileParser.GetBool(KEY_VSYNC);
         maxFps = ConfigFileParser.GetInt(KEY_MAX_FPS);
         walkStyle = ReadWalkStyle(ConfigFileParser.GetStr(KEY_WALK_STYLE));
+        crt = ConfigFileParser.GetBool(KEY_CRT);
+        launchedCrt = crt;
         return true;
     }
 
@@ -94,6 +101,17 @@ final class Settings {
 
     /** @return Mover.STYLE_STEADY or Mover.STYLE_PULSE */
     static int WalkStyle() { return walkStyle; }
+
+    /** @return whether the CRT filter is wanted */
+    static boolean Crt() { return crt; }
+
+    /**
+     * @return whether the CRT filter was wanted when this run of the
+     *         game began, whatever the setting says now
+     */
+    static boolean LaunchedCrt() { return launchedCrt; }
+
+    static void SetCrt(boolean on) { crt = on; }
 
     static void SetFullscreen(boolean on) { fullscreen = on; }
 
@@ -131,13 +149,14 @@ final class Settings {
             String[] merged = Merge(lines.toArray(new String[lines.size()]),
                     new String[] {
                         KEY_FULLSCREEN, KEY_VSYNC, KEY_MAX_FPS,
-                        KEY_WALK_STYLE
+                        KEY_WALK_STYLE, KEY_CRT
                     },
                     new String[] {
                         String.valueOf(fullscreen), String.valueOf(vSync),
                         String.valueOf(maxFps),
                         walkStyle == Mover.STYLE_PULSE ?
-                        WALK_PULSE : WALK_STEADY
+                        WALK_PULSE : WALK_STEADY,
+                        String.valueOf(crt)
                     });
 
             writer = new PrintWriter(new FileWriter(file));
